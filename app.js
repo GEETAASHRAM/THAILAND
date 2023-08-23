@@ -113,69 +113,121 @@ document.getElementById('searchInput').addEventListener('keyup', function (event
 });
 
 function searchWord() {
-    const searchTerm = searchInput.value.trim().toLowerCase();
+    const searchTerm = searchInput.value.toLowerCase();
 
-    // Hide the main container
-    document.getElementById('container').style.display = 'none';
+    // Clear previous search results
+    searchResults.innerHTML = '';
 
-    const searchResults = document.getElementById('searchResults');
-    searchResults.innerHTML = ''; // Clear previous search results
+    jsonData.forEach(item => {
+        const matches = [];
 
-    // Fetch JSON data if not loaded
-    if (!jsonData) {
-        fetch('data/shlokas_tbl.json')
-            .then(response => response.json())
-            .then(data => {
-                jsonData = data;
-                console.log('fetched json data and will performSearch');
-                performSearch();
-            })
-            .catch(error => console.error('Error loading JSON data:', error));
-    } else {
-        console.log('will performSearch');
-        performSearch();
-    }
-
-    function performSearch() {
-        console.log('will now look for matchingResults');
-        console.log(jsonData);
-        const matchingResults = jsonData.filter(item => {
-            for (const key in item) {
-                if (typeof item[key] === 'string' && item[key].toLowerCase().includes(searchTerm)) {
-                    return true;
-                }
+        // Check for matches in English text fields
+        for (const key in item) {
+            const value = item[key].toLowerCase();
+            if (value.includes(searchTerm)) {
+                matches.push(key);
             }
-            return false;
-        });
-
-        if (matchingResults.length > 0) {
-            matchingResults.forEach(result => {
-                const resultElement = document.createElement('div');
-                resultElement.classList.add('search-result');
-
-                const jsonString = JSON.stringify(result, null, 2);
-                const highlightedJsonString = jsonString.replace(
-                    new RegExp(searchTerm, 'gi'),
-                    match => `<span class="highlight">${match}</span>`
-                );
-
-                const jsonElement = document.createElement('pre');
-                jsonElement.innerHTML = highlightedJsonString;
-                resultElement.appendChild(jsonElement);
-
-                const separator = document.createElement('hr');
-                resultElement.appendChild(separator);
-
-                searchResults.appendChild(resultElement);
-            });
-        } else {
-            // Display a message if no results found
-            const noResultsElement = document.createElement('p');
-            noResultsElement.textContent = 'No results found.';
-            searchResults.appendChild(noResultsElement);
         }
+
+        if (matches.length > 0) {
+            const resultElement = document.createElement('div');
+            resultElement.classList.add('search-result');
+
+            // Display matched fields with highlights
+            for (const key in item) {
+                const value = item[key];
+                const highlightedValue = value.replace(
+                    new RegExp(`(${searchTerm})`, 'gi'),
+                    '<span class="highlight">$1</span>'
+                );
+                resultElement.innerHTML += `<strong>${key}:</strong> ${highlightedValue}<br>`;
+            }
+
+            // Add a separator
+            const separator = document.createElement('hr');
+            resultElement.appendChild(separator);
+
+            searchResults.appendChild(resultElement);
+        }
+    });
+
+    if (searchResults.innerHTML === '') {
+        searchResults.innerHTML = '<p>No results found.</p>';
     }
 }
+
+// Attach the searchWord function to the "Enter" key press event
+searchInput.addEventListener('keyup', event => {
+    if (event.key === 'Enter') {
+        searchWord();
+    }
+});
+
+
+// function searchWord() {
+//     const searchTerm = searchInput.value.trim().toLowerCase();
+
+//     // Hide the main container
+//     document.getElementById('container').style.display = 'none';
+
+//     const searchResults = document.getElementById('searchResults');
+//     searchResults.innerHTML = ''; // Clear previous search results
+
+//     // Fetch JSON data if not loaded
+//     if (!jsonData) {
+//         fetch('data/shlokas_tbl.json')
+//             .then(response => response.json())
+//             .then(data => {
+//                 jsonData = data;
+//                 console.log('fetched json data and will performSearch');
+//                 performSearch();
+//             })
+//             .catch(error => console.error('Error loading JSON data:', error));
+//     } else {
+//         console.log('will performSearch');
+//         performSearch();
+//     }
+
+//     function performSearch() {
+//         console.log('will now look for matchingResults');
+//         console.log(jsonData);
+//         const matchingResults = jsonData.filter(item => {
+//             for (const key in item) {
+//                 if (typeof item[key] === 'string' && item[key].toLowerCase().includes(searchTerm)) {
+//                     return true;
+//                 }
+//             }
+//             return false;
+//         });
+
+//         if (matchingResults.length > 0) {
+//             matchingResults.forEach(result => {
+//                 const resultElement = document.createElement('div');
+//                 resultElement.classList.add('search-result');
+
+//                 const jsonString = JSON.stringify(result, null, 2);
+//                 const highlightedJsonString = jsonString.replace(
+//                     new RegExp(searchTerm, 'gi'),
+//                     match => `<span class="highlight">${match}</span>`
+//                 );
+
+//                 const jsonElement = document.createElement('pre');
+//                 jsonElement.innerHTML = highlightedJsonString;
+//                 resultElement.appendChild(jsonElement);
+
+//                 const separator = document.createElement('hr');
+//                 resultElement.appendChild(separator);
+
+//                 searchResults.appendChild(resultElement);
+//             });
+//         } else {
+//             // Display a message if no results found
+//             const noResultsElement = document.createElement('p');
+//             noResultsElement.textContent = 'No results found.';
+//             searchResults.appendChild(noResultsElement);
+//         }
+//     }
+// }
 
 
 
