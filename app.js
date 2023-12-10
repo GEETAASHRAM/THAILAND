@@ -1,17 +1,17 @@
 const container = document.getElementById('container');
 
-// Initialize Three.js
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer();
-renderer.setSize(window.innerWidth, window.innerHeight);
-container.appendChild(renderer.domElement);
+// // Initialize Three.js
+// const scene = new THREE.Scene();
+// const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+// const renderer = new THREE.WebGLRenderer();
+// renderer.setSize(window.innerWidth, window.innerHeight);
+// container.appendChild(renderer.domElement);
 
-// Create a cube for visualization (replace with your 3D model)
-const geometry = new THREE.BoxGeometry();
-const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-const cube = new THREE.Mesh(geometry, material);
-scene.add(cube);
+// // Create a cube for visualization (replace with your 3D model)
+// const geometry = new THREE.BoxGeometry();
+// const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+// const cube = new THREE.Mesh(geometry, material);
+// scene.add(cube);
 
 // Clear Results button
 document.getElementById('clearButton').addEventListener('click', clearResults);
@@ -224,11 +224,48 @@ async function searchWord() {
     }
 }
 
+// Get toggle buttons
+const sanskritToggle = document.getElementById('sanskrit-toggle');
+const englishToggle = document.getElementById('english-toggle');
+const hindiToggle = document.getElementById('hindi-toggle');
+const descriptionToggle = document.getElementById('description-toggle');
 
-// Render loop
-function animate() {
-    requestAnimationFrame(animate);
-    // Update your 3D scene here
-    renderer.render(scene, camera);
+// Add click event listeners to toggle buttons
+sanskritToggle.addEventListener('click', toggleDisplay);
+englishToggle.addEventListener('click', toggleDisplay);
+hindiToggle.addEventListener('click', toggleDisplay);
+descriptionToggle.addEventListener('click', toggleDisplay);
+
+// Function to toggle display of respective content
+function toggleDisplay(event) {
+    const target = event.target;
+    const targetClass = target.id.split('-')[0];
+
+    if (target.classList.contains('active-toggle')) {
+        target.classList.remove('active-toggle');
+        target.classList.add('inactive-toggle');
+        document.querySelectorAll(`.${targetClass}`).forEach(elem => {
+            elem.style.display = 'none';
+        });
+    } else {
+        target.classList.remove('inactive-toggle');
+        target.classList.add('active-toggle');
+        document.querySelectorAll(`.${targetClass}`).forEach(elem => {
+            elem.style.display = 'block';
+        });
+    }
 }
-animate();
+
+// Default: All sections are displayed
+document.querySelectorAll('.active-toggle').forEach(button => {
+    button.click();
+});
+
+
+// // Render loop
+// function animate() {
+//     requestAnimationFrame(animate);
+//     // Update your 3D scene here
+//     renderer.render(scene, camera);
+// }
+// animate();
