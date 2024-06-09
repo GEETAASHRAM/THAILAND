@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sync Geeta Verses</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        .input-row, .control-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        input[type="text"], input[type="file"], button, textarea {
+            padding: 10px;
+            font-size: 16px;
+            margin: 5px;
+        }
+
+        button {
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        button:disabled {
+            background-color: #999;
+            cursor: not-allowed;
+        }
+
+        audio {
+            display: block;
+            margin: 20px auto;
+            max-width: 100%;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            overflow-x: auto;
+            display: block;
+        }
+
+        table, th, td {
+            border: 1px solid black;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100px;
+        }
+
+        @media (max-width: 600px) {
+            input[type="text"], input[type="file"], button, textarea {
+                width: 100%;
+                margin: 5px 0;
+            }
+
+            .input-row, .control-row {
+                flex-direction: column;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/simple-datatables@latest"></script>
+</head>
+<body>
+    <h1>Sync Geeta Verses</h1>
+    <div class="input-row">
+        <input type="text" id="fileUrlInput" placeholder="Enter audio file URL">
+        <input type="file" id="fileInput">
+        <button id="loadButton" onclick="loadAudio()">Load Audio</button>
+    </div>
+    <audio id="audioPlayer" controls></audio>
+    <div class="control-row">
+        <input type="text" id="prefixInput" placeholder="Enter file name prefix">
+        <input type="text" id="suffixInput" placeholder="Enter file name suffix">
+        <button id="markButton">Mark Verse (Spacebar)</button>
+    </div>
+    <button id="saveButton" onclick="saveData()">Save Data</button>
+    <input type="file" id="loadJsonInput" style="display: none;" onchange="loadJsonFile(event)">
+    <button onclick="document.getElementById('loadJsonInput').click()">Load JSON File</button>
+    <textarea id="jsonDataInput" placeholder="Or paste JSON data here"></textarea>
+    <button onclick="loadJsonData()">Load JSON Data</button>
+    <div style="overflow-x:auto;">
+        <table id="timestampsTable">
+            <thead>
+                <tr>
+                    <th>Start Time</th>
+                    <th>End Time</th>
+                    <th>Sequence</th>
+                    <th>Audio Chunk Name</th>
+                    <th>Audio File</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const audioPlayer = document.getElementById('audioPlayer');
+            const markButton = document.getElementById('markButton');
+            const timestampsTable = document.getElementById('timestampsTable').querySelector('tbody');
+            const loadButton = document.getElementById('loadButton');
+            const fileUrlInput = document.getElementById('fileUrlInput');
+            const fileInput = document.getElementById('fileInput');
+            const prefixInput = document.getElementById('prefixInput');
+            const suffixInput = document.getElementById('suffixInput');
+            let startTime = null;
+            let verseNumber = 1;
+            let dataTable;
+
+            fileUrlInput.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    loadAudio();
+                }
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.code === 'Space' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                    event.preventDefault();
+                    markTimestamp();
+                }
+            });
+
+            markButton.addEventListener('click', () => {
+                markTimestamp();
+            });
+
+            window.loadAudio = function() {
+                const fileUrl = fileUrlInput.value;
+                if (fileUrl) {
+                    audioPlayer.src = fileUrl;
+                } else if (fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        audioPlayer.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+                audioPlayer.load();
+                loadButton.disabled = true;
+                loadButton.textContent = 'Loading...';
+                audioPlayer.addEventListener('loadeddata', () => {
+                    loadButton.disabled = false;
+                    loadButton.textContent = 'Load Audio';
+                });
+            };
+
+            function markTimestamp() {
+                if (startTime === null) {
+                    startTime = audioPlayer.currentTime;
+                } else {
+                    const endTime = audioPlayer.currentTime;
+                    const prefix = prefixInput.value;
+                    const suffix = suffixInput.value;
+                    const chunkName = `${prefix}_Verse-${verseNumber}${suffix}`;
+                    const newRow = document.createElement('tr');
+                    newRow.innerHTML = `
+                        <td>${startTime.toFixed(2)}</td>
+                        <td>${endTime.toFixed(2)}</td>
+                        <td>${verseNumber}</td>
+                        <td>${chunkName}</td>
+                        <td>
+                            <audio controls>
+                                <source src="${audioPlayer.src}#t=${startTime.toFixed(2)},${endTime.toFixed(2)}" type="audio/mpeg">
+                                Your browser does not support the audio element.
+                            </audio>
+                        </td>
+                    `;
+                    timestampsTable.appendChild(newRow);
+                    if (dataTable) {
+                        dataTable.destroy();
+                        dataTable = new simpleDatatables.DataTable("#timestampsTable");
+                    } else {
+                        dataTable = new simpleDatatables.DataTable("#timestampsTable");
+                    }
+                    startTime = endTime;
+                    verseNumber++;
+                }
+            }
+
+            window.saveData = function() {
+                const data = {
+                    audioUrl: audioPlayer.src,
+                    prefix: prefixInput.value,
+                    suffix: suffixInput.value,
+                    timestamps: []
+                };
+
+                timestampsTable.querySelectorAll('tr').forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    data.timestamps.push({
+                        startTime: parseFloat(cells[0].textContent),
+                        endTime: parseFloat(cells[1].textContent),
+                        sequence: parseInt(cells[2].textContent),
+                        chunkName: cells[3].textContent,
+                        audioUrl: cells[4].querySelector('source').src
+                    });
+                });
+
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'data.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            };
+
+            window.loadJsonFile = function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const data = JSON.parse(e.target.result);
+                        loadJsonData(data);
+                    };
+                    reader.readAsText(file);
+                }
+            };
+
+            window.loadJsonData = function(data) {
+                if (typeof data === 'string') {
+                    data = JSON.parse(data);
+                }
+
+                fileUrlInput.value = '';
+                fileInput.value = '';
+                prefixInput.value = data.prefix;
+                suffixInput.value = data.suffix;
+                audioPlayer.src = data.audioUrl;
+                audioPlayer.load();
+
+                timestampsTable.innerHTML = '';
+                data.timestamps.forEach((timestamp, index) => {
+                    const newRow = document.createElement('tr');
+                    newRow.innerHTML = `
+                        <td>${timestamp.startTime.toFixed(2)}</td>
+                        <td>${timestamp.endTime.toFixed(2)}</td>
+                        <td>${timestamp.sequence}</td>
+                        <td>${timestamp.chunkName}</td>
+                        <td>
+                            <audio controls>
+                                <source src="${timestamp.audioUrl}" type="audio/mpeg">
+                                Your browser does not support the audio element.
+                            </audio>
+                        </td>
+                    `;
+                    timestampsTable.appendChild(newRow);
+                });
+
+                if (dataTable) {
+                    dataTable.destroy();
+                    dataTable = new simpleDatatables.DataTable("#timestampsTable");
+                } else {
+                    dataTable = new simpleDatatables.DataTable("#timestampsTable");
+                }
+            };
+
+            document.getElementById('jsonDataInput').addEventListener('input', function() {
+                try {
+                    const data = JSON.parse(this.value);
+                    loadJsonData(data);
+                } catch (e) {
+                    console.error('Invalid JSON data');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
