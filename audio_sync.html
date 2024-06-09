@@ -172,10 +172,11 @@
             };
 
             function markTimestamp() {
+                const currentTime = audioPlayer.currentTime;
                 if (startTime === null) {
-                    startTime = audioPlayer.currentTime;
+                    startTime = currentTime;
                 } else {
-                    const endTime = audioPlayer.currentTime;
+                    const endTime = currentTime;
                     const prefix = prefixInput.value;
                     const suffix = suffixInput.value;
                     const chunkName = `${prefix}_Verse-${verseNumber}${suffix}`;
