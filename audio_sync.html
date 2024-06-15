@@ -16,17 +16,19 @@
             text-align: center;
         }
 
-        .input-row {
+        .input-row, .control-row {
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 10px;
-            margin: 20px 0;
+            gap: 2px;
+            margin: 10px 0;
+            flex-wrap: wrap;
         }
 
         input[type="text"], input[type="file"], button, textarea {
             padding: 10px;
             font-size: 16px;
+            margin: 5px;
         }
 
         button {
@@ -45,12 +47,15 @@
         audio {
             display: block;
             margin: 20px auto;
+            max-width: 100%;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
+            overflow-x: auto;
+/*            display: block;*/
         }
 
         table, th, td {
@@ -66,6 +71,18 @@
             width: 100%;
             height: 100px;
         }
+
+        @media (max-width: 600px) {
+            input[type="text"], input[type="file"], button, textarea {
+                width: 100%;
+                margin: 5px 0;
+            }
+
+            .input-row, .control-row {
+                flex-direction: column;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -75,28 +92,35 @@
         <input type="file" id="fileInput">
         <button id="loadButton" onclick="loadAudio()">Load Audio</button>
     </div>
-    <input type="text" id="prefixInput" placeholder="Enter file name prefix">
-    <input type="text" id="suffixInput" placeholder="Enter file name suffix">
     <audio id="audioPlayer" controls></audio>
-    <button id="markButton">Mark Verse (Spacebar)</button>
-    <button id="saveButton" onclick="saveData()">Save Data</button>
+    <div class="control-row">
+        <input type="text" id="prefixInput" placeholder="Enter file name prefix">
+        <input type="text" id="suffixInput" placeholder="Enter file name suffix">
+        <button id="markButton">Mark Verse (Spacebar)</button>
+    </div>
+
     <input type="file" id="loadJsonInput" style="display: none;" onchange="loadJsonFile(event)">
     <button onclick="document.getElementById('loadJsonInput').click()">Load JSON File</button>
-    <textarea id="jsonDataInput" placeholder="Or paste JSON data here"></textarea>
     <button onclick="loadJsonData()">Load JSON Data</button>
-    <table>
-        <thead>
-            <tr>
-                <th>Start Time</th>
-                <th>End Time</th>
-                <th>Sequence</th>
-                <th>Audio Chunk Name</th>
-                <th>Audio File</th>
-            </tr>
-        </thead>
-        <tbody id="timestampsTable"></tbody>
-    </table>
-
+    <textarea id="jsonDataInput" placeholder="Or paste JSON data here"></textarea>
+    <button id="copyJsonButton" onclick="copyJsonData()">Copy JSON Data</button>
+    <button id="saveButton" onclick="saveData()">Save Data</button>
+    
+    <div style="overflow-x:auto;">
+        <table id="timestampsTable">
+            <thead>
+                <tr>
+                    <th>Start Time</th>
+                    <th>End Time</th>
+                    <th>Duration</th>
+                    <th>Sequence</th>
+                    <th>Audio Chunk Name</th>
+                    <th>Audio File</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const audioPlayer = document.getElementById('audioPlayer');
@@ -151,32 +175,34 @@
 
             function markTimestamp() {
                 if (startTime === null) {
-                    startTime = audioPlayer.currentTime;
-                } else {
-                    const endTime = audioPlayer.currentTime;
-                    const prefix = prefixInput.value;
-                    const suffix = suffixInput.value;
-                    const chunkName = `${prefix}_Verse-${verseNumber}${suffix}`;
-                    const newRow = document.createElement('tr');
-                    newRow.innerHTML = `
-                        <td>${startTime.toFixed(2)}</td>
-                        <td>${endTime.toFixed(2)}</td>
-                        <td>${verseNumber}</td>
-                        <td>${chunkName}</td>
-                        <td>
+                    startTime = 0;//audioPlayer.currentTime;
+                }
+                const endTime = audioPlayer.currentTime;
+                const duration = endTime - startTime; // Calculate duration in seconds
+                const prefix = prefixInput.value;
+                const suffix = suffixInput.value;
+                const chunkName = `${prefix}_Verse-${verseNumber}${suffix}`;
+                const newRow = document.createElement('tr');
+                newRow.innerHTML = `
+                    <td>${startTime.toFixed(2)}</td>
+                    <td>${endTime.toFixed(2)}</td>
+                    <td>${duration.toFixed(2)}</td>
+                    <td>${verseNumber}</td>
+                    <td>${chunkName}</td>
+                    <td>
                             <audio controls>
                                 <source src="${audioPlayer.src}#t=${startTime.toFixed(2)},${endTime.toFixed(2)}" type="audio/mpeg">
                                 Your browser does not support the audio element.
                             </audio>
-                        </td>
-                    `;
-                    timestampsTable.appendChild(newRow);
-                    startTime = endTime;
-                    verseNumber++;
-                }
+                    </td>
+                `;
+                timestampsTable.appendChild(newRow);
+                startTime = endTime;
+                verseNumber++;
+                prepareJson();
             }
 
-            window.saveData = function() {
+            window.prepareJson = function(){
                 const data = {
                     audioUrl: audioPlayer.src,
                     prefix: prefixInput.value,
@@ -186,14 +212,22 @@
 
                 timestampsTable.querySelectorAll('tr').forEach(row => {
                     const cells = row.querySelectorAll('td');
-                    data.timestamps.push({
-                        startTime: parseFloat(cells[0].textContent),
-                        endTime: parseFloat(cells[1].textContent),
-                        sequence: parseInt(cells[2].textContent),
-                        chunkName: cells[3].textContent,
-                        audioUrl: cells[4].querySelector('source').src
-                    });
+                    if (cells.length >= 6) {
+                        data.timestamps.push({
+                            startTime: parseFloat(cells[0].textContent),
+                            endTime: parseFloat(cells[1].textContent),
+                            duration: parseFloat(cells[2].textContent),
+                            sequence: parseInt(cells[3].textContent),
+                            chunkName: cells[4].textContent,
+                            audioUrl: cells[5].querySelector('audio source').src
+                        });
+                    }
                 });
+                document.getElementById('jsonDataInput').value = JSON.stringify(data, null, 2);
+                return data;
+            }
+            window.saveData = function() {
+                const data = prepareJson();
 
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
@@ -222,19 +256,23 @@
                     data = JSON.parse(data);
                 }
 
-                fileUrlInput.value = '';
+                fileUrlInput.value = data.audioUrl;
                 fileInput.value = '';
                 prefixInput.value = data.prefix;
                 suffixInput.value = data.suffix;
                 audioPlayer.src = data.audioUrl;
                 audioPlayer.load();
 
-                timestampsTable.innerHTML = '';
+                // Clear existing rows in the table body (tbody)
+                const tbody = timestampsTable.querySelector('tbody');
+                tbody.innerHTML = '';
+
                 data.timestamps.forEach((timestamp, index) => {
                     const newRow = document.createElement('tr');
                     newRow.innerHTML = `
                         <td>${timestamp.startTime.toFixed(2)}</td>
                         <td>${timestamp.endTime.toFixed(2)}</td>
+                        <td>${timestamp.duration.toFixed(2)}</td>
                         <td>${timestamp.sequence}</td>
                         <td>${timestamp.chunkName}</td>
                         <td>
@@ -244,11 +282,14 @@
                             </audio>
                         </td>
                     `;
-                    timestampsTable.appendChild(newRow);
+                    tbody.appendChild(newRow); // Append the new row to the tbody
+                    // timestampsTable.appendChild(newRow);
                 });
 
                 verseNumber = data.timestamps.length + 1;
                 startTime = data.timestamps.length > 0 ? data.timestamps[data.timestamps.length - 1].endTime : null;
+                audioPlayer.currentTime = startTime == null ? 0 : startTime;
+
             };
 
             document.getElementById('jsonDataInput').addEventListener('input', function() {
@@ -258,6 +299,14 @@
                 }
             });
         });
+
+        window.copyJsonData = function() {
+            const jsonDataInput = document.getElementById('jsonDataInput');
+            jsonDataInput.select();
+            document.execCommand('copy');
+            alert('JSON data copied to clipboard!');
+        };
+
     </script>
 </body>
 </html>
