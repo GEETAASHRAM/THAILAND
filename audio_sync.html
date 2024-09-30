@@ -78,6 +78,10 @@
                 margin: 5px 0;
             }
 
+            input#searchSelect{
+                width: 80%;
+            }
+
             .input-row, .control-row {
                 flex-direction: column;
             }
@@ -88,10 +92,61 @@
             display: inline-block;
         }
 
+        
+
+        /* Styles for the searchable select */
         .searchable-select {
-            width: 100%;
-            padding: 10px;
+            width: 80%;
+            padding: 2px;
+            border: 2px solid transparent;
+            background-color: transparent;
             font-size: 16px;
+            color: #fff;
+            border-radius: 4px;
+            position: relative; /* So that pseudo-elements can act on it */
+            z-index: 1; /* Ensure the select box is above the pseudo-elements */
+            transition: all 0.3s ease-in-out;
+            cursor: pointer;
+        }
+
+        .searchable-select:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2);
+        }
+
+        /* Gradient border effect with animation */
+        .select-container::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            z-index: 0;
+            background: linear-gradient(90deg, #007bff, #00bfff, #00ff7f, #ff00ff);
+            border-radius: 8px;
+            background-size: 600% 600%; /* To create smooth color transition */
+            animation: gradientShift 10s ease infinite;
+        }
+
+        /* Color shifting gradient animation */
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Hover and focus effect */
+        .searchable-select:hover,
+        .searchable-select:focus {
+            outline: none; /* Remove default outline */
+            border-color: transparent; /* Ensure the gradient is visible */
+            z-index: 2; /* Bring the select box above the pseudo-element on hover */
+        }
+
+        /* Ensure the gradient border remains visible on focus */
+        .searchable-select:focus-within + .select-container::before {
+            opacity: 1;
         }
 
         .options-container {
@@ -123,6 +178,11 @@
     <h1>Sync Geeta Verses</h1>
     <div class="input-row">
         <input type="text" id="fileUrlInput" placeholder="Enter audio file URL">
+        <input type="file" id="fileInput">
+        <button id="loadButton" onclick="loadAudio()">Load Audio</button>
+    </div>
+
+    <div class="input-row">
         <div class="select-container">
             <input type="text" id="searchSelect" class="searchable-select" placeholder="Search audio files">
             <div id="optionsContainer" class="options-container hidden">
@@ -148,9 +208,8 @@
                 <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/11%20-%20Chapter%2018.mp3">18) Geeta Chapter 18</div>
             </div>
         </div>
-        <input type="file" id="fileInput">
-        <button id="loadButton" onclick="loadAudio()">Load Audio</button>
     </div>
+
     <audio id="audioPlayer" controls></audio>
     <div class="control-row">
         <input type="text" id="prefixInput" placeholder="Enter file name prefix">
@@ -186,6 +245,8 @@
             
             // JavaScript for the searchable select field
             const searchSelect = document.getElementById('searchSelect');
+            // Store the original placeholder text
+            var originalPlaceholder = searchSelect.getAttribute('placeholder');
             const optionsContainer = document.getElementById('optionsContainer');
             const options = optionsContainer.getElementsByTagName('div');
             const fileUrlInput = document.getElementById('fileUrlInput');
@@ -214,11 +275,31 @@
             // Event listener to select the option and fill the input field
             optionsContainer.addEventListener('click', function(event) {
                 const value = event.target.getAttribute('data-value');
+                searchSelect.value = event.target.textContent.trim();
                 if (value) {
                     fileUrlInput.value = value;
                     optionsContainer.classList.add('hidden');
                 }
             });
+
+            // Function to clear the input field
+            function clearInput() {
+                originalPlaceholder = searchSelect.value;
+                searchSelect.value = '';
+            }
+
+            // Function to restore the original value
+            function restoreOriginalValue() {
+                if (searchSelect.value === '') {
+                    searchSelect.value = originalPlaceholder;
+                }
+            }
+
+            // Event listener for input focus
+            searchSelect.addEventListener('focus', clearInput);
+
+            // Event listener for input blur (focus lost)
+            searchSelect.addEventListener('blur', restoreOriginalValue);
     
             // Hide options when clicking outside
             document.addEventListener('click', function(event) {
