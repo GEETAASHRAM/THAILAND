@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sync Geeta Verses</title>
+    <title>Sync Audio Files</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -44,11 +44,11 @@
             cursor: not-allowed;
         }
 
-        audio {
+        /*audio {
             display: block;
             margin: 20px auto;
             max-width: 100%;
-        }
+        }*/
 
         table {
             width: 100%;
@@ -172,16 +172,82 @@
             display: none;
         }
 
+        /* Button in default position */
+        .mark-button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        /* Button's floating style when user scrolls down */
+        .mark-button.floating {
+            position: fixed;
+            top: 39px;
+            right: 2px;
+            background-color: #007BFF;
+            border-radius: 50%;
+            padding: 15px;
+            width: 39px;
+            height: 39px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .mark-button.floating::before {
+            content: "+";
+            font-size: 20px;
+            color: white;
+        }
+
+        .delete-button {
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        /* Button's floating style when user scrolls down */
+        .delete-button.floating {
+            position: fixed;
+            top: 5px;
+            right: 2px;
+            background-color: red;
+            border-radius: 50%;
+            padding: 15px;
+            width: 39px;
+            height: 39px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .delete-button.floating::before {
+            content: "-";
+            font-size: 20px;
+            color: white;
+        }
+
     </style>
 </head>
 <body>
-    <h1>Sync Geeta Verses</h1>
-    <div class="input-row">
-        <input type="text" id="fileUrlInput" placeholder="Enter audio file URL">
-        <input type="file" id="fileInput">
-        <button id="loadButton" onclick="loadAudio()">Load Audio</button>
-    </div>
-
+    <h1>Sync Audio Files with Lyrics</h1>
+    <h2>Made to sync Geeta Verses</h2>
+    <p>
+        You have 3 options to load audio files
+        <ol>
+            <li>Search from our audio repository and click on "Load Audio"</li>
+            <li>Paste URL to audio file and click on "Load Audio"</li>
+            <li>choose audio file from your local drive and click on "Load Audio"</li>
+        </ol>
+    </p>
     <div class="input-row">
         <div class="select-container">
             <input type="text" id="searchSelect" class="searchable-select" placeholder="Search audio files">
@@ -208,14 +274,22 @@
                 <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/19%20-%20Chapter%2018.mp3">18) Geeta Chapter 18</div>
             </div>
         </div>
+        <input type="text" id="fileUrlInput" placeholder="Enter audio file URL">
+        <input type="file" id="fileInput">
     </div>
 
-    <audio id="audioPlayer" controls></audio>
-    <div class="control-row">
-        <input type="text" id="prefixInput" placeholder="Enter file name prefix">
-        <input type="text" id="suffixInput" placeholder="Enter file name suffix">
-        <button id="markButton">Mark Verse (Spacebar)</button>
+    <div class="input-row">   
+        <button id="loadButton" onclick="loadAudio()">Load Audio</button>
+        <audio id="audioPlayer" controls></audio>
     </div>
+    <div class="control-row">
+        <input type="text" id="prefixInput" placeholder="Enter Prefix for each chunk">
+        <input type="text" id="suffixInput" placeholder="Enter Suffix for each chunk">
+        <button id="markButton" class="mark-button">Mark Verse (Spacebar)</button>
+        <button id="deleteButton" class="delete-button">Delete Verse</button>
+    </div>
+
+
 
     <input type="file" id="loadJsonInput" style="display: none;" onchange="loadJsonFile(event)">
     <button onclick="document.getElementById('loadJsonInput').click()">Load JSON File</button>
@@ -228,15 +302,17 @@
         <table id="timestampsTable">
             <thead>
                 <tr>
+                    <th>Sequence</th>
                     <th>Start Time</th>
                     <th>End Time</th>
                     <th>Duration</th>
-                    <th>Sequence</th>
                     <th>Audio Chunk Name</th>
                     <th>Audio File</th>
                 </tr>
             </thead>
-            <tbody></tbody>
+            <tbody>
+                
+            </tbody> <!-- Explicitly define the tbody -->
         </table>
     </div>
     <script>
@@ -310,13 +386,32 @@
 
             const audioPlayer = document.getElementById('audioPlayer');
             const markButton = document.getElementById('markButton');
+            const deleteButton = document.getElementById('deleteButton');
             const timestampsTable = document.getElementById('timestampsTable');
             const loadButton = document.getElementById('loadButton');
             const fileInput = document.getElementById('fileInput');
             const prefixInput = document.getElementById('prefixInput');
             const suffixInput = document.getElementById('suffixInput');
+            const controlRow = document.querySelector('.control-row');
+            const controlRowOffsetTop = controlRow.offsetTop;
+
             let startTime = null;
             let verseNumber = 1;
+            
+            window.addEventListener('scroll', () => {
+                // console.log(`Y Scrll: ${window.scrollY}, Div Offset:${controlRowOffsetTop}`);
+                if (window.scrollY > controlRowOffsetTop) {
+                    markButton.classList.add('floating');
+                    markButton.textContent = ''; // Clear text content when floating
+                    deleteButton.classList.add('floating');
+                    deleteButton.textContent = ''; // Clear text content when floating
+                } else {
+                    markButton.classList.remove('floating');
+                    markButton.textContent = 'Mark Verse (Spacebar)'; // Restore button text when not floating
+                    deleteButton.classList.remove('floating');
+                    deleteButton.textContent = 'Delete Verse'; // Restore button text when not floating
+                }
+            });
     
             fileUrlInput.addEventListener('keypress', function(event) {
                 if (event.key === 'Enter') {
@@ -357,6 +452,33 @@
                 });
             };
 
+            deleteButton.addEventListener('click', function() {
+                    const tbody = timestampsTable.querySelector('tbody');
+                    if (tbody.rows.length > 0) {
+                        // Remove the last row
+                        const lastRow = tbody.rows[tbody.rows.length - 1];
+                        tbody.removeChild(lastRow);
+
+                        // Reset startTime, endTime, and update verse number
+                        if (tbody.rows.length > 0) {
+                            const previousRow = tbody.rows[tbody.rows.length - 1];
+                            startTime = parseFloat(previousRow.cells[1].textContent); // Reset to the last row's end time
+                            verseNumber--;
+                            audioPlayer.currentTime = startTime;
+                        } else {
+                            startTime = null;
+                            verseNumber = 1;
+                            audioPlayer.currentTime = 0;
+                        }
+
+                        // Update JSON data
+                        prepareJson();
+                    } else {
+                        alert("No previous verse to delete!");
+                    }
+                });
+
+
             function markTimestamp() {
                 if (startTime === null) {
                     startTime = 0;//audioPlayer.currentTime;
@@ -365,19 +487,19 @@
                 const duration = endTime - startTime; // Calculate duration in seconds
                 const prefix = prefixInput.value;
                 const suffix = suffixInput.value;
-                const chunkName = `${prefix}_Verse-${verseNumber}${suffix}`;
+                const chunkName = `${prefix}${verseNumber}${suffix}`;
                 const newRow = document.createElement('tr');
                 newRow.innerHTML = `
+                    <td>${verseNumber}</td>
                     <td>${startTime.toFixed(2)}</td>
                     <td>${endTime.toFixed(2)}</td>
                     <td>${duration.toFixed(2)}</td>
-                    <td>${verseNumber}</td>
                     <td>${chunkName}</td>
                     <td>
-                            <audio controls>
-                                <source src="${audioPlayer.src}#t=${startTime.toFixed(2)},${endTime.toFixed(2)}" type="audio/mpeg">
-                                Your browser does not support the audio element.
-                            </audio>
+                        <audio controls ontimeupdate="checkTime(this, ${startTime.toFixed(2)}, ${endTime.toFixed(2)})">
+                            <source src="${audioPlayer.src}#t=${startTime.toFixed(2)},${endTime.toFixed(2)}" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
                     </td>
                 `;
                 timestampsTable.appendChild(newRow);
@@ -398,10 +520,10 @@
                     const cells = row.querySelectorAll('td');
                     if (cells.length >= 6) {
                         data.timestamps.push({
+                            sequence: parseInt(cells[3].textContent),
                             startTime: parseFloat(cells[0].textContent),
                             endTime: parseFloat(cells[1].textContent),
                             duration: parseFloat(cells[2].textContent),
-                            sequence: parseInt(cells[3].textContent),
                             chunkName: cells[4].textContent,
                             audioUrl: cells[5].querySelector('audio source').src
                         });
@@ -454,13 +576,13 @@
                 data.timestamps.forEach((timestamp, index) => {
                     const newRow = document.createElement('tr');
                     newRow.innerHTML = `
+                        <td>${timestamp.sequence}</td>
                         <td>${timestamp.startTime.toFixed(2)}</td>
                         <td>${timestamp.endTime.toFixed(2)}</td>
                         <td>${timestamp.duration.toFixed(2)}</td>
-                        <td>${timestamp.sequence}</td>
                         <td>${timestamp.chunkName}</td>
                         <td>
-                            <audio controls>
+                            <audio controls ontimeupdate="checkTime(this, ${timestamp.startTime.toFixed(2)}, ${timestamp.endTime.toFixed(2)})">
                                 <source src="${audioPlayer.src}#t=${timestamp.startTime.toFixed(2)},${timestamp.endTime.toFixed(2)}" type="audio/mpeg">
                                 Your browser does not support the audio element.
                             </audio>
@@ -491,6 +613,13 @@
             alert('JSON data copied to clipboard!');
         };
 
+        function checkTime(audio, startTime, endTime) {
+            // console.log(audio, startTime, endTime);
+            if (audio.currentTime > endTime) {
+                audio.pause();
+                audio.currentTime = startTime;
+            }
+        }
     </script>
 </body>
 </html>
