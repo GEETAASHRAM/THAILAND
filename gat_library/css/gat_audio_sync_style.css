@@ -1,0 +1,299 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f0f0f0;
+}
+
+h1 {
+    text-align: center;
+}
+
+.input-row, .control-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 2px;
+    margin: 10px 0;
+    flex-wrap: wrap;
+}
+
+input[type="text"], input[type="file"], button, textarea {
+    padding: 10px;
+    font-size: 16px;
+    margin: 5px;
+}
+
+button {
+    cursor: pointer;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+}
+
+button:disabled {
+    background-color: #999;
+    cursor: not-allowed;
+}
+
+/*audio {
+    display: block;
+    margin: 20px auto;
+    max-width: 100%;
+}*/
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    overflow-x: auto;
+/*            display: block;*/
+}
+
+table, th, td {
+    border: 1px solid black;
+}
+
+th, td {
+    padding: 8px;
+    text-align: left;
+}
+
+textarea {
+    width: 50%;
+    height: 100px;
+    box-sizing: border-box; /* Ensure padding doesn't affect width/height */
+    border-radius: 8px;   /* Rounded corners for a modern look */
+    border: 1px solid #ccc; /* Subtle border */
+    background-color: #f9f9f9; /* Slight background color */
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+    transition: box-shadow 0.3s ease, border-color 0.3s ease; /* Smooth transitions */
+    resize: none;         /* Disable manual resizing */
+}
+
+/* Style for the textarea within the table's TD */
+table tbody tr td textarea.lyricsInput {
+    width: 100%;          /* Make it take full width of the TD */
+    height: 100px;        /* Set a fixed height */
+    box-sizing: border-box; /* Ensure padding doesn't affect width/height */
+    padding: 10px;        /* Add some padding inside the textarea */
+    font-size: 16px;      /* Ensure readable font size */
+    border-radius: 8px;   /* Rounded corners for a modern look */
+    border: 1px solid #ccc; /* Subtle border */
+    background-color: #f9f9f9; /* Slight background color */
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+    transition: box-shadow 0.3s ease, border-color 0.3s ease; /* Smooth transitions */
+    resize: none;         /* Disable manual resizing */
+}
+
+/* Focus state for better interaction feedback */
+table tbody tr td textarea.lyricsInput:focus {
+    outline: none;       /* Remove default outline */
+    border-color: #007BFF; /* Border color when focused */
+    box-shadow: 0px 6px 12px rgba(0, 123, 255, 0.3); /* Larger shadow on focus */
+}
+
+.select-container {
+    position: relative;
+    display: inline-block;
+}
+
+
+
+/* Styles for the searchable select */
+.searchable-select {
+    width: 80%;
+    padding: 2px;
+    border: 2px solid transparent;
+    background-color: transparent;
+    font-size: 16px;
+    color: #fff;
+    border-radius: 4px;
+    position: relative; /* So that pseudo-elements can act on it */
+    z-index: 1; /* Ensure the select box is above the pseudo-elements */
+    transition: all 0.3s ease-in-out;
+    cursor: pointer;
+}
+
+.searchable-select:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2);
+}
+
+/* Gradient border effect with animation */
+.select-container::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    z-index: 0;
+    background: linear-gradient(90deg, #007bff, #00bfff, #00ff7f, #ff00ff);
+    border-radius: 8px;
+    background-size: 600% 600%; /* To create smooth color transition */
+    animation: gradientShift 10s ease infinite;
+}
+
+/* Color shifting gradient animation */
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Hover and focus effect */
+.searchable-select:hover,
+.searchable-select:focus {
+    outline: none; /* Remove default outline */
+    border-color: transparent; /* Ensure the gradient is visible */
+    z-index: 2; /* Bring the select box above the pseudo-element on hover */
+}
+
+/* Ensure the gradient border remains visible on focus */
+.searchable-select:focus-within + .select-container::before {
+    opacity: 1;
+}
+
+.options-container {
+    position: absolute;
+    background-color: white;
+    border: 1px solid #ddd;
+    max-height: 150px;
+    overflow-y: auto;
+    width: 100%;
+    z-index: 1;
+}
+
+.options-container div {
+    padding: 10px;
+    cursor: pointer;
+}
+
+.options-container div:hover {
+    background-color: #f0f0f0;
+}
+
+.hidden {
+    display: none;
+}
+
+/* Button in default position */
+.mark-button {
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+/* Button's floating style when user scrolls down */
+.mark-button.floating {
+    position: fixed;
+    bottom: 39px;
+    right: 2px;
+    background-color: #007BFF;
+    border-radius: 50%;
+    padding: 15px;
+    width: 39px;
+    height: 39px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.mark-button.floating::before {
+    content: "+";
+    font-size: 20px;
+    color: white;
+}
+
+.delete-button {
+    background-color: red;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+/* Button's floating style when user scrolls down */
+.delete-button.floating {
+    position: fixed;
+    top: 5px;
+    right: 2px;
+    background-color: red;
+    border-radius: 50%;
+    padding: 15px;
+    width: 39px;
+    height: 39px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.delete-button.floating::before {
+    content: "-";
+    font-size: 20px;
+    color: white;
+}
+
+@media (max-width: 600px) {
+    input[type="text"], input[type="file"], button, textarea {
+        width: 100%;
+        margin: 5px 0;
+    }
+
+    input#searchSelect{
+        width: 80%;
+    }
+
+    .input-row, .control-row {
+        flex-direction: column;
+    }
+}
+
+/* Make the textarea responsive for different screen sizes */
+@media (max-width: 768px) {
+    table tbody tr td textarea.lyricsInput {
+        font-size: 14px;    /* Slightly smaller text on smaller screens */
+        height: 80px;       /* Adjust height for mobile */
+    }
+
+    input[type="text"], input[type="file"], button, textarea {
+        width: 80%;
+        margin: 5px 0;
+    }
+
+    input#searchSelect{
+        width: 80%;
+    }
+
+    .input-row, .control-row {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 480px) {
+    table tbody tr td textarea.lyricsInput {
+        font-size: 12px;    /* Smaller text for small mobile devices */
+        height: 60px;       /* Even smaller height for very small devices */
+    }
+
+    input[type="text"], input[type="file"], button, textarea {
+        width: 60%;
+        margin: 5px 0;
+    }
+
+    input#searchSelect{
+        width: 60%;
+    }
+
+    .input-row, .control-row {
+        flex-direction: column;
+    }
+}
