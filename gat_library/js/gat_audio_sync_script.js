@@ -306,6 +306,28 @@ document.addEventListener('DOMContentLoaded', () => {
         startTime = data.timestamps.length > 0 ? data.timestamps[data.timestamps.length - 1].endTime : null;
         audioPlayer.currentTime = startTime == null ? 0 : startTime;
 
+        new DataTable('#timestampsTable'
+                ,{
+                    responsive: true,
+                    buttons: [  'copy', 'csv',  'excel', 'print'
+                                ,{
+                                    extend: 'pdfHtml5',
+                                    orientation: 'landscape',
+                                }
+                            ],
+                    layout: {
+                        top2Start: 'buttons'
+                    },
+                    fixedColumns: true,
+                    "searching": true,
+                    "ordering": true,
+                    "info": true,
+                    "lengthChange": true,
+                    "lengthMenu": [[25, 50, 75, -1], [25, 50, 75, "All"]],
+                    "striped": true,
+                    "hover": true
+                }
+        );
     };
 
     document.getElementById('jsonDataInput').addEventListener('input', function() {
