@@ -309,12 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
         new DataTable('#timestampsTable'
                 ,{
                     responsive: true,
-                    buttons: [  'copy', 'csv',  'excel', 'print'
-                                ,{
-                                    extend: 'pdfHtml5',
-                                    orientation: 'landscape',
-                                }
-                            ],
+                    buttons: ['copy', 'csv',  'excel', 'print'],
                     layout: {
                         top2Start: 'buttons'
                     },
