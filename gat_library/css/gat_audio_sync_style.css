@@ -60,7 +60,7 @@ th, td {
     text-align: left;
 }
 
-textarea {
+textarea#jsonDataInput{
     width: 50%;
     height: 100px;
     box-sizing: border-box; /* Ensure padding doesn't affect width/height */
