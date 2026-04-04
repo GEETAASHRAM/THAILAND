@@ -35,6 +35,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressBar = document.getElementById('progressBar');
     const progressText = document.getElementById('progressText');
 
+    const prefixInput = document.getElementById('prefixInput');
+    const suffixInput = document.getElementById('suffixInput');
+
     // =========================================================
     // 🔍 SEARCH DROPDOWN LOGIC
     // =========================================================
@@ -297,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const row = document.createElement('tr');
 
             row.innerHTML = `
-                <td>${verseNumber}</td>
+                <td>${prefixInput.value || ""}${verseNumber}${suffixInput.value || ""}</td>
                 <td contenteditable="true" class="startTime">${startTime.toFixed(2)}</td>
                 <td contenteditable="true" class="endTime">${endTime.toFixed(2)}</td>
                 <td>${duration.toFixed(2)}</td>
@@ -320,7 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     markButton.addEventListener('click', markTimestamp);
-
+    
     document.addEventListener('keydown', (e) => {
         if (e.code === 'Space' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
             e.preventDefault();
@@ -439,9 +442,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // =====================================
+    // 📥 AUTO LOAD ON PASTE + BLUR/ENTER
+    // =====================================
+    jsonInput.addEventListener('blur', () => {
+    
+        try {
+    
+            const value = jsonInput.value.trim();
+    
+            if (!value) return;
+    
+            console.log("📥 Attempting to load pasted JSON");
+    
+            loadJsonData(value);
+    
+        } catch (err) {
+            console.warn("Invalid pasted JSON");
+        }
+    });
+    jsonInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab' || (e.ctrlKey && e.key === 'Enter')) {
+            loadJsonData(jsonInput.value);
+        }
+    });
+    
     // =========================================================
     // 📥 LOAD JSON DATA (DUAL FORMAT)
     // =========================================================
+
     window.loadJsonData = function (data) {
 
         try {
@@ -472,7 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td contenteditable="true" class="startTime">${start}</td>
                     <td contenteditable="true" class="endTime">${end}</td>
                     <td>${(end - start).toFixed(2)}</td>
-                    <td>${i + 1}</td>
+                    <td>${prefixInput.value || ""}${i + 1}${suffixInput.value || ""}</td>
                     <td><textarea>${t.chunkLyrics || ""}</textarea></td>
                     <td><audio controls><source src="${data.audioUrl || ''}"></audio></td>
                 `;
