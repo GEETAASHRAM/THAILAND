@@ -1,349 +1,394 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    
-    // JavaScript for the searchable select field
-    const searchSelect = document.getElementById('searchSelect');
-    // Store the original placeholder text
-    var originalPlaceholder = searchSelect.getAttribute('placeholder');
-    const optionsContainer = document.getElementById('optionsContainer');
-    const options = optionsContainer.getElementsByTagName('div');
-    const fileUrlInput = document.getElementById('fileUrlInput');
+    console.log("🚀 App Initialized");
 
-    searchSelect.addEventListener('input', function() {
-        const filter = searchSelect.value.toLowerCase();
-        let hasVisibleOptions = false;
+    try {
 
-        for (let i = 0; i < options.length; i++) {
-            const text = options[i].textContent || options[i].innerText;
-            if (text.toLowerCase().indexOf(filter) > -1) {
-                options[i].style.display = "";
-                hasVisibleOptions = true;
-            } else {
-                options[i].style.display = "none";
+        // =========================
+        // GLOBAL STATE
+        // =========================
+        let startTime = null;
+        let verseNumber = 1;
+        let isGeetaMode = false;
+
+        let historyStack = [];
+        let redoStack = [];
+
+        window.currentGeetaData = null;
+
+        // =========================
+        // ELEMENT REFERENCES
+        // =========================
+        const audioPlayer = document.getElementById('audioPlayer');
+        const tableBody = document.querySelector('#timestampsTable tbody');
+        const jsonInput = document.getElementById('jsonDataInput');
+
+        const markButton = document.getElementById('markButton');
+        const deleteButton = document.getElementById('deleteButton');
+        const undoButton = document.getElementById('undoButton');
+        const redoButton = document.getElementById('redoButton');
+
+        const fileUrlInput = document.getElementById('fileUrlInput');
+        const fileInput = document.getElementById('fileInput');
+
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+
+        // =========================
+        // 💾 AUTO SAVE
+        // =========================
+        function autoSave() {
+            try {
+                localStorage.setItem("geeta_progress", jsonInput.value);
+                console.log("💾 Auto-saved");
+            } catch (e) {
+                console.warn("Auto-save failed:", e);
             }
         }
 
-        if (hasVisibleOptions) {
-            optionsContainer.classList.remove('hidden');
-        } else {
-            optionsContainer.classList.add('hidden');
+        function loadAutoSave() {
+            try {
+                const saved = localStorage.getItem("geeta_progress");
+                if (saved) {
+                    console.log("📂 Loaded auto-save");
+                    loadJsonData(saved);
+                }
+            } catch (e) {
+                console.warn("Load auto-save failed:", e);
+            }
         }
-    });
 
-    // Event listener to select the option and fill the input field
-    optionsContainer.addEventListener('click', function(event) {
-        const value = event.target.getAttribute('data-value');
-        searchSelect.value = event.target.textContent.trim();
-        if (value) {
-            fileUrlInput.value = value;
-            optionsContainer.classList.add('hidden');
+        setInterval(autoSave, 5000);
+
+        // =========================
+        // 🔁 UNDO / REDO
+        // =========================
+        function saveHistory() {
+            historyStack.push(jsonInput.value);
+            if (historyStack.length > 50) historyStack.shift();
+            redoStack = [];
         }
-    });
 
-    // Function to clear the input field
-    function clearInput() {
-        originalPlaceholder = searchSelect.value;
-        searchSelect.value = '';
-    }
-
-    // Function to restore the original value
-    function restoreOriginalValue() {
-        if (searchSelect.value === '') {
-            searchSelect.value = originalPlaceholder;
+        function undo() {
+            if (historyStack.length === 0) return;
+            redoStack.push(jsonInput.value);
+            jsonInput.value = historyStack.pop();
+            loadJsonData(jsonInput.value);
+            console.log("↩ Undo");
         }
-    }
 
-    // Event listener for input focus
-    searchSelect.addEventListener('focus', clearInput);
-
-    // Event listener for input blur (focus lost)
-    searchSelect.addEventListener('blur', restoreOriginalValue);
-
-    // Hide options when clicking outside
-    document.addEventListener('click', function(event) {
-        if (!event.target.closest('.select-container')) {
-            optionsContainer.classList.add('hidden');
+        function redo() {
+            if (redoStack.length === 0) return;
+            historyStack.push(jsonInput.value);
+            jsonInput.value = redoStack.pop();
+            loadJsonData(jsonInput.value);
+            console.log("↪ Redo");
         }
-    });
 
-    const audioPlayer = document.getElementById('audioPlayer');
-    const markButton = document.getElementById('markButton');
-    const deleteButton = document.getElementById('deleteButton');
-    const timestampsTable = document.getElementById('timestampsTable');
-    const loadButton = document.getElementById('loadButton');
-    const fileInput = document.getElementById('fileInput');
-    const prefixInput = document.getElementById('prefixInput');
-    const suffixInput = document.getElementById('suffixInput');
-    const controlRow = document.querySelector('.control-row');
-    const controlRowOffsetTop = controlRow.offsetTop;
+        undoButton.addEventListener('click', undo);
+        redoButton.addEventListener('click', redo);
 
-    let startTime = null;
-    let verseNumber = 1;
-    
-    window.addEventListener('scroll', () => {
-        // console.log(`Y Scrll: ${window.scrollY}, Div Offset:${controlRowOffsetTop}`);
-        if (window.scrollY > controlRowOffsetTop) {
-            markButton.classList.add('floating');
-            markButton.textContent = ''; // Clear text content when floating
-            deleteButton.classList.add('floating');
-            deleteButton.textContent = ''; // Clear text content when floating
-        } else {
-            markButton.classList.remove('floating');
-            markButton.textContent = 'Mark Verse (Spacebar)'; // Restore button text when not floating
-            deleteButton.classList.remove('floating');
-            deleteButton.textContent = 'Delete Verse'; // Restore button text when not floating
-        }
-    });
-
-    fileUrlInput.addEventListener('keypress', function(event) {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            loadAudio();
-        }
-    });
-
-    document.addEventListener('keydown', (event) => {
-        if (event.code === 'Space' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
-            event.preventDefault();
-            markTimestamp();
-        }
-    });
-
-    markButton.addEventListener('click', () => {
-        markTimestamp();
-    });
-
-    window.loadAudio = function() {
-        const fileUrl = fileUrlInput.value;
-        if (fileUrl) {
-            audioPlayer.src = fileUrl;
-        } else if (fileInput.files.length > 0) {
-            const file = fileInput.files[0];
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                audioPlayer.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-        audioPlayer.load();
-        loadButton.disabled = true;
-        loadButton.textContent = 'Loading...';
-        audioPlayer.addEventListener('loadeddata', () => {
-            loadButton.disabled = false;
-            loadButton.textContent = 'Load Audio';
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'z') undo();
+            if (e.ctrlKey && e.key === 'y') redo();
         });
-    };
 
-    deleteButton.addEventListener('click', function() {
-
-        const timestampsTable = document.getElementById('timestampsTable');
-        const tbody = timestampsTable.querySelector('tbody');
-        if (tbody.rows.length > 0) {
-            // Remove the last row
-            const lastRow = tbody.rows[tbody.rows.length - 1];
-            tbody.removeChild(lastRow);
-
-            // Reset startTime, endTime, and update verse number
-            if (tbody.rows.length > 0) {
-                const previousRow = tbody.rows[tbody.rows.length - 1];
-                startTime = parseFloat(previousRow.cells[1].textContent); // Reset to the last row's end time
-                verseNumber--;
-                audioPlayer.currentTime = startTime;
-            } else {
-                startTime = null;
-                verseNumber = 1;
-                audioPlayer.currentTime = 0;
+        // =========================
+        // 🎧 LOAD AUDIO
+        // =========================
+        window.loadAudio = function () {
+            try {
+                if (fileUrlInput.value) {
+                    audioPlayer.src = fileUrlInput.value;
+                } else if (fileInput.files.length > 0) {
+                    const reader = new FileReader();
+                    reader.onload = e => audioPlayer.src = e.target.result;
+                    reader.readAsDataURL(fileInput.files[0]);
+                } else {
+                    alert("Provide audio source");
+                    return;
+                }
+                audioPlayer.load();
+                console.log("🎧 Audio loaded");
+            } catch (err) {
+                console.error("Audio load error:", err);
             }
-
-            // Update JSON data
-            prepareJson();
-        } else {
-            alert("No previous verse to delete!");
-        }
-    });
-
-    const tableBody = document.querySelector('#timestampsTable tbody');
-    
-    // Track changes to the textarea's content
-    tableBody.addEventListener('input', function(event) {
-        if (event.target && event.target.classList.contains('lyricsInput')) {
-            event.target.dataset.changed = true; // Mark as changed when user types
-        }
-    });
-    // Attach the blur event to all textareas in the table
-    tableBody.addEventListener('blur', function(event) {
-        if (event.target && event.target.classList.contains('lyricsInput')) {
-            // Call prepareJSON only if the text is changed or has content
-            if (event.target.dataset.changed || event.target.value.length > 0) {
-                console.log(event.target.value);
-                prepareJson();
-                delete event.target.dataset.changed; // Reset the changed status after saving
-            }
-        }
-    }, true);  // Use the third argument `true` to capture the event during the capturing phase
-
-
-
-    function markTimestamp() {
-        if (startTime === null) {
-            startTime = 0;//audioPlayer.currentTime;
-        }
-        const endTime = audioPlayer.currentTime;
-        const duration = endTime - startTime; // Calculate duration in seconds
-        const prefix = prefixInput.value;
-        const suffix = suffixInput.value;
-        const chunkName = `${prefix}${verseNumber}${suffix}`;
-        const newRow = document.createElement('tr');
-        newRow.innerHTML = `
-            <td>${verseNumber}</td>
-            <td>${startTime.toFixed(2)}</td>
-            <td>${endTime.toFixed(2)}</td>
-            <td>${duration.toFixed(2)}</td>
-            <td>${chunkName}</td>
-            <td><textarea class="lyricsInput" placeholder="Enter lyrics here"></textarea></td>
-            <td>
-                <audio controls ontimeupdate="checkTime(this, ${startTime.toFixed(2)}, ${endTime.toFixed(2)})">
-                    <source src="${audioPlayer.src}#t=${startTime.toFixed(2)},${endTime.toFixed(2)}" type="audio/mpeg">
-                    Your browser does not support the audio element.
-                </audio>
-            </td>
-        `;
-        timestampsTable.appendChild(newRow);
-        startTime = endTime;
-        verseNumber++;
-        prepareJson();
-    }
-
-    window.prepareJson = function(){
-        const data = {
-            audioUrl: audioPlayer.src,
-            prefix: prefixInput.value,
-            suffix: suffixInput.value,
-            timestamps: []
         };
 
-        timestampsTable.querySelectorAll('tr').forEach(row => {
-            const cells = row.querySelectorAll('td');
-            if (cells.length >= 6) {
-                const textarea = cells[5].querySelector('textarea');
-                const chunkLyrics = textarea ? textarea.value : '';
-                data.timestamps.push({
-                    sequence: parseInt(cells[0].textContent),
-                    startTime: parseFloat(cells[1].textContent),
-                    endTime: parseFloat(cells[2].textContent),
-                    duration: parseFloat(cells[3].textContent),
-                    chunkName: cells[4].textContent,
-                    chunkLyrics: chunkLyrics,
-                    audioUrl: cells[6].querySelector('audio source').src
-                });
+        // =========================
+        // 🔥 AUTO HIGHLIGHT + SCROLL
+        // =========================
+        audioPlayer.addEventListener('timeupdate', () => {
+
+            const rows = tableBody.querySelectorAll('tr');
+
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length < 3) return;
+
+                const start = parseFloat(cells[1]?.textContent);
+                const end = parseFloat(cells[2]?.textContent);
+
+                if (!isNaN(start) && !isNaN(end)) {
+
+                    if (audioPlayer.currentTime >= start && audioPlayer.currentTime <= end) {
+                        row.style.background = "#ffeaa7";
+                        row.scrollIntoView({ behavior: "smooth", block: "center" });
+                    } else {
+                        row.style.background = "";
+                    }
+                }
+            });
+        });
+
+        // =========================
+        // 📊 PROGRESS
+        // =========================
+        function updateProgress() {
+            if (!isGeetaMode || !window.currentGeetaData) return;
+
+            let total = window.currentGeetaData.length;
+            let completed = window.currentGeetaData.filter(v => v.AudioEnd > 0).length;
+            let percent = Math.round((completed / total) * 100);
+
+            progressBar.style.width = percent + "%";
+            progressText.innerText = `Progress: ${completed}/${total} (${percent}%)`;
+        }
+
+        // =========================
+        // 🧠 MARK TIMESTAMP
+        // =========================
+        function markTimestamp() {
+
+            const currentTime = audioPlayer.currentTime;
+
+            if (isGeetaMode) {
+                const row = tableBody.querySelectorAll('tr')[verseNumber - 1];
+                if (!row) return;
+
+                const startCell = row.querySelector('.startTime');
+                const endCell = row.querySelector('.endTime');
+
+                if (!startCell.textContent || startCell.textContent === "0") {
+                    startCell.textContent = currentTime.toFixed(2);
+                } else {
+                    endCell.textContent = currentTime.toFixed(2);
+                    verseNumber++;
+                }
+
+                prepareGeetaJson();
+                updateProgress();
+                saveHistory();
+                return;
+            }
+
+            if (startTime === null) startTime = 0;
+
+            const endTime = currentTime;
+            const duration = endTime - startTime;
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${verseNumber}</td>
+                <td contenteditable="true" class="startTime">${startTime.toFixed(2)}</td>
+                <td contenteditable="true" class="endTime">${endTime.toFixed(2)}</td>
+                <td>${duration.toFixed(2)}</td>
+                <td>${verseNumber}</td>
+                <td><textarea></textarea></td>
+                <td><audio controls><source src="${audioPlayer.src}#t=${startTime},${endTime}"></audio></td>
+            `;
+
+            tableBody.appendChild(row);
+
+            startTime = endTime;
+            verseNumber++;
+
+            prepareJson();
+            saveHistory();
+        }
+
+        markButton.addEventListener('click', markTimestamp);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                e.preventDefault();
+                markTimestamp();
             }
         });
-        document.getElementById('jsonDataInput').value = JSON.stringify(data, null, 2);
-        return data;
-    }
 
-    window.saveData = function() {
-        const data = prepareJson();
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'data.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    };
+        // =========================
+        // 🗑 DELETE
+        // =========================
+        deleteButton.addEventListener('click', () => {
 
-    window.loadJsonFile = function(event) {
-        const file = event.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const data = JSON.parse(e.target.result);
-                loadJsonData(data);
-            };
-            reader.readAsText(file);
-        }
-    };
+            const rows = tableBody.rows;
 
-    window.loadJsonData = function(data) {
-        if (typeof data === 'string') {
-            data = JSON.parse(data);
-        }
+            if (rows.length === 0) {
+                alert("No rows to delete");
+                return;
+            }
 
-        fileUrlInput.value = data.audioUrl;
-        fileInput.value = '';
-        prefixInput.value = data.prefix;
-        suffixInput.value = data.suffix;
-        audioPlayer.src = data.audioUrl;
-        audioPlayer.load();
+            tableBody.removeChild(rows[rows.length - 1]);
 
-        // Clear existing rows in the table body (tbody)
-        const tbody = timestampsTable.querySelector('tbody');
-        tbody.innerHTML = '';
+            verseNumber--;
+            startTime = rows.length > 1
+                ? parseFloat(rows[rows.length - 2].cells[2].textContent)
+                : null;
 
-        data.timestamps.forEach((timestamp, index) => {
-            const newRow = document.createElement('tr');
-            newRow.innerHTML = `
-                <td>${timestamp.sequence}</td>
-                <td>${timestamp.startTime.toFixed(2)}</td>
-                <td>${timestamp.endTime.toFixed(2)}</td>
-                <td>${timestamp.duration.toFixed(2)}</td>
-                <td>${timestamp.chunkName}</td>
-                <td><textarea class="lyricsInput" placeholder="Enter lyrics here">${timestamp.chunkLyrics}</textarea></td>
-                <td>
-                    <audio controls ontimeupdate="checkTime(this, ${timestamp.startTime.toFixed(2)}, ${timestamp.endTime.toFixed(2)})">
-                        <source src="${audioPlayer.src}#t=${timestamp.startTime.toFixed(2)},${timestamp.endTime.toFixed(2)}" type="audio/mpeg">
-                        Your browser does not support the audio element.
-                    </audio>
-                </td>
-            `;
-            tbody.appendChild(newRow); // Append the new row to the tbody
-            // timestampsTable.appendChild(newRow);
+            prepareJson();
+            saveHistory();
         });
 
-        verseNumber = data.timestamps.length + 1;
-        startTime = data.timestamps.length > 0 ? data.timestamps[data.timestamps.length - 1].endTime : null;
-        audioPlayer.currentTime = startTime == null ? 0 : startTime;
+        // =========================
+        // ✏ EDIT TIMES
+        // =========================
+        tableBody.addEventListener('blur', (event) => {
 
-        new DataTable('#timestampsTable'
-                ,{
-                    responsive: true,
-                    buttons: ['copy', 'csv',  'excel', 'print'],
-                    layout: {
-                        top2Start: 'buttons'
-                    },
-                    fixedColumns: true,
-                    "searching": true,
-                    "ordering": true,
-                    "info": true,
-                    "lengthChange": true,
-                    "lengthMenu": [[25, 50, 75, -1], [25, 50, 75, "All"]],
-                    "striped": true,
-                    "hover": true
+            const cell = event.target;
+
+            if (cell.classList.contains('startTime') || cell.classList.contains('endTime')) {
+
+                const row = cell.closest('tr');
+
+                const start = parseFloat(row.children[1].textContent);
+                const end = parseFloat(row.children[2].textContent);
+
+                if (end < start) {
+                    alert("Invalid time");
+                    return;
                 }
-        );
-    };
 
-    document.getElementById('jsonDataInput').addEventListener('input', function() {
-        const data = this.value;
-        if (data.trim()) {
-            loadJsonData(data);
+                row.children[3].textContent = (end - start).toFixed(2);
+
+                const source = row.querySelector('source');
+                source.src = `${audioPlayer.src}#t=${start},${end}`;
+                row.querySelector('audio').load();
+
+                if (isGeetaMode) {
+                    prepareGeetaJson();
+                    updateProgress();
+                } else {
+                    prepareJson();
+                }
+
+                saveHistory();
+            }
+
+        }, true);
+
+        // =========================
+        // 📥 LOAD JSON
+        // =========================
+        window.loadJsonData = function (data) {
+
+            if (typeof data === 'string') data = JSON.parse(data);
+
+            if (Array.isArray(data) && data[0]?.Chapter) {
+                loadGeetaJson(data);
+                return;
+            }
+
+            isGeetaMode = false;
+            tableBody.innerHTML = '';
+
+            data.timestamps.forEach((t, i) => {
+
+                const row = document.createElement('tr');
+
+                row.innerHTML = `
+                    <td>${i + 1}</td>
+                    <td contenteditable="true" class="startTime">${t.start || t.startTime}</td>
+                    <td contenteditable="true" class="endTime">${t.end || t.endTime}</td>
+                    <td>${((t.end||t.endTime)-(t.start||t.startTime)).toFixed(2)}</td>
+                    <td>${i + 1}</td>
+                    <td><textarea>${t.chunkLyrics || ""}</textarea></td>
+                    <td><audio controls><source src="${t.audioUrl || ''}"></audio></td>
+                `;
+
+                tableBody.appendChild(row);
+            });
+
+            verseNumber = data.timestamps.length + 1;
+        };
+
+        // =========================
+        // 📖 LOAD GEETA JSON
+        // =========================
+        window.loadGeetaJson = function (data) {
+
+            isGeetaMode = true;
+            tableBody.innerHTML = '';
+
+            let chapter = null;
+
+            data.forEach(v => {
+
+                if (chapter !== v.Chapter) {
+                    chapter = v.Chapter;
+                    tableBody.innerHTML += `<tr><td colspan="7"><b>Chapter ${chapter}</b></td></tr>`;
+                }
+
+                tableBody.innerHTML += `
+                    <tr>
+                        <td>${v.VerseNum}</td>
+                        <td contenteditable="true" class="startTime">${v.AudioStart || 0}</td>
+                        <td contenteditable="true" class="endTime">${v.AudioEnd || 0}</td>
+                        <td>0</td>
+                        <td>${v.VerseNum}</td>
+                        <td>${v.OriginalText}</td>
+                        <td><audio controls><source src="${v.AudioFileURL}"></audio></td>
+                    </tr>
+                `;
+            });
+
+            window.currentGeetaData = data;
+            audioPlayer.src = data[0].AudioFileURL;
+
+            updateProgress();
+        };
+
+        // =========================
+        // 📤 JSON BUILD
+        // =========================
+        window.prepareJson = function () {
+            const rows = tableBody.querySelectorAll('tr');
+            const data = { timestamps: [] };
+
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length < 3) return;
+
+                data.timestamps.push({
+                    start: parseFloat(cells[1].textContent),
+                    end: parseFloat(cells[2].textContent)
+                });
+            });
+
+            jsonInput.value = JSON.stringify(data, null, 2);
+        };
+
+        function prepareGeetaJson() {
+            let index = 0;
+            tableBody.querySelectorAll('tr').forEach(row => {
+
+                const cells = row.querySelectorAll('td');
+                if (cells.length < 3) return;
+
+                window.currentGeetaData[index].AudioStart = parseFloat(cells[1].textContent) || 0;
+                window.currentGeetaData[index].AudioEnd = parseFloat(cells[2].textContent) || 0;
+
+                index++;
+            });
+
+            jsonInput.value = JSON.stringify(window.currentGeetaData, null, 2);
         }
-    });
-});
 
-window.copyJsonData = function() {
-    const jsonDataInput = document.getElementById('jsonDataInput');
-    jsonDataInput.select();
-    document.execCommand('copy');
-    alert('JSON data copied to clipboard!');
-};
+        // =========================
+        // 📂 INIT
+        // =========================
+        loadAutoSave();
 
-function checkTime(audio, startTime, endTime) {
-    // console.log(audio, startTime, endTime);
-    if (audio.currentTime > endTime) {
-        audio.pause();
-        audio.currentTime = startTime;
+    } catch (err) {
+        console.error("🔥 Fatal Error:", err);
     }
-}
+});
