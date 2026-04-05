@@ -23,7 +23,7 @@ h1 {
 /* ================= GRID LAYOUT ================= */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr); /* updated to 2 columns */
   gap: 15px;
   max-width: 1600px;
   margin: 0 auto;
@@ -40,11 +40,14 @@ h1 {
   flex-wrap: wrap;
   gap: 10px;
   margin: 10px 0;
-  justify-content: center;
-  align-items: center;
+  align-items: stretch;
 }
 
-/* 🔥 OPTIMIZATION: Audio Source Full Width */
+.input-row > * {
+  flex: 1;
+}
+
+/* Special optimization for first card */
 .card:first-child .input-row {
   flex-direction: column;
   align-items: stretch;
@@ -90,6 +93,7 @@ button:disabled {
 .select-container {
   position: relative;
   width: 100%;
+  flex: 2;
 }
 
 .searchable-select {
@@ -136,7 +140,7 @@ th, td {
   text-align: left;
 }
 
-/* 🔥 OPTIMIZATION: Wider audio column */
+/* column sizing */
 td:nth-child(7) {
   min-width: 340px;
 }
@@ -175,6 +179,8 @@ textarea#jsonDataInput {
 table tbody tr td textarea.lyricsInput {
   width: 100%;
   height: 100px;
+  background: #f9f9f9;
+  border: 1px solid #ccc;
   resize: none;
 }
 
@@ -194,13 +200,19 @@ table tbody tr td textarea.lyricsInput {
   transition: width 0.3s ease;
 }
 
+#progressText {
+  display: block;
+  margin-top: 5px;
+  font-weight: bold;
+}
+
 /* ================= AUDIO ================= */
 audio {
   width: 100%;
   margin-top: 10px;
 }
 
-/* ================= FLOATING BAR (FINAL OPTIMIZED) ================= */
+/* ================= FLOATING BAR ================= */
 .floating-bar {
   position: fixed;
   bottom: 20px;
@@ -216,22 +228,24 @@ audio {
   border: 1px solid #eee;
 }
 
-/* 🔥 Icon-style buttons */
+/* icon buttons */
 .float-btn {
   border-radius: 50%;
   width: 50px;
   height: 50px;
   padding: 0;
-  font-size: 22px;
+  font-size: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
+/* variants */
 .play-btn {
   background: #f8f9fa;
   border: 1px solid #ddd;
+  color: #333;
 }
 
 .play-btn:hover {
@@ -246,6 +260,12 @@ audio {
 
 .mark-btn:hover {
   background: #c82333;
+}
+
+.delete-btn {
+  background: #343a40;
+  color: white;
+  border: none;
 }
 
 /* ================= UTIL ================= */
