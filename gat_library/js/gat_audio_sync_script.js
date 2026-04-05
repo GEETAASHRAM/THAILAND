@@ -1,5 +1,5 @@
 // =========================================================
-// 🚀 AUDIO SYNC SCRIPT 
+// 🚀  AUDIO SYNC SCRIPT (GEETA JSON )
 // =========================================================
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -51,12 +51,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function generateName(i, v = null) {
-        if (v) return `${v.Topic || "BG"}_C${v.Chapter}_V${v.VerseNum}`;
+        // If Geeta JSON, use Topic + Chapter + Verse
+        if (v) return `${v.Topic || "Topic"}_C${v.Chapter}_V${v.VerseNum}`;
+        // Otherwise use prefix/suffix
         return `${prefixInput?.value || ""}${i}${suffixInput?.value || ""}`;
     }
 
     // =========================
-    // 🔍 TABLE SEARCH (NEW)
+    // 🔍 TABLE SEARCH
     // =========================
     tableSearch?.addEventListener('input', function () {
         const f = this.value.toLowerCase();
@@ -96,6 +98,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 fileUrlInput.value = val;
                 searchSelect.value = e.target.textContent;
                 optionsContainer.classList.add('hidden');
+                
+                // Automatically load audio when selected
                 window.loadAudio();
             }
         };
@@ -108,19 +112,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================
-    // 🎧 LOAD AUDIO
+    // 🎧 LOAD AUDIO (WITH AUTO-WIPE)
     // =========================
     window.loadAudio = function () {
         try {
+            if (!fileUrlInput.value && !fileInput?.files.length) {
+                alert("Provide audio source");
+                return;
+            }
+
+            // WIPE TABLE AND RESET WORKSPACE ON NEW MANUAL AUDIO LOAD
+            tableBody.innerHTML = '';
+            verseNumber = 1;
+            startTime = null;
+            isGeetaMode = false;
+            window.currentGeetaData = null;
+            jsonInput.value = '';
+            if(progressBar) progressBar.style.width = "0%";
+            if(progressText) progressText.innerText = `Progress: 0/0 (0%)`;
+
             if (fileUrlInput.value) {
                 audioPlayer.src = fileUrlInput.value;
             } else if (fileInput?.files.length) {
                 const reader = new FileReader();
                 reader.onload = e => { audioPlayer.src = e.target.result; audioPlayer.load(); };
                 reader.readAsDataURL(fileInput.files[0]);
-                return;
-            } else {
-                alert("Provide audio source");
                 return;
             }
             audioPlayer.load();
@@ -148,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================
     function saveHistory() {
         historyStack.push(jsonInput.value);
-        if (historyStack.length > 100) historyStack.shift(); // Prevent memory growth
+        if (historyStack.length > 100) historyStack.shift(); // Limit memory
         redoStack = [];
     }
 
@@ -177,10 +193,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const start = safeNum(row.cells[1]?.textContent);
             const end = safeNum(row.cells[2]?.textContent);
 
-            // Fixed edge case where start = 0
             if (!isNaN(start) && !isNaN(end) && audioPlayer.currentTime >= start && audioPlayer.currentTime <= end) {
-                row.classList.add('active-row'); 
-                row.scrollIntoView({ block: "center" });
+                row.classList.add('active-row');
+                row.scrollIntoView({ block: "center" }); 
             } else {
                 row.classList.remove('active-row');
             }
@@ -213,16 +228,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const s = row.querySelector('.startTime');
             const e = row.querySelector('.endTime');
+            const durCell = row.cells[3]; // The duration cell
 
             if (!s.textContent || s.textContent === "0" || s.textContent === "0.00") {
                 s.textContent = t.toFixed(2);
             } else {
                 e.textContent = t.toFixed(2);
 
+                const startVal = safeNum(s.textContent);
+                const duration = parseFloat((t - startVal).toFixed(2));
+                durCell.textContent = duration;
+
+                // Auto Calculate & modify correct JSON properties
                 const v = currentGeetaData[verseNumber - 1];
-                v.AudioStart = safeNum(s.textContent);
-                v.AudioEnd = t;
-                v.ReadTimeInSeconds = t - v.AudioStart;
+                v.AudioStart = startVal;
+                v.AudioEnd = parseFloat(t.toFixed(2));
+                v.ReadTimeInSeconds = duration;
 
                 verseNumber++;
             }
@@ -254,7 +275,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('markButton')?.addEventListener('click', mark);
 
     document.addEventListener('keydown', e => {
-        // Prevent spacebar from firing if user is typing in a text field
         if (e.code === 'Space' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
             e.preventDefault();
             mark();
@@ -279,6 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isGeetaMode) {
             currentGeetaData[verseNumber - 1].AudioStart = 0;
             currentGeetaData[verseNumber - 1].AudioEnd = 0;
+            currentGeetaData[verseNumber - 1].ReadTimeInSeconds = 0;
             prepareGeetaJson();
             updateProgress();
         } else {
@@ -288,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // =========================
-    // ✏ EDIT HANDLER
+    // ✏ EDIT HANDLER (MANUAL TYPING)
     // =========================
     tableBody.addEventListener('blur', e => {
         const cell = e.target;
@@ -303,7 +324,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            row.cells[3].textContent = (en - s).toFixed(2);
+            const duration = parseFloat((en - s).toFixed(2));
+            row.cells[3].textContent = duration;
             
             const audioEl = row.querySelector('audio');
             if(audioEl) {
@@ -311,12 +333,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 audioEl.load();
             }
 
+            // Auto Calculate & modify correct JSON properties on manual edit
             if (isGeetaMode) {
                 const idx = row.rowIndex - 1; 
                 if(currentGeetaData[idx]) {
                     currentGeetaData[idx].AudioStart = s;
                     currentGeetaData[idx].AudioEnd = en;
-                    currentGeetaData[idx].ReadTimeInSeconds = en - s;
+                    currentGeetaData[idx].ReadTimeInSeconds = duration;
                 }
                 prepareGeetaJson();
                 updateProgress();
@@ -338,6 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
             verseNumber = 1;
             startTime = null;
 
+            // Handle Geeta JSON Array
             if (Array.isArray(data)) {
                 isGeetaMode = true;
                 currentGeetaData = data;
@@ -345,11 +369,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 let idx = 0;
                 document.getElementById('loadingIndicator')?.classList.remove('hidden');
 
-                // Render in batches to prevent UI freezing with large Geeta files
                 function renderBatch() {
                     const frag = document.createDocumentFragment();
                     for (let i = 0; i < 50 && idx < data.length; i++, idx++) {
                         const v = data[idx];
+                        
+                        // Show both Original and English text
+                        const lyricsText = v.EnglishText ? `${v.OriginalText || ""}\n\n${v.EnglishText}` : (v.OriginalText || "");
+
                         const row = document.createElement('tr');
                         row.innerHTML = `
                             <td>${v.VerseNum}</td>
@@ -357,7 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <td contenteditable class="endTime">${v.AudioEnd || 0}</td>
                             <td>${v.ReadTimeInSeconds || 0}</td>
                             <td>${generateName(v.VerseNum, v)}</td>
-                            <td>${v.OriginalText || ""}</td>
+                            <td><textarea class="lyricsInput" readonly>${lyricsText}</textarea></td>
                             <td><audio controls><source src="${v.AudioFileURL || ""}"></audio></td>
                         `;
                         frag.appendChild(row);
@@ -370,10 +397,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 renderBatch();
+                
+                // Auto load audio if available in first verse
                 if (data[0]?.AudioFileURL) { audioPlayer.src = data[0].AudioFileURL; audioPlayer.load(); }
                 prepareGeetaJson();
 
             } else {
+                // Handle Standard JSON Object
                 isGeetaMode = false;
                 if(data.audioUrl) {
                     audioPlayer.src = data.audioUrl;
@@ -436,7 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 name: r.cells[4].textContent,
                 start: s,
                 end: e,
-                duration: e - s,
+                duration: parseFloat((e - s).toFixed(2)),
                 lyrics: r.cells[5].querySelector('textarea')?.value || ""
             });
         });
