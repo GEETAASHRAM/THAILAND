@@ -1,5 +1,5 @@
 // =========================================================
-// 🚀 AUDIO SYNC SCRIPT (ASYNC SEARCH & GEETA BUTTONS)
+// 🚀 AUDIO SYNC SCRIPT (SMART PROGRESS CALCULATION)
 // =========================================================
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -43,7 +43,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const tableSearch = document.getElementById('tableSearch'); 
 
-    // Create a Search Count Display dynamically
     let searchCountDisplay = null;
     if (tableSearch) {
         searchCountDisplay = document.createElement('div');
@@ -68,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function highlightHTML(element, term) {
         const text = element.textContent;
         if (!term) {
-            element.innerHTML = text; // Strips tags to reset
+            element.innerHTML = text; 
             return;
         }
         const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -86,22 +85,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (searchCountDisplay) searchCountDisplay.innerText = "Searching...";
 
-        // Debounce to prevent lag while typing
         searchDebounce = setTimeout(() => {
             const rows = Array.from(tableBody.rows);
             let matchCount = 0;
             let index = 0;
-            const batchSize = 50; // Process 50 rows per frame to keep UI smooth
+            const batchSize = 50; 
 
             function processSearchBatch() {
                 const limit = Math.min(index + batchSize, rows.length);
                 for (; index < limit; index++) {
                     const row = rows[index];
-                    
-                    // Look for divs (Geeta Mode) or textareas (Normal Mode)
                     const lyricsEl = row.querySelector('.lyrics-text') || row.querySelector('textarea');
                     const nameCell = row.querySelector('.name-cell') || row.cells[4];
-                    
                     const lyricsText = lyricsEl.tagName === 'DIV' ? lyricsEl.textContent : lyricsEl.value;
                     const textToSearch = (nameCell.textContent + " " + lyricsText).toLowerCase();
 
@@ -123,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 if (index < rows.length) {
-                    requestAnimationFrame(processSearchBatch); // Yield to browser, prevent freezing
+                    requestAnimationFrame(processSearchBatch); 
                 } else {
                     if (searchCountDisplay) {
                         searchCountDisplay.innerText = term ? `Found ${matchCount} results for "${term}"` : "";
@@ -180,13 +175,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Provide audio source"); return;
             }
 
-            // WIPE TABLE AND RESET WORKSPACE ON NEW AUDIO LOAD
             tableBody.innerHTML = '';
             verseNumber = 1; startTime = null; isGeetaMode = false; window.currentGeetaData = null;
             jsonInput.value = '';
             if(progressBar) progressBar.style.width = "0%";
             if(progressText) progressText.innerText = `Progress: 0/0 (0%)`;
             if (searchCountDisplay) searchCountDisplay.innerText = "";
+
+            // Listen for audio metadata to update progress instantly when duration is known
+            audioPlayer.onloadedmetadata = () => { updateProgress(); };
 
             if (fileUrlInput.value) {
                 audioPlayer.src = fileUrlInput.value;
@@ -253,19 +250,42 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // =========================
-    // 📊 PROGRESS
+    // 📊 SMART PROGRESS TRACKER
     // =========================
     function updateProgress() {
-        if (!isGeetaMode || !window.currentGeetaData) return;
-        const total = window.currentGeetaData.length;
-        const done = window.currentGeetaData.filter(v => v.AudioEnd > 0).length;
-        const p = Math.round((done / total) * 100) || 0;
-        if(progressBar) progressBar.style.width = p + "%";
-        if(progressText) progressText.innerText = `Progress: ${done}/${total} (${p}%)`;
+        if (isGeetaMode && window.currentGeetaData) {
+            // MODE 1: Geeta Mode (Count by verses completed)
+            const total = window.currentGeetaData.length;
+            const done = window.currentGeetaData.filter(v => v.AudioEnd > 0).length;
+            const p = Math.round((done / total) * 100) || 0;
+            if(progressBar) progressBar.style.width = p + "%";
+            if(progressText) progressText.innerText = `Progress: ${done}/${total} Verses (${p}%)`;
+        
+        } else {
+            // MODE 2: Normal Chunk Mode (Calculate marked duration vs total audio duration)
+            if (!audioPlayer || isNaN(audioPlayer.duration) || audioPlayer.duration === 0) return;
+
+            let totalMarkedSeconds = 0;
+            [...tableBody.rows].forEach(row => {
+                totalMarkedSeconds += safeNum(row.cells[3].textContent);
+            });
+
+            const totalAudioSeconds = audioPlayer.duration;
+            const p = Math.round((totalMarkedSeconds / totalAudioSeconds) * 100) || 0;
+
+            const formatTime = (secs) => {
+                const m = Math.floor(secs / 60).toString().padStart(2, '0');
+                const s = Math.floor(secs % 60).toString().padStart(2, '0');
+                return `${m}:${s}`;
+            };
+
+            if(progressBar) progressBar.style.width = Math.min(p, 100) + "%";
+            if(progressText) progressText.innerText = `Progress: ${formatTime(totalMarkedSeconds)} / ${formatTime(totalAudioSeconds)} (${p}%)`;
+        }
     }
 
     // =========================
-    // 🧠 ROW MARKING LOGIC (GEETA MODE BUTTONS)
+    // 🧠 ROW MARKING LOGIC (GEETA BUTTONS)
     // =========================
     tableBody.addEventListener('click', e => {
         if (!isGeetaMode) return;
@@ -276,21 +296,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const idx = parseInt(target.getAttribute('data-index'));
             const t = audioPlayer.currentTime;
 
-            // Mark Start or End
             if (target.classList.contains('row-mark-start')) {
                 row.querySelector('.startTime').textContent = t.toFixed(2);
             } else {
                 row.querySelector('.endTime').textContent = t.toFixed(2);
             }
 
-            // Recalculate
             const s = safeNum(row.querySelector('.startTime').textContent);
             const en = safeNum(row.querySelector('.endTime').textContent);
             const dur = parseFloat((en - s).toFixed(2));
             
             if (en > 0 && en >= s) row.cells[3].textContent = dur;
 
-            // Update JSON Background Data
             if (currentGeetaData[idx]) {
                 currentGeetaData[idx].AudioStart = s;
                 currentGeetaData[idx].AudioEnd = en;
@@ -301,7 +318,6 @@ document.addEventListener('DOMContentLoaded', () => {
             updateProgress();
             saveHistory();
             
-            // Brief visual flash to confirm click
             const originalBg = row.style.background;
             row.style.background = "#d4edda"; 
             setTimeout(() => row.style.background = originalBg, 400);
@@ -309,12 +325,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // =========================
-    // 🧠 SPACEBAR MARKING (NORMAL MODE / SEQUENTIAL)
+    // 🧠 SPACEBAR MARKING (NORMAL SEQUENTIAL)
     // =========================
     function mark() {
         const t = audioPlayer.currentTime;
         if (isGeetaMode) {
-            // Spacebar in Geeta mode will just do sequential start->end for the active verseNumber
             const row = tableBody.rows[verseNumber - 1];
             if (!row) return;
             const s = row.querySelector('.startTime');
@@ -335,7 +350,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 v.ReadTimeInSeconds = duration;
                 verseNumber++;
             }
-            updateProgress();
             prepareGeetaJson();
         } else {
             if (startTime === null) startTime = 0;
@@ -355,6 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
             verseNumber++;
             prepareJson();
         }
+        updateProgress(); // Triggers for both modes
         saveHistory();
     }
 
@@ -380,10 +395,11 @@ document.addEventListener('DOMContentLoaded', () => {
             currentGeetaData[verseNumber - 1].AudioStart = 0;
             currentGeetaData[verseNumber - 1].AudioEnd = 0;
             currentGeetaData[verseNumber - 1].ReadTimeInSeconds = 0;
-            prepareGeetaJson(); updateProgress();
+            prepareGeetaJson(); 
         } else {
             prepareJson();
         }
+        updateProgress(); // Triggers for both modes
         saveHistory();
     });
 
@@ -414,10 +430,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     currentGeetaData[idx].AudioEnd = en;
                     currentGeetaData[idx].ReadTimeInSeconds = duration;
                 }
-                prepareGeetaJson(); updateProgress();
+                prepareGeetaJson(); 
             } else {
                 prepareJson();
             }
+            updateProgress(); // Triggers for both modes
             saveHistory();
         }
     }, true);
@@ -440,8 +457,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     const frag = document.createDocumentFragment();
                     for (let i = 0; i < 50 && idx < data.length; i++, idx++) {
                         const v = data[idx];
-                        
-                        // Use a styled DIV instead of TEXTAREA so we can use HTML <mark> tags for highlighting
                         const lyricsText = v.EnglishText ? `${v.OriginalText || ""}<br><br>${v.EnglishText}` : (v.OriginalText || "");
 
                         const row = document.createElement('tr');
@@ -497,6 +512,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 verseNumber = (data.timestamps?.length || 0) + 1;
                 prepareJson();
+                updateProgress(); // Update for normal JSON load
             }
         } catch (err) { console.error("Load JSON Error:", err); }
     };
