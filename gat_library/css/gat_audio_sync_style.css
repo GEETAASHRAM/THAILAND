@@ -39,6 +39,33 @@ input, textarea, button, select {
   box-sizing: border-box;
 }
 
+/* DROPDOWN Options Style */
+.options-container {
+  position: absolute;
+  background: white;
+  border: 1px solid #ddd;
+  max-height: 200px;
+  overflow-y: auto;
+  width: 100%;
+  z-index: 1000;
+}
+
+.options-container div {
+  padding: 8px;
+  cursor: pointer;
+}
+
+.options-container div:hover {
+  background: #f0f0f0;
+}
+
+/* LOADING CSS */
+#loadingIndicator {
+  text-align: center;
+  padding: 10px;
+  font-weight: bold;
+}
+
 /* BUTTONS */
 button {
   background: #007BFF; /* Modern Blue */
@@ -112,6 +139,11 @@ table tbody tr td textarea.lyricsInput {
   box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
   resize: none;
+}
+
+textarea#jsonDataInput {
+  height: 150px;
+  font-family: monospace;
 }
 
 table tbody tr td textarea.lyricsInput:focus {
