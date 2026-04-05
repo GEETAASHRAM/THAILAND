@@ -1,5 +1,5 @@
 // =========================================================
-// 🚀 AUDIO SYNC SCRIPT (SEAMLESS FLOW & CONFETTI)
+// 🚀 AUDIO SYNC SCRIPT ( STATE & UI)
 // =========================================================
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -128,20 +128,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (nextIndex < currentGeetaData.length) {
             const currentChapter = currentGeetaData[currentIndex].Chapter;
             const nextChapter = currentGeetaData[nextIndex].Chapter;
-            
             const nextAudioUrl = currentGeetaData[nextIndex].AudioFileURL;
 
             setFocusRow(nextIndex);
 
             if (currentChapter === nextChapter) {
-                // SAME CHAPTER: Auto-set the start time of the next verse to the end time of the previous verse
+                // SAME CHAPTER: Auto-set start time
                 currentGeetaData[nextIndex].AudioStart = currentEndTime;
                 const nextRow = tableBody.rows[nextIndex];
                 if (nextRow) {
                     nextRow.querySelector('.startTime').textContent = currentEndTime;
                 }
             } else {
-                // DIFFERENT CHAPTER: Celebrate and swap audio!
+                // DIFFERENT CHAPTER
                 console.log("🔄 Chapter complete! Loading new audio...");
                 fireConfetti();
                 
@@ -152,8 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } else {
-            // END OF ENTIRE BOOK
-            fireConfetti();
+            fireConfetti(); // End of book
         }
     }
 
@@ -175,8 +173,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const sCell = row.querySelector('.startTime');
         const eCell = row.querySelector('.endTime');
         const durCell = row.cells[3];
-        const audioRowPlayer = row.querySelector('audio');
-        const audioRowSource = row.querySelector('source');
 
         try {
             if (action === 'start') {
@@ -201,11 +197,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     currentGeetaData[activeVerseIndex].ReadTimeInSeconds = dur > 0 ? dur : 0;
                     
                     // UPDATE CHUNK AUDIO SOURCE
+                    const audioRowPlayer = row.querySelector('audio');
+                    const audioRowSource = row.querySelector('source');
                     if (audioRowPlayer && audioRowSource) {
                         const baseUrl = currentGeetaData[activeVerseIndex].AudioFileURL || audioPlayer.src;
                         audioRowSource.src = `${baseUrl}#t=${s},${en}`;
                         audioRowPlayer.load();
                     }
+
+                    // HIDE BUTTONS ONCE MARKED
+                    const btnContainer = row.querySelector('.button-container');
+                    if (btnContainer) btnContainer.style.display = 'none';
                 }
 
                 flashRow(row);
@@ -240,7 +242,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.ctrlKey && e.key === 'y') redo();
     });
 
-    // Delegated button clicks for Start/End inside Geeta Mode
     tableBody.addEventListener('click', e => {
         if (!isGeetaMode) return;
         const target = e.target;
@@ -259,7 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================
     function markNormalMode() {
         const t = audioPlayer.currentTime;
-        if (startTime === null) startTime = 0;
+        if (startTime === null) startTime = 0; // Will correctly grab maxEndSaved from JSON load now
         const end = t;
 
         const row = document.createElement('tr');
@@ -371,6 +372,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if(progressText) progressText.innerText = `Progress: 0/0 (0%)`;
             if (searchCountDisplay) searchCountDisplay.innerText = "";
 
+            audioPlayer.onloadedmetadata = () => { updateProgress(); };
+
             if (fileUrlInput.value) {
                 audioPlayer.src = fileUrlInput.value;
             } else if (fileInput?.files.length) {
@@ -458,7 +461,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     for (let i = 0; i < 50 && idx < data.length; i++, idx++) {
                         const v = data[idx];
                         const lyricsText = v.EnglishText ? `${v.OriginalText || ""}<br><br>${v.EnglishText}` : (v.OriginalText || "");
-                        const chunkSrc = (v.AudioFileURL && v.AudioEnd > 0) ? `${v.AudioFileURL}#t=${v.AudioStart},${v.AudioEnd}` : (v.AudioFileURL || "");
+                        
+                        const hasValidTimes = (v.AudioEnd > 0 && v.AudioEnd > v.AudioStart);
+                        const chunkSrc = hasValidTimes ? `${v.AudioFileURL || ""}#t=${v.AudioStart},${v.AudioEnd}` : (v.AudioFileURL || "");
+                        const displayButtons = hasValidTimes ? 'none' : 'flex';
 
                         const row = document.createElement('tr');
                         row.innerHTML = `
@@ -469,7 +475,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <td class="name-cell">${generateName(v.VerseNum, v)}</td>
                             <td><div class="lyrics-text" style="max-height: 100px; overflow-y: auto; background: #f9f9f9; padding: 10px; border: 1px solid #ccc; border-radius: 8px;">${lyricsText}</div></td>
                             <td>
-                                <div style="display:flex; gap:5px; margin-bottom:5px;">
+                                <div class="button-container" style="display:${displayButtons}; gap:5px; margin-bottom:5px;">
                                     <button class="row-mark-start" data-index="${idx}" title="Hotkey: [" style="flex:1; background:#28a745; color:white; border:none; border-radius:4px; padding:6px; cursor:pointer; font-size:12px;">Start [</button>
                                     <button class="row-mark-end" data-index="${idx}" title="Hotkey: ]" style="flex:1; background:#dc3545; color:white; border:none; border-radius:4px; padding:6px; cursor:pointer; font-size:12px;">End ]</button>
                                 </div>
@@ -485,7 +491,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         updateProgress();
                         document.getElementById('loadingIndicator')?.classList.add('hidden');
                         
-                        // Set focus to the first uncompleted verse
                         const firstUnfinished = data.findIndex(v => !v.AudioEnd || v.AudioEnd === 0);
                         setFocusRow(firstUnfinished !== -1 ? firstUnfinished : 0);
                     }
@@ -498,7 +503,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 // NORMAL JSON LOAD
                 isGeetaMode = false;
-                let maxEndSaved = 0;
+                let maxEndSaved = 0; // Track the highest end time
 
                 if(data.audioUrl) { audioPlayer.src = data.audioUrl; audioPlayer.load(); }
                 
@@ -517,6 +522,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     tableBody.appendChild(row);
                 });
 
+                startTime = maxEndSaved; // FIX: Ensure next normal mark starts from here
                 activeVerseIndex = data.timestamps?.length || 0;
                 prepareJson();
                 
@@ -621,8 +627,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, true);
 
-    // =========================
     // INIT
-    // =========================
     loadAutoSave();
 });
