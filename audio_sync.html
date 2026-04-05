@@ -7,8 +7,6 @@
 
     <link rel="icon" href="data:,">
     <link rel="stylesheet" type="text/css" href="gat_library/css/gat_audio_sync_style.css">
-
-    <!-- Keep jQuery for compatibility -->
     <script src="gat_library/js/jquery-3.7.1.slim.min.js"></script>
 </head>
 
@@ -17,93 +15,74 @@
 
 <div class="dashboard-grid">
 
-<!-- AUDIO -->
-<div class="card">
-  <h3>Audio Source</h3>
+  <div class="card">
+    <h3>Audio Source & Naming</h3>
 
-  <div class="input-row">
-    <div class="select-container">
-      <input type="text" id="searchSelect" class="searchable-select" placeholder="Search audio files...">
-      <div id="optionsContainer" class="options-container hidden">
-
-        <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/01%20-%20Introduction.mp3">0.1) Geeta Ashram Mission & Introduction</div>
-        <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/20%20-%20Geeta%20Mahatmyam.mp3">0.2) Geeta Mahatmyam</div>
-        <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/02%20-%20Chapter%201.mp3">1) Geeta Chapter 1</div>
-        <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/03%20-%20Chapter%202.mp3">2) Geeta Chapter 2</div>
-        <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/04%20-%20Chapter%203.mp3">3) Geeta Chapter 3</div>
-        <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/05%20-%20Chapter%204.mp3">4) Geeta Chapter 4</div>
-        <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/06%20-%20Chapter%205.mp3">5) Geeta Chapter 5</div>
-        <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/07%20-%20Chapter%206.mp3">6) Geeta Chapter 6</div>
-        <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/08%20-%20Chapter%207.mp3">7) Geeta Chapter 7</div>
-        <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/09%20-%20Chapter%208.mp3">8) Geeta Chapter 8</div>
-        <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/10%20-%20Chapter%209.mp3">9) Geeta Chapter 9</div>
-        <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/11%20-%20Chapter%2010.mp3">10) Geeta Chapter 10</div>
-        <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/12%20-%20Chapter%2011.mp3">11) Geeta Chapter 11</div>
-        <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3">12) Geeta Chapter 12</div>
-        <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/14%20-%20Chapter%2013.mp3">13) Geeta Chapter 13</div>
-        <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/15%20-%20Chapter%2014.mp3">14) Geeta Chapter 14</div>
-        <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/16%20-%20Chapter%2015.mp3">15) Geeta Chapter 15</div>
-        <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/17%20-%20Chapter%2016.mp3">16) Geeta Chapter 16</div>
-        <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/18%20-%20Chapter%2017.mp3">17) Geeta Chapter 17</div>
-        <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/19%20-%20Chapter%2018.mp3">18) Geeta Chapter 18</div>
-
+    <div class="input-row">
+      <div class="select-container">
+        <input type="text" id="searchSelect" class="searchable-select" placeholder="Search audio files...">
+        <div id="optionsContainer" class="options-container hidden">
+          <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/01%20-%20Introduction.mp3">0.1) Geeta Ashram Mission & Introduction</div>
+          <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/20%20-%20Geeta%20Mahatmyam.mp3">0.2) Geeta Mahatmyam</div>
+          <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/02%20-%20Chapter%201.mp3">1) Geeta Chapter 1</div>
+          <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/03%20-%20Chapter%202.mp3">2) Geeta Chapter 2</div>
+          <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/04%20-%20Chapter%203.mp3">3) Geeta Chapter 3</div>
+          <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/05%20-%20Chapter%204.mp3">4) Geeta Chapter 4</div>
+          <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/06%20-%20Chapter%205.mp3">5) Geeta Chapter 5</div>
+          <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/07%20-%20Chapter%206.mp3">6) Geeta Chapter 6</div>
+          <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/08%20-%20Chapter%207.mp3">7) Geeta Chapter 7</div>
+          <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/09%20-%20Chapter%208.mp3">8) Geeta Chapter 8</div>
+          <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/10%20-%20Chapter%209.mp3">9) Geeta Chapter 9</div>
+          <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/11%20-%20Chapter%2010.mp3">10) Geeta Chapter 10</div>
+          <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/12%20-%20Chapter%2011.mp3">11) Geeta Chapter 11</div>
+          <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3">12) Geeta Chapter 12</div>
+          <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/14%20-%20Chapter%2013.mp3">13) Geeta Chapter 13</div>
+          <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/15%20-%20Chapter%2014.mp3">14) Geeta Chapter 14</div>
+          <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/16%20-%20Chapter%2015.mp3">15) Geeta Chapter 15</div>
+          <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/17%20-%20Chapter%2016.mp3">16) Geeta Chapter 16</div>
+          <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/18%20-%20Chapter%2017.mp3">17) Geeta Chapter 17</div>
+          <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/19%20-%20Chapter%2018.mp3">18) Geeta Chapter 18</div>
+        </div>
       </div>
+      <input type="text" id="fileUrlInput" placeholder="Or paste audio URL">
+      <input type="file" id="fileInput" accept="audio/*">
+      <button type="button" onclick="loadAudio()" style="width:100%;">Load Audio</button>
     </div>
 
-    <input type="text" id="fileUrlInput" placeholder="Or paste audio URL">
-    <input type="file" id="fileInput" accept="audio/*">
-    <button type="button" onclick="loadAudio()" style="width:100%;">Load Audio</button>
-  </div>
-
-  <audio id="audioPlayer" controls></audio>
-</div>
-
-<!-- CONTROLS -->
-<div class="card">
-  <h3>Controls</h3>
-
-  <div class="input-row">
-    <input type="text" id="prefixInput" placeholder="Prefix (e.g. BG_)">
-    <input type="text" id="suffixInput" placeholder="Suffix (e.g. _EN)">
-  </div>
-
-  <div class="input-row">
-    <button id="markButton" class="mark-button">Mark End ( ] )</button>
-    <button id="deleteButton" class="delete-button">Delete Last</button>
-    <button id="undoButton">Undo (Ctrl+Z)</button>
-    <button id="redoButton">Redo (Ctrl+Y)</button>
-  </div>
-</div>
-
-<!-- JSON -->
-<div class="card">
-  <h3>JSON Data Management</h3>
-
-  <div class="input-row">
-    <input type="file" id="loadJsonInput" style="display:none" accept=".json" onchange="loadJsonFile(event)">
-    <button onclick="document.getElementById('loadJsonInput').click()">Load JSON</button>
-    <button onclick="copyJsonData()">Copy</button>
-    <button onclick="saveData()">Save</button>
-  </div>
-
-  <textarea id="jsonDataInput"></textarea>
-
-  <div id="progressContainer">
-    <div class="progress-bg">
-      <div id="progressBar"></div>
+    <div class="input-row">
+      <input type="text" id="prefixInput" placeholder="Prefix (e.g. BG_)">
+      <input type="text" id="suffixInput" placeholder="Suffix (e.g. _EN)">
     </div>
-    <small id="progressText">Progress: 0/0 (0%)</small>
+
+    <audio id="audioPlayer" controls></audio>
   </div>
-</div>
+
+  <div class="card">
+    <h3>JSON Data Management</h3>
+
+    <div class="input-row">
+      <input type="file" id="loadJsonInput" style="display:none" accept=".json" onchange="loadJsonFile(event)">
+      <button onclick="document.getElementById('loadJsonInput').click()">Load JSON</button>
+      <button onclick="copyJsonData()">Copy</button>
+      <button onclick="saveData()">Save</button>
+    </div>
+
+    <textarea id="jsonDataInput" placeholder="JSON output..."></textarea>
+
+    <div id="progressContainer">
+      <div class="progress-bg">
+        <div id="progressBar"></div>
+      </div>
+      <small id="progressText">Progress: 0/0 (0%)</small>
+    </div>
+  </div>
 
 </div>
 
-<!-- TIMELINE -->
 <div class="card timeline-card">
   <h3>Timeline</h3>
 
   <div id="loadingIndicator" class="hidden">Loading large JSON... Please wait.</div>
-
   <input type="text" id="tableSearch" placeholder="Search rows..." style="width:100%; margin-bottom:15px;">
 
   <div style="overflow-x:auto;">
@@ -124,11 +103,11 @@
   </div>
 </div>
 
-<!-- FLOATING CONTROLS -->
 <div id="floatingControlBar" class="floating-bar">
   <button id="floatUndoBtn" class="float-btn" title="Undo (Ctrl+Z)">↩️</button>
   <button id="floatPlayBtn" class="float-btn play-btn" title="Play/Pause (Spacebar)">⏯️</button>
   <button id="floatMarkBtn" class="float-btn mark-btn" title="Mark End ( ] )">📍</button>
+  <button id="floatDeleteBtn" class="float-btn delete-btn" title="Delete Last">🗑️</button>
   <button id="floatRedoBtn" class="float-btn" title="Redo (Ctrl+Y)">↪️</button>
 </div>
 
