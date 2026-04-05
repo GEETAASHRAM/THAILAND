@@ -1,5 +1,5 @@
 // =========================================================
-// 🚀 AUDIO SYNC SCRIPT (CONTINUOUS WORKFLOW ENGINE)
+// 🚀 AUDIO SYNC SCRIPT (FLAWLESS CONTINUOUS ENGINE)
 // =========================================================
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -107,11 +107,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (index < 0 || index >= tableBody.rows.length) return;
         activeVerseIndex = index;
 
-        // Remove old focus instantly
         const previousFocused = tableBody.querySelector('.focused-verse');
         if (previousFocused) previousFocused.classList.remove('focused-verse');
 
-        // Add new focus and scroll
         const newFocus = tableBody.rows[index];
         if (newFocus) {
             newFocus.classList.add('focused-verse');
@@ -136,6 +134,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const t = parseFloat(audioPlayer.currentTime.toFixed(2));
         
+        if (t === 0 && audioPlayer.paused) {
+            alert("⚠️ Please play the Main Audio Player at the top to start syncing!");
+            return;
+        }
+        
         row.querySelector('.startTime').textContent = t.toFixed(2);
         currentGeetaData[activeVerseIndex].AudioStart = t;
 
@@ -150,52 +153,65 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!row) return;
 
         const t = parseFloat(audioPlayer.currentTime.toFixed(2));
+        
+        if (t === 0 && audioPlayer.paused) {
+            alert("⚠️ Please play the Main Audio Player at the top first!");
+            return;
+        }
+
         const sCell = row.querySelector('.startTime');
         const eCell = row.querySelector('.endTime');
         const durCell = row.cells[3];
 
-        // 1. Extract Start, Assign End, Calculate Duration
         let s = safeNum(sCell.textContent);
         let en = t;
-        let dur = parseFloat((en - s).toFixed(2));
-        if (dur < 0) dur = 0;
+        
+        if (en <= s) {
+            alert("⚠️ End time cannot be less than or equal to Start time. Press '[' to reset Start, or manually edit the table.");
+            return;
+        }
 
-        // 2. Update UI Table
+        let dur = parseFloat((en - s).toFixed(2));
+
+        // Update UI Table
         sCell.textContent = s.toFixed(2);
         eCell.textContent = en.toFixed(2);
         durCell.textContent = dur.toFixed(2);
 
-        // 3. Update Master JSON
+        // Update Master JSON
         currentGeetaData[activeVerseIndex].AudioStart = s;
         currentGeetaData[activeVerseIndex].AudioEnd = en;
         currentGeetaData[activeVerseIndex].ReadTimeInSeconds = dur;
 
-        // 4. Update Chunk Audio instantly
+        // Update Chunk Audio instantly
         const audioRowPlayer = row.querySelector('audio');
         const audioRowSource = row.querySelector('source');
         if (audioRowPlayer && audioRowSource) {
-            const baseUrl = currentGeetaData[activeVerseIndex].AudioFileURL || audioPlayer.src;
+            let baseUrl = currentGeetaData[activeVerseIndex].AudioFileURL || audioPlayer.src;
+            baseUrl = baseUrl.split('#')[0]; // Clean base URL
             audioRowSource.src = `${baseUrl}#t=${s},${en}`;
             audioRowPlayer.load();
         }
 
-        // 5. Hide the action buttons for this completed row
+        // Hide action buttons permanently for this row
         const btnContainer = row.querySelector('.button-container');
-        if (btnContainer) btnContainer.style.display = 'none';
+        if (btnContainer) {
+            btnContainer.style.display = 'none';
+        }
 
         flashRow(row);
         prepareGeetaJson();
         updateProgress();
         saveHistory();
 
-        // 6. Automatically advance to next verse
+        // Auto move to next verse
         advanceToNextGeetaVerse(en);
     }
 
     function advanceToNextGeetaVerse(previousEndTime) {
         const nextIndex = activeVerseIndex + 1;
         if (nextIndex >= currentGeetaData.length) {
-            fireConfetti(); // End of book!
+            fireConfetti(); // Book Complete!
             return;
         }
 
@@ -203,19 +219,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const nextChapter = currentGeetaData[nextIndex].Chapter;
         const nextAudioUrl = currentGeetaData[nextIndex].AudioFileURL;
 
-        // Move target down
         setFocusRow(nextIndex);
         const nextRow = tableBody.rows[nextIndex];
 
         if (currentChapter === nextChapter) {
-            // SAME CHAPTER: Paste previous End time as the new Start time
+            // Auto Paste End Time as Next Start Time
             currentGeetaData[nextIndex].AudioStart = previousEndTime;
             if (nextRow) {
                 nextRow.querySelector('.startTime').textContent = previousEndTime.toFixed(2);
             }
             prepareGeetaJson();
         } else {
-            // NEW CHAPTER: Celebrate and swap audio file automatically
             console.log("🔄 Chapter complete! Loading new audio...");
             fireConfetti();
             
@@ -230,7 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 fileUrlInput.value = nextAudioUrl;
                 audioPlayer.src = nextAudioUrl;
                 audioPlayer.load();
-                audioPlayer.play(); // Auto-play the new chapter
+                audioPlayer.play().catch(e => console.log("Autoplay blocked by browser")); 
             }
         }
     }
@@ -257,11 +271,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isGeetaMode) return;
         const target = e.target;
         if (target.classList.contains('row-mark-start')) {
-            setFocusRow(parseInt(target.getAttribute('data-index')));
+            const row = target.closest('tr');
+            setFocusRow(row.rowIndex - 1);
             markGeetaStart();
         }
         if (target.classList.contains('row-mark-end')) {
-            setFocusRow(parseInt(target.getAttribute('data-index')));
+            const row = target.closest('tr');
+            setFocusRow(row.rowIndex - 1);
             markGeetaEnd();
         }
     });
@@ -338,13 +354,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                if (index < rows.length) {
-                    requestAnimationFrame(processSearchBatch); 
-                } else {
-                    if (searchCountDisplay) {
-                        searchCountDisplay.innerText = term ? `Found ${matchCount} results for "${term}"` : "";
-                    }
-                }
+                if (index < rows.length) requestAnimationFrame(processSearchBatch); 
+                else if (searchCountDisplay) searchCountDisplay.innerText = term ? `Found ${matchCount} results for "${term}"` : "";
             }
             processSearchBatch();
         }, 300); 
@@ -474,7 +485,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         const lyricsText = v.EnglishText ? `${v.OriginalText || ""}<br><br>${v.EnglishText}` : (v.OriginalText || "");
                         
                         const hasValidTimes = (v.AudioEnd > 0 && v.AudioEnd > v.AudioStart);
-                        const chunkSrc = hasValidTimes ? `${v.AudioFileURL || ""}#t=${v.AudioStart},${v.AudioEnd}` : (v.AudioFileURL || "");
+                        let baseUrl = v.AudioFileURL || "";
+                        baseUrl = baseUrl.split('#')[0]; // Clean incoming URL
+                        const chunkSrc = hasValidTimes ? `${baseUrl}#t=${v.AudioStart},${v.AudioEnd}` : baseUrl;
                         const displayButtons = hasValidTimes ? 'none' : 'flex';
 
                         const row = document.createElement('tr');
@@ -502,7 +515,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         updateProgress();
                         document.getElementById('loadingIndicator')?.classList.add('hidden');
                         
-                        // Set focus to the first uncompleted verse, and auto-populate start time if needed
                         const firstUnfinished = data.findIndex(v => !v.AudioEnd || v.AudioEnd === 0);
                         if (firstUnfinished !== -1) {
                             setFocusRow(firstUnfinished);
@@ -543,15 +555,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     tableBody.appendChild(row);
                 });
 
-                startTime = maxEndSaved; // Assign max end time to global start time
+                startTime = maxEndSaved; 
                 activeVerseIndex = data.timestamps?.length || 0;
                 prepareJson();
                 
-                audioPlayer.addEventListener('loadedmetadata', function seekOnce() {
+                function performSeek() {
                     audioPlayer.currentTime = maxEndSaved;
                     updateProgress();
-                    audioPlayer.removeEventListener('loadedmetadata', seekOnce);
-                });
+                }
+
+                if (audioPlayer.readyState >= 1) {
+                    performSeek();
+                } else {
+                    audioPlayer.addEventListener('loadedmetadata', function seekOnce() {
+                        performSeek();
+                        audioPlayer.removeEventListener('loadedmetadata', seekOnce);
+                    });
+                }
             }
         } catch (err) { console.error("Load JSON Error:", err); }
     };
@@ -628,7 +648,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const audioEl = row.querySelector('audio');
             const sourceEl = row.querySelector('source');
             if(audioEl && sourceEl) {
-                const baseUrl = isGeetaMode ? (currentGeetaData[row.rowIndex - 1].AudioFileURL || audioPlayer.src) : audioPlayer.src;
+                let baseUrl = isGeetaMode ? (currentGeetaData[row.rowIndex - 1].AudioFileURL || audioPlayer.src) : audioPlayer.src;
+                baseUrl = baseUrl.split('#')[0];
                 sourceEl.src = `${baseUrl}#t=${s},${en}`;
                 audioEl.load();
             }
