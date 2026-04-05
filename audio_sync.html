@@ -55,7 +55,7 @@
     
         <input type="text" id="fileUrlInput" placeholder="Or paste audio URL">
         <input type="file" id="fileInput">
-        <button onclick="loadAudio()">Load</button>
+        <button type="button" onclick="loadAudio()">Load</button>
       </div>
     
       <audio id="audioPlayer" controls></audio>
@@ -66,15 +66,15 @@
       <h3>Controls</h3>
     
       <div class="input-row">
-        <input type="text" id="prefixInput" placeholder="Prefix">
-        <input type="text" id="suffixInput" placeholder="Suffix">
+        <input type="text" id="prefixInput" placeholder="Prefix (e.g. BG_)">
+        <input type="text" id="suffixInput" placeholder="Suffix (e.g. _EN)">
       </div>
     
       <div class="input-row">
-        <button id="markButton" class="mark-button">Mark (Space)</button>
-        <button id="deleteButton" class="delete-button">Delete</button>
-        <button id="undoButton">Undo</button>
-        <button id="redoButton">Redo</button>
+        <button type="button" id="markButton" class="mark-button">Mark (Space)</button>
+        <button type="button" id="deleteButton" class="delete-button">Delete</button>
+        <button type="button" id="undoButton">Undo</button>
+        <button type="button" id="redoButton">Redo</button>
       </div>
     </div>
     
@@ -84,9 +84,9 @@
     
       <div class="input-row">
         <input type="file" id="loadJsonInput" style="display:none" onchange="loadJsonFile(event)">
-        <button onclick="document.getElementById('loadJsonInput').click()">Load JSON</button>
-        <button onclick="copyJsonData()">Copy</button>
-        <button onclick="saveData()">Save</button>
+        <button type="button" onclick="document.getElementById('loadJsonInput').click()">Load JSON</button>
+        <button type="button" onclick="copyJsonData()">Copy</button>
+        <button type="button" onclick="saveData()">Save</button>
       </div>
     
       <textarea id="jsonDataInput" placeholder="Paste JSON here"></textarea>
@@ -102,8 +102,8 @@
     
     <!-- ================= TABLE ================= -->
     <div class="card">
-      <div id="loadingIndicator" class="hidden">Loading large JSON...</div>
       <h3>Timeline</h3>
+      <div id="loadingIndicator" class="hidden">Loading large JSON...</div>
     
       <div style="overflow-x:auto;">
         <table id="timestampsTable">
