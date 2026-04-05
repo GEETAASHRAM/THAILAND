@@ -1,16 +1,16 @@
 // =========================================================
-// 🚀  AUDIO SYNC SCRIPT (SMART FOCUS & AUTO-CHAPTER)
+// 🚀 AUDIO SYNC SCRIPT (SEAMLESS FLOW & CONFETTI)
 // =========================================================
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    console.log("🚀 App Initialized with Smart Focus");
+    console.log("🚀 App Initialized");
 
     // =========================
     // 🧠 GLOBAL STATE
     // =========================
     let startTime = null;
-    let activeVerseIndex = 0; // The currently targeted row (0-based)
+    let activeVerseIndex = 0; 
     let isGeetaMode = false;
 
     let historyStack = [];
@@ -70,6 +70,31 @@ document.addEventListener('DOMContentLoaded', () => {
         element.innerHTML = text.replace(regex, `<mark style="background-color: yellow; color: black; border-radius: 2px;">$1</mark>`);
     }
 
+    // 🎉 CONFETTI CELEBRATION
+    function fireConfetti() {
+        const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
+        for (let i = 0; i < 150; i++) {
+            const conf = document.createElement('div');
+            conf.style.position = 'fixed';
+            conf.style.width = '10px';
+            conf.style.height = '10px';
+            conf.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            conf.style.left = Math.random() * 100 + 'vw';
+            conf.style.top = '-10px';
+            conf.style.zIndex = '9999';
+            conf.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+            document.body.appendChild(conf);
+
+            const duration = Math.random() * 2 + 1.5;
+            conf.animate([
+                { transform: `translate3d(0,0,0) rotate(0deg)`, opacity: 1 },
+                { transform: `translate3d(${Math.random()*300 - 150}px, 100vh, 0) rotate(${Math.random()*720}deg)`, opacity: 0 }
+            ], { duration: duration * 1000, easing: 'cubic-bezier(.37,0,.63,1)' });
+
+            setTimeout(() => conf.remove(), duration * 1000);
+        }
+    }
+
     // =========================
     // 🎯 SMART FOCUS TRACKER
     // =========================
@@ -80,7 +105,6 @@ document.addEventListener('DOMContentLoaded', () => {
         [...tableBody.rows].forEach((row, i) => {
             if (i === activeVerseIndex) {
                 row.classList.add('focused-verse');
-                // Smoothly scroll into view
                 row.scrollIntoView({ block: "center", behavior: "smooth" });
             } else {
                 row.classList.remove('focused-verse');
@@ -88,71 +112,57 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Click anywhere on a row to focus it
     tableBody.addEventListener('click', (e) => {
         const row = e.target.closest('tr');
-        if (row) setFocusRow(row.rowIndex - 1); // -1 because of thead
+        if (row && !e.target.classList.contains('row-mark-start') && !e.target.classList.contains('row-mark-end')) {
+            setFocusRow(row.rowIndex - 1); 
+        }
     });
 
-    function advanceAndCheckChapter() {
+    function advanceAndCheckChapter(currentEndTime) {
         if (!isGeetaMode || !currentGeetaData) return;
         
         const currentIndex = activeVerseIndex;
         const nextIndex = activeVerseIndex + 1;
 
         if (nextIndex < currentGeetaData.length) {
-            const currentAudio = currentGeetaData[currentIndex]?.AudioFileURL;
-            const nextAudio = currentGeetaData[nextIndex]?.AudioFileURL;
+            const currentChapter = currentGeetaData[currentIndex].Chapter;
+            const nextChapter = currentGeetaData[nextIndex].Chapter;
+            
+            const nextAudioUrl = currentGeetaData[nextIndex].AudioFileURL;
 
-            // Shift focus down
             setFocusRow(nextIndex);
 
-            // AUTO-CHAPTER SWITCHING
-            if (nextAudio && currentAudio !== nextAudio) {
-                console.log("🔄 Chapter changed! Loading new audio URL...");
-                fileUrlInput.value = nextAudio;
-                audioPlayer.src = nextAudio;
-                audioPlayer.load();
-                // Optionally: audioPlayer.play();
+            if (currentChapter === nextChapter) {
+                // SAME CHAPTER: Auto-set the start time of the next verse to the end time of the previous verse
+                currentGeetaData[nextIndex].AudioStart = currentEndTime;
+                const nextRow = tableBody.rows[nextIndex];
+                if (nextRow) {
+                    nextRow.querySelector('.startTime').textContent = currentEndTime;
+                }
+            } else {
+                // DIFFERENT CHAPTER: Celebrate and swap audio!
+                console.log("🔄 Chapter complete! Loading new audio...");
+                fireConfetti();
+                
+                if (nextAudioUrl && currentGeetaData[currentIndex].AudioFileURL !== nextAudioUrl) {
+                    fileUrlInput.value = nextAudioUrl;
+                    audioPlayer.src = nextAudioUrl;
+                    audioPlayer.load();
+                }
             }
+        } else {
+            // END OF ENTIRE BOOK
+            fireConfetti();
         }
     }
 
     // =========================
-    // 🧠 KEYBOARD SHORTCUTS
-    // =========================
-    document.addEventListener('keydown', e => {
-        // Prevent shortcuts if typing in an input
-        if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
-
-        // [ Key -> Mark START
-        if (e.key === '[' || e.key === '{') {
-            e.preventDefault();
-            markTargetedVerse('start');
-        }
-        
-        // ] Key -> Mark END & Advance
-        if (e.key === ']' || e.key === '}') {
-            e.preventDefault();
-            markTargetedVerse('end');
-        }
-
-        // Spacebar -> Normal Mode (Legacy Support)
-        if (e.code === 'Space' && !isGeetaMode) {
-            e.preventDefault();
-            markNormalMode();
-        }
-
-        if (e.ctrlKey && e.key === 'z') undo();
-        if (e.ctrlKey && e.key === 'y') redo();
-    });
-
-    // =========================
-    // ⚡ MARKING LOGIC
+    // ⚡ MARKING LOGIC (GEETA MODE)
     // =========================
     function flashRow(row) {
         const originalBg = row.style.background;
-        row.style.background = "#d4edda"; // Green flash
+        row.style.background = "#d4edda"; 
         setTimeout(() => row.style.background = originalBg, 400);
     }
 
@@ -165,6 +175,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const sCell = row.querySelector('.startTime');
         const eCell = row.querySelector('.endTime');
         const durCell = row.cells[3];
+        const audioRowPlayer = row.querySelector('audio');
+        const audioRowSource = row.querySelector('source');
 
         try {
             if (action === 'start') {
@@ -187,6 +199,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (currentGeetaData[activeVerseIndex]) {
                     currentGeetaData[activeVerseIndex].AudioEnd = en;
                     currentGeetaData[activeVerseIndex].ReadTimeInSeconds = dur > 0 ? dur : 0;
+                    
+                    // UPDATE CHUNK AUDIO SOURCE
+                    if (audioRowPlayer && audioRowSource) {
+                        const baseUrl = currentGeetaData[activeVerseIndex].AudioFileURL || audioPlayer.src;
+                        audioRowSource.src = `${baseUrl}#t=${s},${en}`;
+                        audioRowPlayer.load();
+                    }
                 }
 
                 flashRow(row);
@@ -194,8 +213,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateProgress();
                 saveHistory();
 
-                // 🚀 The Magic: Automatically move to next verse
-                advanceAndCheckChapter();
+                // Auto move to next verse
+                advanceAndCheckChapter(en);
             }
         } catch (err) {
             console.error("Marking failed:", err);
@@ -203,6 +222,41 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // =========================
+    // 🧠 KEYBOARD SHORTCUTS
+    // =========================
+    document.addEventListener('keydown', e => {
+        if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+        if (e.key === '[' || e.key === '{') { e.preventDefault(); markTargetedVerse('start'); }
+        if (e.key === ']' || e.key === '}') { e.preventDefault(); markTargetedVerse('end'); }
+
+        if (e.code === 'Space' && !isGeetaMode) {
+            e.preventDefault();
+            markNormalMode();
+        }
+
+        if (e.ctrlKey && e.key === 'z') undo();
+        if (e.ctrlKey && e.key === 'y') redo();
+    });
+
+    // Delegated button clicks for Start/End inside Geeta Mode
+    tableBody.addEventListener('click', e => {
+        if (!isGeetaMode) return;
+        const target = e.target;
+        if (target.classList.contains('row-mark-start')) {
+            setFocusRow(parseInt(target.getAttribute('data-index')));
+            markTargetedVerse('start');
+        }
+        if (target.classList.contains('row-mark-end')) {
+            setFocusRow(parseInt(target.getAttribute('data-index')));
+            markTargetedVerse('end');
+        }
+    });
+
+    // =========================
+    // ⚡ MARKING LOGIC (NORMAL MODE)
+    // =========================
     function markNormalMode() {
         const t = audioPlayer.currentTime;
         if (startTime === null) startTime = 0;
@@ -226,23 +280,8 @@ document.addEventListener('DOMContentLoaded', () => {
         saveHistory();
     }
 
-    // Button click mappings
     document.getElementById('markButton')?.addEventListener('click', () => {
         isGeetaMode ? markTargetedVerse('start') : markNormalMode();
-    });
-
-    // Delegated button clicks for Start/End inside Geeta Mode
-    tableBody.addEventListener('click', e => {
-        if (!isGeetaMode) return;
-        const target = e.target;
-        if (target.classList.contains('row-mark-start')) {
-            setFocusRow(parseInt(target.getAttribute('data-index')));
-            markTargetedVerse('start');
-        }
-        if (target.classList.contains('row-mark-end')) {
-            setFocusRow(parseInt(target.getAttribute('data-index')));
-            markTargetedVerse('end');
-        }
     });
 
     // =========================
@@ -300,23 +339,37 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // =========================
+    // 🔍 DROPDOWN SEARCH
+    // =========================
+    if (searchSelect && optionsContainer) {
+        const options = optionsContainer.getElementsByTagName('div');
+        searchSelect.addEventListener('focus', () => { optionsContainer.classList.remove('hidden'); [...options].forEach(o => o.style.display = ""); });
+        searchSelect.addEventListener('input', () => {
+            const filter = searchSelect.value.toLowerCase();
+            let visible = false;
+            [...options].forEach(o => { if (o.textContent.toLowerCase().includes(filter)) { o.style.display = ""; visible = true; } else o.style.display = "none"; });
+            optionsContainer.classList.toggle('hidden', !visible);
+        });
+        optionsContainer.onclick = (e) => {
+            const val = e.target.getAttribute('data-value');
+            if (val) {
+                fileUrlInput.value = val; searchSelect.value = e.target.textContent; optionsContainer.classList.add('hidden'); window.loadAudio();
+            }
+        };
+        document.addEventListener('click', e => { if (!e.target.closest('.select-container')) optionsContainer.classList.add('hidden'); });
+    }
+
+    // =========================
     // 🎧 LOAD AUDIO
     // =========================
     window.loadAudio = function () {
         try {
-            if (!fileUrlInput.value && !fileInput?.files.length) {
-                alert("Provide audio source"); return;
-            }
-
-            // WIPE TABLE AND RESET
-            tableBody.innerHTML = '';
-            activeVerseIndex = 0; startTime = null; isGeetaMode = false; window.currentGeetaData = null;
+            if (!fileUrlInput.value && !fileInput?.files.length) { alert("Provide audio source"); return; }
+            tableBody.innerHTML = ''; activeVerseIndex = 0; startTime = null; isGeetaMode = false; window.currentGeetaData = null;
             jsonInput.value = '';
             if(progressBar) progressBar.style.width = "0%";
             if(progressText) progressText.innerText = `Progress: 0/0 (0%)`;
             if (searchCountDisplay) searchCountDisplay.innerText = "";
-
-            audioPlayer.onloadedmetadata = () => { updateProgress(); };
 
             if (fileUrlInput.value) {
                 audioPlayer.src = fileUrlInput.value;
@@ -361,6 +414,9 @@ document.addEventListener('DOMContentLoaded', () => {
         window.loadJsonData(jsonInput.value);
     }
 
+    undoButton?.addEventListener('click', undo);
+    redoButton?.addEventListener('click', redo);
+
     // =========================
     // 📊 SMART PROGRESS TRACKER
     // =========================
@@ -402,6 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     for (let i = 0; i < 50 && idx < data.length; i++, idx++) {
                         const v = data[idx];
                         const lyricsText = v.EnglishText ? `${v.OriginalText || ""}<br><br>${v.EnglishText}` : (v.OriginalText || "");
+                        const chunkSrc = (v.AudioFileURL && v.AudioEnd > 0) ? `${v.AudioFileURL}#t=${v.AudioStart},${v.AudioEnd}` : (v.AudioFileURL || "");
 
                         const row = document.createElement('tr');
                         row.innerHTML = `
@@ -413,10 +470,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             <td><div class="lyrics-text" style="max-height: 100px; overflow-y: auto; background: #f9f9f9; padding: 10px; border: 1px solid #ccc; border-radius: 8px;">${lyricsText}</div></td>
                             <td>
                                 <div style="display:flex; gap:5px; margin-bottom:5px;">
-                                    <button class="row-mark-start" data-index="${idx}" style="flex:1; background:#28a745; color:white; border:none; border-radius:4px; padding:6px; cursor:pointer; font-size:12px;">Start</button>
-                                    <button class="row-mark-end" data-index="${idx}" style="flex:1; background:#dc3545; color:white; border:none; border-radius:4px; padding:6px; cursor:pointer; font-size:12px;">End</button>
+                                    <button class="row-mark-start" data-index="${idx}" title="Hotkey: [" style="flex:1; background:#28a745; color:white; border:none; border-radius:4px; padding:6px; cursor:pointer; font-size:12px;">Start [</button>
+                                    <button class="row-mark-end" data-index="${idx}" title="Hotkey: ]" style="flex:1; background:#dc3545; color:white; border:none; border-radius:4px; padding:6px; cursor:pointer; font-size:12px;">End ]</button>
                                 </div>
-                                <audio controls style="height:35px; width:100%;"><source src="${v.AudioFileURL || ""}"></audio>
+                                <audio controls style="height:35px; width:100%;"><source src="${chunkSrc}"></audio>
                             </td>
                         `;
                         frag.appendChild(row);
@@ -428,7 +485,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         updateProgress();
                         document.getElementById('loadingIndicator')?.classList.add('hidden');
                         
-                        // Set focus to the first uncompleted verse, or verse 0
+                        // Set focus to the first uncompleted verse
                         const firstUnfinished = data.findIndex(v => !v.AudioEnd || v.AudioEnd === 0);
                         setFocusRow(firstUnfinished !== -1 ? firstUnfinished : 0);
                     }
@@ -439,10 +496,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 prepareGeetaJson();
 
             } else {
+                // NORMAL JSON LOAD
                 isGeetaMode = false;
+                let maxEndSaved = 0;
+
                 if(data.audioUrl) { audioPlayer.src = data.audioUrl; audioPlayer.load(); }
                 
                 data.timestamps?.forEach((t, i) => {
+                    maxEndSaved = Math.max(maxEndSaved, safeNum(t.end));
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td>${i + 1}</td>
@@ -455,9 +516,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     `;
                     tableBody.appendChild(row);
                 });
+
                 activeVerseIndex = data.timestamps?.length || 0;
                 prepareJson();
-                updateProgress(); 
+                
+                // AUTO SEEK TO LAST SAVED POSITION FOR NORMAL JSON
+                audioPlayer.addEventListener('loadedmetadata', function seekOnce() {
+                    audioPlayer.currentTime = maxEndSaved;
+                    updateProgress();
+                    audioPlayer.removeEventListener('loadedmetadata', seekOnce);
+                });
             }
         } catch (err) { console.error("Load JSON Error:", err); }
     };
@@ -515,9 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
             currentGeetaData[activeVerseIndex].AudioEnd = 0;
             currentGeetaData[activeVerseIndex].ReadTimeInSeconds = 0;
             prepareGeetaJson(); 
-        } else {
-            prepareJson();
-        }
+        } else { prepareJson(); }
         updateProgress();
         saveHistory();
     });
@@ -530,12 +596,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const en = safeNum(row.cells[2].textContent);
 
             if (en < s) { alert("Invalid time"); return; }
-            const duration = parseFloat((en - s).toFixed(2));
-            row.cells[3].textContent = duration;
+            const dur = parseFloat((en - s).toFixed(2));
+            row.cells[3].textContent = dur;
             
             const audioEl = row.querySelector('audio');
-            if(audioEl) {
-                row.querySelector('source').src = `${audioPlayer.src}#t=${s},${en}`;
+            const sourceEl = row.querySelector('source');
+            if(audioEl && sourceEl) {
+                const baseUrl = isGeetaMode ? (currentGeetaData[row.rowIndex - 1].AudioFileURL || audioPlayer.src) : audioPlayer.src;
+                sourceEl.src = `${baseUrl}#t=${s},${en}`;
                 audioEl.load();
             }
 
@@ -544,38 +612,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(currentGeetaData[idx]) {
                     currentGeetaData[idx].AudioStart = s;
                     currentGeetaData[idx].AudioEnd = en;
-                    currentGeetaData[idx].ReadTimeInSeconds = duration;
+                    currentGeetaData[idx].ReadTimeInSeconds = dur;
                 }
                 prepareGeetaJson(); 
-            } else {
-                prepareJson();
-            }
+            } else { prepareJson(); }
             updateProgress(); 
             saveHistory();
         }
     }, true);
 
     // =========================
-    // 🔍 DROPDOWN INIT
-    // =========================
-    if (searchSelect && optionsContainer) {
-        const options = optionsContainer.getElementsByTagName('div');
-        searchSelect.addEventListener('focus', () => { optionsContainer.classList.remove('hidden'); [...options].forEach(o => o.style.display = ""); });
-        searchSelect.addEventListener('input', () => {
-            const filter = searchSelect.value.toLowerCase();
-            let visible = false;
-            [...options].forEach(o => { if (o.textContent.toLowerCase().includes(filter)) { o.style.display = ""; visible = true; } else o.style.display = "none"; });
-            optionsContainer.classList.toggle('hidden', !visible);
-        });
-        optionsContainer.onclick = (e) => {
-            const val = e.target.getAttribute('data-value');
-            if (val) {
-                fileUrlInput.value = val; searchSelect.value = e.target.textContent; optionsContainer.classList.add('hidden'); window.loadAudio();
-            }
-        };
-        document.addEventListener('click', e => { if (!e.target.closest('.select-container')) optionsContainer.classList.add('hidden'); });
-    }
-
     // INIT
+    // =========================
     loadAutoSave();
 });
