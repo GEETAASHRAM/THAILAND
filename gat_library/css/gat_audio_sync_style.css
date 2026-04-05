@@ -113,6 +113,12 @@ table {
   background: white;
 }
 
+th {
+  background: #f1f3f5;
+  position: sticky;
+  top: 0;
+}
+
 th, td {
   border: 1px solid #ddd;
   padding: 12px;
@@ -121,7 +127,7 @@ th, td {
 
 /* Give more room to audio column */
 td:nth-child(7) {
-  width: 250px;
+  min-width: 280px;
 }
 
 td:nth-child(6) {
@@ -136,6 +142,10 @@ tr:nth-child(even) {
 /* Highlight animation smoother */
 tr {
   transition: background 0.2s ease;
+}
+
+tr.active-row {
+  background-color: #ffeaa7 !important;
 }
 
 /* SPECIAL TEXTAREAS */
@@ -169,7 +179,7 @@ table tbody tr td textarea.lyricsInput:focus {
 }
 
 .searchable-select {
-  width: 80%;
+  width: 100%;
   padding: 10px;
   border-radius: 8px;
   border: 2px solid #007BFF;
@@ -182,6 +192,7 @@ table tbody tr td textarea.lyricsInput:focus {
   /* z-index: 1; */
 }
 
+/* Fixed the nested comment issue here so the CSS parses correctly */
 /* .select-container::before {
   content: '';
   position: absolute;
@@ -190,10 +201,10 @@ table tbody tr td textarea.lyricsInput:focus {
   background: linear-gradient(90deg, #007bff, #00bfff, #00ff7f, #ff00ff);
   border-radius: 8px;
   background-size: 600% 600%;
-  /* animation: gradientShift 10s ease infinite; */
   animation: gradientShift 20s linear infinite;
   opacity: 0.6;
-} */
+} 
+*/
 
 @keyframes gradientShift {
   0% { background-position: 0% 50%; }
