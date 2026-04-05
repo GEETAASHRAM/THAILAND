@@ -155,22 +155,25 @@ table tbody tr td textarea.lyricsInput:focus {
 /* SEARCHABLE SELECT WITH GRADIENT */
 .select-container {
   position: relative;
-  display: inline-block;
+  /* display: inline-block; */
+  width: 100%;
 }
 
 .searchable-select {
   width: 80%;
-  padding: 2px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 2px solid #007BFF;
   /* background: transparent; */
   /* color: #fff; */
-  color: #333;
   background: white;
-  border-radius: 4px;
-  position: relative;
-  z-index: 1;
+  color: #333;
+  outline: none;
+  /* position: relative; */
+  /* z-index: 1; */
 }
 
-.select-container::before {
+/* .select-container::before {
   content: '';
   position: absolute;
   top: -2px; left: -2px; right: -2px; bottom: -2px;
@@ -181,7 +184,7 @@ table tbody tr td textarea.lyricsInput:focus {
   /* animation: gradientShift 10s ease infinite; */
   animation: gradientShift 20s linear infinite;
   opacity: 0.6;
-}
+} */
 
 @keyframes gradientShift {
   0% { background-position: 0% 50%; }
