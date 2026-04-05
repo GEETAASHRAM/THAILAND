@@ -172,7 +172,7 @@ tr.focused-verse {
 /* ================= TEXTAREAS ================= */
 textarea#jsonDataInput {
   width: 100%;
-  height: 150px;
+  height: 269px;
   font-family: monospace;
 }
 
