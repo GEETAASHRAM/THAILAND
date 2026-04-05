@@ -498,6 +498,9 @@ document.addEventListener('DOMContentLoaded', () => {
             isGeetaMode = false;
             tableBody.innerHTML = '';
 
+            verseNumber = 1;
+            startTime = null;
+
             data.timestamps.forEach((t, i) => {
 
                 const start = t.start ?? t.startTime ?? 0;
@@ -557,10 +560,15 @@ document.addEventListener('DOMContentLoaded', () => {
         isGeetaMode = true;
         tableBody.innerHTML = '';
         window.currentGeetaData = data;
+        
+        verseNumber = 1;
+        startTime = null;
     
         let index = 0;
         const batchSize = 50;
-    
+
+        document.getElementById('loadingIndicator').classList.remove('hidden');
+
         function renderBatch() {
     
             const fragment = document.createDocumentFragment();
@@ -593,6 +601,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 console.log("✅ Large JSON rendered safely");
                 updateProgress(); 
+                document.getElementById('loadingIndicator').classList.add('hidden');
             }
         }
     
