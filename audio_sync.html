@@ -4,17 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sync Audio Files</title>
-    
+
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="gat_library/css/dataTables.min.css">
     <link rel="stylesheet" type="text/css" href="gat_library/css/dataTables.buttons.min.css">
     <link rel="stylesheet" type="text/css" href="gat_library/css/responsive.dataTables.min.css">
     <link rel="stylesheet" type="text/css" href="gat_library/css/gat_audio_sync_style.css">
     
-    <script src="gat_library/js/pdfmake.min.js" async></script>
     <script src="gat_library/js/jquery-3.7.1.slim.min.js"></script>
+    <!-- 
+    <script src="gat_library/js/pdfmake.min.js" async></script>
     <script src="gat_library/js/dataTables.min.js"></script>
     <script src="gat_library/js/dataTables.responsive.min.js"></script>
-    <script src="gat_library/js/dataTables.buttons.min.js"></script>
+    <script src="gat_library/js/dataTables.buttons.min.js"></script> 
+    -->
     
 </head>
 <body>
@@ -99,6 +102,7 @@
     
     <!-- ================= TABLE ================= -->
     <div class="card">
+      <div id="loadingIndicator" class="hidden">Loading large JSON...</div>
       <h3>Timeline</h3>
     
       <div style="overflow-x:auto;">
@@ -119,11 +123,11 @@
       </div>
     </div>
     
-    <script src="gat_library/js/buttons.dataTables.min.js" async></script>
+    <!-- <script src="gat_library/js/buttons.dataTables.min.js" async></script>
     <script src="gat_library/js/jszip.min.js" async></script>
     <script src="gat_library/js/vfs_fonts.min.js" async></script>
     <script src="gat_library/js/buttons.print.min.js" async></script>
-    <script src="gat_library/js/buttons.html5.min.js" async></script>
+    <script src="gat_library/js/buttons.html5.min.js" async></script> -->
     <script src="gat_library/js/gat_audio_sync_script.js"></script>
     
 </body>
