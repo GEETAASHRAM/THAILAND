@@ -1,10 +1,10 @@
 // =========================================================
-// 🚀 AUDIO SYNC SCRIPT (ENGINE)
+// 🚀 AUDIO SYNC SCRIPT (ROBUST ENGINE)
 // =========================================================
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    console.log("🚀 App Initialized - High Performance Engine");
+    console.log("🚀 App Initialized - High Performance Engine (Production Build)");
 
     // =========================
     // 🧠 GLOBAL STATE
@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const floatMarkBtn = document.getElementById('floatMarkBtn');
     const floatUndoBtn = document.getElementById('floatUndoBtn');
     const floatRedoBtn = document.getElementById('floatRedoBtn');
+    const floatDeleteBtn = document.getElementById('floatDeleteBtn');
 
     // Dynamic Search Counter
     let searchCountDisplay = null;
@@ -132,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     tableBody.addEventListener('click', (e) => {
         const row = e.target.closest('tr');
-        if (row && !e.target.classList.contains('row-mark-end')) {
+        if (row && !e.target.classList.contains('chunk-player')) {
             setFocusRow(row.rowIndex - 1); 
         }
     });
@@ -140,31 +141,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================
     // ⚡ MARKING ENGINE (GEETA MODE)
     // =========================
-    function markGeetaStart() {
-        if (!isGeetaMode || !currentGeetaData) return;
-        try {
-            const row = tableBody.rows[activeVerseIndex];
-            if (!row) return;
-
-            const t = parseFloat(audioPlayer.currentTime.toFixed(2));
-            if (t === 0 && audioPlayer.paused) {
-                alert("⚠️ Please play the Main Audio Player at the top first!"); 
-                return;
-            }
-            
-            row.querySelector('.startTime').textContent = t.toFixed(2);
-            row.dataset.start = t;
-            currentGeetaData[activeVerseIndex].AudioStart = t;
-
-            flashRow(row);
-            prepareGeetaJson();
-            saveHistory();
-        } catch (err) {
-            console.error("Error marking Geeta Start:", err);
-            alert("An error occurred while marking the start time.");
-        }
-    }
-
     function markGeetaEnd() {
         if (!isGeetaMode || !currentGeetaData) return;
         try {
@@ -214,10 +190,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 audioRowPlayer.style.display = 'block'; 
                 audioRowPlayer.load();
             }
-
-            // Hide action buttons permanently
-            const btnContainer = row.querySelector('.button-container');
-            if (btnContainer) btnContainer.style.display = 'none';
 
             flashRow(row);
             prepareGeetaJson();
@@ -328,31 +300,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
 
         if (e.code === 'Space') { e.preventDefault(); togglePlayPause(); }
-        if (e.key === '[' || e.key === '{') { e.preventDefault(); if (isGeetaMode) markGeetaStart(); }
         if (e.key === ']' || e.key === '}') { e.preventDefault(); isGeetaMode ? markGeetaEnd() : markNormalMode(); }
-
         if (e.ctrlKey && e.key === 'z') undo();
         if (e.ctrlKey && e.key === 'y') redo();
-    });
-
-    tableBody.addEventListener('click', e => {
-        if (!isGeetaMode) return;
-        if (e.target.classList.contains('row-mark-end')) {
-            setFocusRow(parseInt(e.target.getAttribute('data-index')));
-            markGeetaEnd();
-        }
     });
 
     document.getElementById('markButton')?.addEventListener('click', () => isGeetaMode ? markGeetaEnd() : markNormalMode());
     floatPlayBtn?.addEventListener('click', togglePlayPause);
     floatMarkBtn?.addEventListener('click', () => isGeetaMode ? markGeetaEnd() : markNormalMode());
     
-    // Wire up floating history buttons
+    // Wire up history & utility buttons
     floatUndoBtn?.addEventListener('click', undo);
     floatRedoBtn?.addEventListener('click', redo);
+    floatDeleteBtn?.addEventListener('click', deleteLastRow);
+    deleteButton?.addEventListener('click', deleteLastRow);
 
     // =========================
-    // 🏎️ SCROLL ENGINE (CACHED DATA)
+    // 🏎️ CHAPTER-AWARE SCROLL ENGINE
     // =========================
     audioPlayer.addEventListener('timeupdate', () => {
         try {
@@ -361,12 +325,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (isGeetaMode && currentGeetaData) {
                 const cur = currentGeetaData[activeVerseIndex];
+                const activeChapter = cur ? cur.Chapter : currentGeetaData[0].Chapter;
+
+                // First check active verse
                 if (cur && cur.AudioEnd > 0 && t >= cur.AudioStart && t <= cur.AudioEnd) {
                     foundIndex = activeVerseIndex;
                 } else {
+                    // Only search within the active chapter to prevent jumping back to Chapter 1
                     for (let i = 0; i < currentGeetaData.length; i++) {
                         const v = currentGeetaData[i];
-                        if (v.AudioEnd > v.AudioStart && t >= v.AudioStart && t <= v.AudioEnd) { 
+                        if (v.Chapter === activeChapter && v.AudioEnd > v.AudioStart && t >= v.AudioStart && t <= v.AudioEnd) { 
                             foundIndex = i; 
                             break; 
                         }
@@ -397,7 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeRowElem = null;
             }
         } catch (e) {
-            // Silently fail on time update to prevent console spam
+            // Silently fail on time update to prevent browser console spam
         }
     });
 
@@ -564,9 +532,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.loadJsonData(jsonInput.value);
     }
 
-    undoButton?.addEventListener('click', undo);
-    redoButton?.addEventListener('click', redo);
-
     // =========================
     // 📊 PROGRESS TRACKER
     // =========================
@@ -632,9 +597,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             <td class="name-cell">${generateName(v.VerseNum, v)}</td>
                             <td><div class="lyrics-text" style="max-height: 100px; overflow-y: auto; background: #f9f9f9; padding: 10px; border: 1px solid #ccc; border-radius: 8px;">${lTxt}</div></td>
                             <td>
-                                <div class="button-container" style="display:${isDone ? 'none' : 'flex'}; margin-bottom:5px;">
-                                    <button class="row-mark-end" data-index="${idx}" title="Hotkey: ]" style="width:100%; background:#dc3545; color:white; border:none; border-radius:4px; padding:6px; cursor:pointer; font-size:12px; font-weight:bold;">Mark End ]</button>
-                                </div>
                                 <audio class="chunk-player" controls style="height:35px; width:100%; display:${isDone ? 'block' : 'none'};"><source src="${chunkSrc}"></audio>
                             </td>
                         `;
@@ -649,7 +611,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         updateProgress(); 
                         if (loadingInd) loadingInd.classList.add('hidden');
                         
-                        // Resume location logic
+                        // Auto-Resume logic
                         const firstUnf = data.findIndex(v => !v.AudioEnd || v.AudioEnd === 0);
                         if (firstUnf !== -1) {
                             setFocusRow(firstUnf);
@@ -805,7 +767,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================
     // 🗑 DELETE & MANUAL EDIT
     // =========================
-    document.getElementById('deleteButton')?.addEventListener('click', () => {
+    function deleteLastRow() {
         try {
             if (!tableBody.rows.length) {
                 alert("Nothing to delete.");
@@ -831,7 +793,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch(e) {
             console.error("Error during deletion:", e);
         }
-    });
+    }
 
     // Handle manual text editing in the table cells
     tableBody.addEventListener('blur', e => {
@@ -865,9 +827,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     sourceEl.src = `${baseUrl}#t=${s},${en}`;
                     audioEl.style.display = 'block';
                     audioEl.load();
-                    
-                    const btn = row.querySelector('.button-container');
-                    if (btn) btn.style.display = 'none';
                 }
 
                 // Update Master JSONs
