@@ -127,6 +127,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    
+    // =========================================================
+    // 💾 SAVE DATA 
+    // =========================================================
+    window.saveData = function () {
+    
+        try {
+    
+            const blob = new Blob([jsonInput.value], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+    
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'geeta_audio_sync.json';
+            a.click();
+    
+            URL.revokeObjectURL(url);
+    
+            console.log("💾 JSON downloaded");
+    
+        } catch (err) {
+            console.error("Save error:", err);
+        }
+    };
+    
     // =========================================================
     // 💾 AUTO SAVE (LOCAL STORAGE)
     // =========================================================
@@ -152,7 +177,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     setInterval(autoSave, 5000);
-
+    
+    // =========================================================
+    // 📋COPY
+    // =========================================================
+    window.copyJsonData = function () {
+        try {
+            navigator.clipboard.writeText(jsonInput.value);
+            console.log("📋 JSON copied");
+            alert("Copied to clipboard!");
+        } catch (err) {
+            console.error("Copy failed:", err);
+        }
+    };
+    
     // =========================================================
     // 🔁 UNDO / REDO SYSTEM
     // =========================================================
@@ -413,35 +451,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     }, true);
 
-    // =========================================================
-    // 📥 LOAD JSON FILE
-    // =========================================================
-    window.loadJsonFile = function (event) {
-
-        try {
-
-            const file = event.target.files[0];
-
-            if (!file) return;
-
-            const reader = new FileReader();
-
-            reader.onload = (e) => {
-                const content = e.target.result;
-
-                jsonInput.value = content;
-                loadJsonData(content);
-
-                console.log("📂 JSON file loaded");
-            };
-
-            reader.readAsText(file);
-
-        } catch (err) {
-            console.error("File load error:", err);
-        }
-    };
-
     // =====================================
     // 📥 AUTO LOAD ON PASTE + BLUR/ENTER
     // =====================================
@@ -470,7 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================
     // 📥 LOAD JSON DATA (DUAL FORMAT)
     // =========================================================
-
+           
     window.loadJsonData = function (data) {
 
         try {
@@ -503,7 +512,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td>${(end - start).toFixed(2)}</td>
                     <td>${prefixInput.value || ""}${i + 1}${suffixInput.value || ""}</td>
                     <td><textarea>${t.chunkLyrics || ""}</textarea></td>
-                    <td><audio controls><source src="${data.audioUrl || ''}"></audio></td>
+                    <td><audio controls><source src="${audioPlayer.src}#t=${start},${end}"></audio></td>
                 `;
 
                 tableBody.appendChild(row);
@@ -517,42 +526,79 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    //from file
+    window.loadJsonFile = function (event) {
+        try {
+            const file = event.target.files[0];
+            if (!file) return;
+    
+            const reader = new FileReader();
+    
+            reader.onload = (e) => {
+                const content = e.target.result;
+                jsonInput.value = content;
+                loadJsonData(content);
+            };
+    
+            reader.readAsText(file);
+    
+            console.log("📂 JSON file loaded");
+    
+        } catch (err) {
+            console.error("File load error:", err);
+        }
+    };
+            
     // =========================================================
     // 📖 LOAD GEETA JSON
     // =========================================================
     function loadGeetaJson(data) {
-
+    
         isGeetaMode = true;
         tableBody.innerHTML = '';
-
-        let chapter = null;
-
-        data.forEach(v => {
-
-            if (chapter !== v.Chapter) {
-                chapter = v.Chapter;
-                tableBody.innerHTML += `<tr><td colspan="7"><b>Chapter ${chapter}</b></td></tr>`;
-            }
-
-            const audioUrl = v.AudioFileURL || audioPlayer.src || "";
-
-            tableBody.innerHTML += `
-                <tr>
+        window.currentGeetaData = data;
+    
+        let index = 0;
+        const batchSize = 50;
+    
+        function renderBatch() {
+    
+            const fragment = document.createDocumentFragment();
+    
+            for (let i = 0; i < batchSize && index < data.length; i++, index++) {
+    
+                const v = data[index];
+    
+                const row = document.createElement('tr');
+    
+                const audioUrl = v.AudioFileURL || audioPlayer.src || "";
+    
+                row.innerHTML = `
                     <td>${v.VerseNum}</td>
-                    <td contenteditable="true" class="startTime">${v.AudioStart || 0}</td>
-                    <td contenteditable="true" class="endTime">${v.AudioEnd || 0}</td>
+                    <td contenteditable class="startTime">${v.AudioStart || 0}</td>
+                    <td contenteditable class="endTime">${v.AudioEnd || 0}</td>
                     <td>0</td>
-                    <td>${v.VerseNum}</td>
+                    <td>${prefixInput.value || ""}${v.VerseNum}${suffixInput.value || ""}</td>
                     <td>${v.OriginalText}</td>
                     <td><audio controls><source src="${audioUrl}"></audio></td>
-                </tr>
-            `;
-        });
-
-        window.currentGeetaData = data;
-        audioPlayer.src = data[0].AudioFileURL;
-
-        updateProgress();
+                `;
+    
+                fragment.appendChild(row);
+            }
+    
+            tableBody.appendChild(fragment);
+    
+            if (index < data.length) {
+                requestAnimationFrame(renderBatch);
+            } else {
+                console.log("✅ Large JSON rendered safely");
+                updateProgress(); 
+            }
+        }
+    
+        renderBatch();
+    
+        audioPlayer.src = data[0]?.AudioFileURL || "";
     }
 
     // =========================================================
