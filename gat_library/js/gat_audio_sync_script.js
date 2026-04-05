@@ -1,5 +1,5 @@
 // =========================================================
-// 🚀 AUDIO SYNC SCRIPT (ULTIMATE CONTINUOUS ENGINE)
+// 🚀 AUDIO SYNC SCRIPT (FLAWLESS AUTO-RESUME)
 // =========================================================
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     tableBody.addEventListener('click', (e) => {
         const row = e.target.closest('tr');
-        if (row && !e.target.classList.contains('row-mark-end')) {
+        if (row && !e.target.classList.contains('row-mark-start') && !e.target.classList.contains('row-mark-end')) {
             setFocusRow(row.rowIndex - 1); 
         }
     });
@@ -143,7 +143,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const eCell = row.querySelector('.endTime');
         const durCell = row.cells[3];
 
-        // 1. Extract Start, Assign End, Calculate Duration
         let s = safeNum(sCell.textContent);
         let en = t;
         
@@ -154,28 +153,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let dur = parseFloat((en - s).toFixed(2));
 
-        // 2. Update UI Table
+        // Update UI Table
         sCell.textContent = s.toFixed(2);
         eCell.textContent = en.toFixed(2);
         durCell.textContent = dur.toFixed(2);
 
-        // 3. Update Master JSON
+        // Update Master JSON
         currentGeetaData[activeVerseIndex].AudioStart = s;
         currentGeetaData[activeVerseIndex].AudioEnd = en;
         currentGeetaData[activeVerseIndex].ReadTimeInSeconds = dur;
 
-        // 4. Update Chunk Audio instantly & Reveal it
-        const audioRowPlayer = row.querySelector('.chunk-player');
-        if (audioRowPlayer) {
-            const audioRowSource = audioRowPlayer.querySelector('source');
+        // Update Chunk Audio instantly
+        const audioRowPlayer = row.querySelector('audio');
+        const audioRowSource = row.querySelector('source');
+        if (audioRowPlayer && audioRowSource) {
             let baseUrl = currentGeetaData[activeVerseIndex].AudioFileURL || audioPlayer.src;
-            baseUrl = baseUrl.split('#')[0]; // Clean base URL
+            baseUrl = baseUrl.split('#')[0]; 
             audioRowSource.src = `${baseUrl}#t=${s},${en}`;
-            audioRowPlayer.style.display = 'block'; // Unhide the audio player
             audioRowPlayer.load();
         }
 
-        // 5. Hide the End button permanently for this row
+        // Hide action buttons permanently for this row
         const btnContainer = row.querySelector('.button-container');
         if (btnContainer) {
             btnContainer.style.display = 'none';
@@ -186,14 +184,14 @@ document.addEventListener('DOMContentLoaded', () => {
         updateProgress();
         saveHistory();
 
-        // 6. Automatically advance to next verse
+        // Auto move to next verse
         advanceToNextGeetaVerse(en);
     }
 
     function advanceToNextGeetaVerse(previousEndTime) {
         const nextIndex = activeVerseIndex + 1;
         if (nextIndex >= currentGeetaData.length) {
-            fireConfetti(); // Book Complete!
+            fireConfetti(); 
             return;
         }
 
@@ -205,18 +203,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const nextRow = tableBody.rows[nextIndex];
 
         if (currentChapter === nextChapter) {
-            // SAME CHAPTER: Auto Paste End Time as Next Start Time
+            // SAME CHAPTER
             currentGeetaData[nextIndex].AudioStart = previousEndTime;
             if (nextRow) {
                 nextRow.querySelector('.startTime').textContent = previousEndTime.toFixed(2);
             }
             prepareGeetaJson();
         } else {
-            // NEW CHAPTER: Celebrate and swap audio file automatically
+            // NEW CHAPTER
             console.log("🔄 Chapter complete! Loading new audio...");
             fireConfetti();
             
-            // Reset start time to 0 for the new chapter
             currentGeetaData[nextIndex].AudioStart = 0;
             if (nextRow) {
                 nextRow.querySelector('.startTime').textContent = "0.00";
@@ -227,8 +224,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 fileUrlInput.value = nextAudioUrl;
                 audioPlayer.src = nextAudioUrl;
                 audioPlayer.load();
-                
-                // Play automatically since it's a direct result of user pressing "]"
                 audioPlayer.play().catch(e => console.log("Autoplay blocked by browser")); 
             }
         }
@@ -471,9 +466,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         baseUrl = baseUrl.split('#')[0]; 
                         const chunkSrc = hasValidTimes ? `${baseUrl}#t=${v.AudioStart},${v.AudioEnd}` : baseUrl;
                         
-                        // Hide buttons and show audio ONLY if it's already marked
+                        // Hide buttons ONLY if it's already marked
                         const displayButtons = hasValidTimes ? 'none' : 'flex';
-                        const displayAudio = hasValidTimes ? 'block' : 'none';
 
                         const row = document.createElement('tr');
                         row.innerHTML = `
@@ -487,7 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <div class="button-container" style="display:${displayButtons}; margin-bottom:5px;">
                                     <button class="row-mark-end" data-index="${idx}" title="Hotkey: ]" style="width:100%; background:#dc3545; color:white; border:none; border-radius:4px; padding:6px; cursor:pointer; font-size:12px; font-weight:bold;">Mark End ]</button>
                                 </div>
-                                <audio class="chunk-player" controls style="height:35px; width:100%; display:${displayAudio};"><source src="${chunkSrc}"></audio>
+                                <audio class="chunk-player" controls style="height:35px; width:100%;"><source src="${chunkSrc}"></audio>
                             </td>
                         `;
                         frag.appendChild(row);
@@ -503,14 +497,37 @@ document.addEventListener('DOMContentLoaded', () => {
                         const firstUnfinished = data.findIndex(v => !v.AudioEnd || v.AudioEnd === 0);
                         if (firstUnfinished !== -1) {
                             setFocusRow(firstUnfinished);
+                            
+                            // Auto populate correct audio file for the resumed chapter
+                            const targetAudioUrl = data[firstUnfinished].AudioFileURL;
+                            if (targetAudioUrl) {
+                                fileUrlInput.value = targetAudioUrl;
+                                audioPlayer.src = targetAudioUrl;
+                                audioPlayer.load();
+                            }
+
+                            // Cascade start time or reset to 0
                             if (firstUnfinished > 0 && data[firstUnfinished].Chapter === data[firstUnfinished - 1].Chapter) {
                                 const prevEnd = data[firstUnfinished - 1].AudioEnd;
                                 data[firstUnfinished].AudioStart = prevEnd;
                                 tableBody.rows[firstUnfinished].querySelector('.startTime').textContent = prevEnd.toFixed(2);
-                            } else if (firstUnfinished === 0 || data[firstUnfinished].Chapter !== data[firstUnfinished - 1].Chapter) {
+                            } else {
                                 data[firstUnfinished].AudioStart = 0;
                                 tableBody.rows[firstUnfinished].querySelector('.startTime').textContent = "0.00";
                             }
+
+                            // Auto seek main player to the starting point
+                            function performGeetaSeek() {
+                                audioPlayer.currentTime = data[firstUnfinished].AudioStart;
+                            }
+                            if (audioPlayer.readyState >= 1) performGeetaSeek();
+                            else {
+                                audioPlayer.addEventListener('loadedmetadata', function seekOnce() {
+                                    performGeetaSeek();
+                                    audioPlayer.removeEventListener('loadedmetadata', seekOnce);
+                                });
+                            }
+
                         } else {
                             setFocusRow(0);
                         }
@@ -518,7 +535,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 renderBatch();
                 
-                if (data[0]?.AudioFileURL) { audioPlayer.src = data[0].AudioFileURL; audioPlayer.load(); }
                 prepareGeetaJson();
 
             } else {
@@ -639,7 +655,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 let baseUrl = isGeetaMode ? (currentGeetaData[row.rowIndex - 1].AudioFileURL || audioPlayer.src) : audioPlayer.src;
                 baseUrl = baseUrl.split('#')[0];
                 sourceEl.src = `${baseUrl}#t=${s},${en}`;
-                audioEl.style.display = 'block';
                 audioEl.load();
                 const btn = row.querySelector('.button-container');
                 if (btn) btn.style.display = 'none';
