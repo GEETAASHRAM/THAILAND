@@ -1,10 +1,14 @@
+// =========================================================
+// 🚀 AUDIO SYNC SCRIPT 
+// =========================================================
+
 document.addEventListener('DOMContentLoaded', () => {
 
-    console.log("🚀 Geeta Audio Sync App Initialized");
+    console.log("🚀 App Initialized");
 
-    // =========================================================
+    // =========================
     // 🧠 GLOBAL STATE
-    // =========================================================
+    // =========================
     let startTime = null;
     let verseNumber = 1;
     let isGeetaMode = false;
@@ -14,20 +18,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.currentGeetaData = null;
 
-    // =========================================================
-    // 📌 ELEMENT REFERENCES
-    // =========================================================
+    // =========================
+    // 📌 ELEMENTS
+    // =========================
     const audioPlayer = document.getElementById('audioPlayer');
     const tableBody = document.querySelector('#timestampsTable tbody');
     const jsonInput = document.getElementById('jsonDataInput');
 
-    const markButton = document.getElementById('markButton');
-    const deleteButton = document.getElementById('deleteButton');
-    const undoButton = document.getElementById('undoButton');
-    const redoButton = document.getElementById('redoButton');
+    const prefixInput = document.getElementById('prefixInput');
+    const suffixInput = document.getElementById('suffixInput');
 
     const fileUrlInput = document.getElementById('fileUrlInput');
     const fileInput = document.getElementById('fileInput');
+
+    const undoButton = document.getElementById('undoButton');
+    const redoButton = document.getElementById('redoButton');
+    const deleteButton = document.getElementById('deleteButton');
 
     const searchSelect = document.getElementById('searchSelect');
     const optionsContainer = document.getElementById('optionsContainer');
@@ -35,597 +41,403 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressBar = document.getElementById('progressBar');
     const progressText = document.getElementById('progressText');
 
-    const prefixInput = document.getElementById('prefixInput');
-    const suffixInput = document.getElementById('suffixInput');
+    const tableSearch = document.getElementById('tableSearch'); 
 
-    // =========================================================
-    // 🔍 SEARCH DROPDOWN LOGIC
-    // =========================================================
-    try {
+    // =========================
+    // 🧩 UTIL
+    // =========================
+    function safeNum(v) {
+        return isNaN(parseFloat(v)) ? 0 : parseFloat(v);
+    }
 
+    function generateName(i, v = null) {
+        if (v) return `${v.Topic || "BG"}_C${v.Chapter}_V${v.VerseNum}`;
+        return `${prefixInput?.value || ""}${i}${suffixInput?.value || ""}`;
+    }
+
+    // =========================
+    // 🔍 TABLE SEARCH (NEW)
+    // =========================
+    tableSearch?.addEventListener('input', function () {
+        const f = this.value.toLowerCase();
+        [...tableBody.rows].forEach(r => {
+            r.style.display = r.innerText.toLowerCase().includes(f) ? "" : "none";
+        });
+    });
+
+    // =========================
+    // 🔍 DROPDOWN SEARCH
+    // =========================
+    if (searchSelect && optionsContainer) {
         const options = optionsContainer.getElementsByTagName('div');
 
         searchSelect.addEventListener('focus', () => {
-            console.log("🔍 Search focus");
             optionsContainer.classList.remove('hidden');
-
-            for (let i = 0; i < options.length; i++) {
-                options[i].style.display = "";
-            }
+            [...options].forEach(o => o.style.display = "");
         });
 
         searchSelect.addEventListener('input', () => {
-
             const filter = searchSelect.value.toLowerCase();
             let visible = false;
 
-            for (let i = 0; i < options.length; i++) {
-                const text = options[i].textContent.toLowerCase();
-
-                if (text.includes(filter)) {
-                    options[i].style.display = "";
+            [...options].forEach(o => {
+                if (o.textContent.toLowerCase().includes(filter)) {
+                    o.style.display = "";
                     visible = true;
-                } else {
-                    options[i].style.display = "none";
-                }
-            }
+                } else o.style.display = "none";
+            });
 
             optionsContainer.classList.toggle('hidden', !visible);
         });
 
-        optionsContainer.addEventListener('click', (event) => {
-
-            const value = event.target.getAttribute('data-value');
-
-            if (value) {
-                searchSelect.value = event.target.textContent.trim();
-                fileUrlInput.value = value;
+        optionsContainer.onclick = (e) => {
+            const val = e.target.getAttribute('data-value');
+            if (val) {
+                fileUrlInput.value = val;
+                searchSelect.value = e.target.textContent;
                 optionsContainer.classList.add('hidden');
-
-                console.log("🎧 Selected audio:", value);
+                window.loadAudio();
             }
-        });
+        };
 
-        document.addEventListener('click', (e) => {
+        document.addEventListener('click', e => {
             if (!e.target.closest('.select-container')) {
                 optionsContainer.classList.add('hidden');
             }
         });
-
-    } catch (err) {
-        console.error("Dropdown error:", err);
     }
 
-    // =========================================================
+    // =========================
     // 🎧 LOAD AUDIO
-    // =========================================================
+    // =========================
     window.loadAudio = function () {
-
         try {
-
             if (fileUrlInput.value) {
                 audioPlayer.src = fileUrlInput.value;
-            } else if (fileInput.files.length > 0) {
-
+            } else if (fileInput?.files.length) {
                 const reader = new FileReader();
-
-                reader.onload = (e) => {
-                    audioPlayer.src = e.target.result;
-                };
-
+                reader.onload = e => { audioPlayer.src = e.target.result; audioPlayer.load(); };
                 reader.readAsDataURL(fileInput.files[0]);
+                return;
             } else {
-                alert("Please provide audio source");
+                alert("Provide audio source");
                 return;
             }
-
             audioPlayer.load();
-            console.log("🎧 Audio Loaded:", audioPlayer.src);
-
-        } catch (err) {
-            console.error("Audio load error:", err);
-        }
-    };
-
-    
-    // =========================================================
-    // 💾 SAVE DATA 
-    // =========================================================
-    window.saveData = function () {
-    
-        try {
-    
-            const blob = new Blob([jsonInput.value], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-    
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'geeta_audio_sync.json';
-            a.click();
-    
-            URL.revokeObjectURL(url);
-    
-            console.log("💾 JSON downloaded");
-    
-        } catch (err) {
-            console.error("Save error:", err);
-        }
-    };
-    
-    // =========================================================
-    // 💾 AUTO SAVE (LOCAL STORAGE)
-    // =========================================================
-    function autoSave() {
-        try {
-            localStorage.setItem("geeta_progress", jsonInput.value);
-            console.log("💾 Auto-saved");
         } catch (e) {
-            console.warn("Auto-save failed:", e);
+            console.error(e);
         }
+    };
+
+    // =========================
+    // 💾 AUTO SAVE
+    // =========================
+    function autoSave() {
+        if (jsonInput.value) localStorage.setItem("geeta_progress", jsonInput.value);
     }
 
     function loadAutoSave() {
-        try {
-            const saved = localStorage.getItem("geeta_progress");
-            if (saved) {
-                console.log("📂 Restoring auto-save");
-                loadJsonData(saved);
-            }
-        } catch (e) {
-            console.warn("Load auto-save failed:", e);
-        }
+        const saved = localStorage.getItem("geeta_progress");
+        if (saved) window.loadJsonData(saved);
     }
 
     setInterval(autoSave, 5000);
-    
-    // =========================================================
-    // 📋COPY
-    // =========================================================
-    window.copyJsonData = function () {
-        try {
-            navigator.clipboard.writeText(jsonInput.value);
-            console.log("📋 JSON copied");
-            alert("Copied to clipboard!");
-        } catch (err) {
-            console.error("Copy failed:", err);
-        }
-    };
-    
-    // =========================================================
-    // 🔁 UNDO / REDO SYSTEM
-    // =========================================================
+
+    // =========================
+    // 🔁 UNDO / REDO
+    // =========================
     function saveHistory() {
         historyStack.push(jsonInput.value);
-
-        if (historyStack.length > 100) {
-            historyStack.shift();
-        }
-
+        if (historyStack.length > 100) historyStack.shift(); // Prevent memory growth
         redoStack = [];
     }
 
     function undo() {
-        try {
-            if (!historyStack.length) return;
-
-            redoStack.push(jsonInput.value);
-            jsonInput.value = historyStack.pop();
-
-            loadJsonData(jsonInput.value);
-
-            console.log("↩ Undo");
-        } catch (err) {
-            console.error("Undo error:", err);
-        }
+        if (!historyStack.length) return;
+        redoStack.push(jsonInput.value);
+        jsonInput.value = historyStack.pop();
+        window.loadJsonData(jsonInput.value);
     }
 
     function redo() {
-        try {
-            if (!redoStack.length) return;
-
-            historyStack.push(jsonInput.value);
-            jsonInput.value = redoStack.pop();
-
-            loadJsonData(jsonInput.value);
-
-            console.log("↪ Redo");
-        } catch (err) {
-            console.error("Redo error:", err);
-        }
+        if (!redoStack.length) return;
+        historyStack.push(jsonInput.value);
+        jsonInput.value = redoStack.pop();
+        window.loadJsonData(jsonInput.value);
     }
 
     undoButton?.addEventListener('click', undo);
     redoButton?.addEventListener('click', redo);
 
-    document.addEventListener('keydown', (e) => {
+    // =========================
+    // 🔥 HIGHLIGHT + SCROLL
+    // =========================
+    audioPlayer.addEventListener('timeupdate', () => {
+        [...tableBody.rows].forEach(row => {
+            const start = safeNum(row.cells[1]?.textContent);
+            const end = safeNum(row.cells[2]?.textContent);
+
+            // Fixed edge case where start = 0
+            if (!isNaN(start) && !isNaN(end) && audioPlayer.currentTime >= start && audioPlayer.currentTime <= end) {
+                row.classList.add('active-row'); 
+                row.scrollIntoView({ block: "center" });
+            } else {
+                row.classList.remove('active-row');
+            }
+        });
+    });
+
+    // =========================
+    // 📊 PROGRESS
+    // =========================
+    function updateProgress() {
+        if (!isGeetaMode || !window.currentGeetaData) return;
+
+        const total = window.currentGeetaData.length;
+        const done = window.currentGeetaData.filter(v => v.AudioEnd > 0).length;
+        const p = Math.round((done / total) * 100) || 0;
+
+        if(progressBar) progressBar.style.width = p + "%";
+        if(progressText) progressText.innerText = `Progress: ${done}/${total} (${p}%)`;
+    }
+
+    // =========================
+    // 🧠 MARK TIMESTAMP
+    // =========================
+    function mark() {
+        const t = audioPlayer.currentTime;
+
+        if (isGeetaMode) {
+            const row = tableBody.rows[verseNumber - 1];
+            if (!row) return;
+
+            const s = row.querySelector('.startTime');
+            const e = row.querySelector('.endTime');
+
+            if (!s.textContent || s.textContent === "0" || s.textContent === "0.00") {
+                s.textContent = t.toFixed(2);
+            } else {
+                e.textContent = t.toFixed(2);
+
+                const v = currentGeetaData[verseNumber - 1];
+                v.AudioStart = safeNum(s.textContent);
+                v.AudioEnd = t;
+                v.ReadTimeInSeconds = t - v.AudioStart;
+
+                verseNumber++;
+            }
+            updateProgress();
+            prepareGeetaJson();
+        } else {
+            if (startTime === null) startTime = 0;
+            const end = t;
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${verseNumber}</td>
+                <td contenteditable class="startTime">${startTime.toFixed(2)}</td>
+                <td contenteditable class="endTime">${end.toFixed(2)}</td>
+                <td>${(end - startTime).toFixed(2)}</td>
+                <td>${generateName(verseNumber)}</td>
+                <td><textarea class="lyricsInput"></textarea></td>
+                <td><audio controls><source src="${audioPlayer.src}#t=${startTime},${end}"></audio></td>
+            `;
+
+            tableBody.appendChild(row);
+            startTime = end;
+            verseNumber++;
+            prepareJson();
+        }
+        saveHistory();
+    }
+
+    document.getElementById('markButton')?.addEventListener('click', mark);
+
+    document.addEventListener('keydown', e => {
+        // Prevent spacebar from firing if user is typing in a text field
+        if (e.code === 'Space' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+            e.preventDefault();
+            mark();
+        }
         if (e.ctrlKey && e.key === 'z') undo();
         if (e.ctrlKey && e.key === 'y') redo();
     });
 
-    // =========================================================
-    // 🔥 AUTO HIGHLIGHT + SCROLL
-    // =========================================================
-    audioPlayer.addEventListener('timeupdate', () => {
+    // =========================
+    // 🗑 DELETE
+    // =========================
+    deleteButton?.addEventListener('click', () => {
+        if (!tableBody.rows.length) return;
 
-        try {
+        tableBody.deleteRow(-1);
+        verseNumber--;
 
-            const rows = tableBody.querySelectorAll('tr');
+        startTime = tableBody.rows.length
+            ? safeNum(tableBody.rows[tableBody.rows.length - 1].cells[2].textContent)
+            : null;
 
-            rows.forEach(row => {
-
-                const cells = row.querySelectorAll('td');
-                if (cells.length < 3) return;
-
-                const start = parseFloat(cells[1]?.textContent);
-                const end = parseFloat(cells[2]?.textContent);
-
-                if (!isNaN(start) && !isNaN(end)) {
-
-                    if (audioPlayer.currentTime >= start && audioPlayer.currentTime <= end) {
-                        row.style.background = "#ffeaa7";
-                        row.scrollIntoView({ behavior: "smooth", block: "center" });
-                    } else {
-                        row.style.background = "";
-                    }
-                }
-            });
-
-        } catch (err) {
-            console.error("Highlight error:", err);
-        }
-    });
-
-    // =========================================================
-    // 📊 PROGRESS TRACKING
-    // =========================================================
-    function updateProgress() {
-
-        if (!isGeetaMode || !window.currentGeetaData) return;
-
-        try {
-
-            const total = window.currentGeetaData.length;
-            const completed = window.currentGeetaData.filter(v => v.AudioEnd > 0).length;
-
-            const percent = Math.round((completed / total) * 100);
-
-            progressBar.style.width = percent + "%";
-            progressText.innerText = `Progress: ${completed}/${total} (${percent}%)`;
-
-        } catch (err) {
-            console.error("Progress error:", err);
-        }
-    }
-
-    // =========================================================
-    // 🧠 MARK TIMESTAMP
-    // =========================================================
-    function markTimestamp() {
-
-        try {
-
-            const currentTime = audioPlayer.currentTime;
-
-            if (isGeetaMode) {
-
-                const rows = tableBody.querySelectorAll('tr');
-                const row = rows[verseNumber - 1];
-
-                if (!row) return;
-
-                const startCell = row.querySelector('.startTime');
-                const endCell = row.querySelector('.endTime');
-
-                if (!startCell.textContent || startCell.textContent === "0") {
-                    startCell.textContent = currentTime.toFixed(2);
-                } else {
-                    endCell.textContent = currentTime.toFixed(2);
-                    verseNumber++;
-                }
-
-                prepareGeetaJson();
-                updateProgress();
-                saveHistory();
-
-                return;
-            }
-
-            if (startTime === null) startTime = 0;
-
-            const endTime = currentTime;
-            const duration = endTime - startTime;
-
-            const row = document.createElement('tr');
-
-            row.innerHTML = `
-                <td>${prefixInput.value || ""}${verseNumber}${suffixInput.value || ""}</td>
-                <td contenteditable="true" class="startTime">${startTime.toFixed(2)}</td>
-                <td contenteditable="true" class="endTime">${endTime.toFixed(2)}</td>
-                <td>${duration.toFixed(2)}</td>
-                <td>${verseNumber}</td>
-                <td><textarea></textarea></td>
-                <td><audio controls><source src="${audioPlayer.src}#t=${startTime},${endTime}"></audio></td>
-            `;
-
-            tableBody.appendChild(row);
-
-            startTime = endTime;
-            verseNumber++;
-
+        if (isGeetaMode) {
+            currentGeetaData[verseNumber - 1].AudioStart = 0;
+            currentGeetaData[verseNumber - 1].AudioEnd = 0;
+            prepareGeetaJson();
+            updateProgress();
+        } else {
             prepareJson();
-            saveHistory();
-
-        } catch (err) {
-            console.error("Mark error:", err);
         }
-    }
-
-    markButton.addEventListener('click', markTimestamp);
-    
-    document.addEventListener('keydown', (e) => {
-        if (e.code === 'Space' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
-            e.preventDefault();
-            markTimestamp();
-        }
+        saveHistory();
     });
 
-    // =========================================================
-    // 🗑 DELETE LAST ROW
-    // =========================================================
-    deleteButton.addEventListener('click', () => {
+    // =========================
+    // ✏ EDIT HANDLER
+    // =========================
+    tableBody.addEventListener('blur', e => {
+        const cell = e.target;
 
-        try {
+        if (cell.classList.contains('startTime') || cell.classList.contains('endTime')) {
+            const row = cell.closest('tr');
+            const s = safeNum(row.cells[1].textContent);
+            const en = safeNum(row.cells[2].textContent);
 
-            const rows = tableBody.rows;
-
-            if (!rows.length) {
-                alert("No rows to delete");
+            if (en < s) {
+                alert("Invalid time");
                 return;
             }
 
-            tableBody.removeChild(rows[rows.length - 1]);
-
-            verseNumber--;
-
-            if (rows.length > 1) {
-                startTime = parseFloat(rows[rows.length - 2].cells[2].textContent);
-            } else {
-                startTime = null;
+            row.cells[3].textContent = (en - s).toFixed(2);
+            
+            const audioEl = row.querySelector('audio');
+            if(audioEl) {
+                row.querySelector('source').src = `${audioPlayer.src}#t=${s},${en}`;
+                audioEl.load();
             }
 
             if (isGeetaMode) {
+                const idx = row.rowIndex - 1; 
+                if(currentGeetaData[idx]) {
+                    currentGeetaData[idx].AudioStart = s;
+                    currentGeetaData[idx].AudioEnd = en;
+                    currentGeetaData[idx].ReadTimeInSeconds = en - s;
+                }
                 prepareGeetaJson();
                 updateProgress();
             } else {
                 prepareJson();
             }
-
             saveHistory();
-
-        } catch (err) {
-            console.error("Delete error:", err);
         }
-    });
-
-    // =========================================================
-    // ✏ EDIT TIMESTAMP CELLS
-    // =========================================================
-    tableBody.addEventListener('blur', (event) => {
-
-        try {
-
-            const cell = event.target;
-
-            if (cell.classList.contains('startTime') || cell.classList.contains('endTime')) {
-
-                const row = cell.closest('tr');
-
-                const start = parseFloat(row.children[1].textContent);
-                const end = parseFloat(row.children[2].textContent);
-
-                if (end < start) {
-                    alert("Invalid time range");
-                    return;
-                }
-
-                row.children[3].textContent = (end - start).toFixed(2);
-
-                const source = row.querySelector('source');
-                source.src = `${audioPlayer.src}#t=${start},${end}`;
-
-                row.querySelector('audio').load();
-
-                if (isGeetaMode) {
-                    prepareGeetaJson();
-                    updateProgress();
-                } else {
-                    prepareJson();
-                }
-
-                saveHistory();
-            }
-
-        } catch (err) {
-            console.error("Edit error:", err);
-        }
-
     }, true);
 
-    // =====================================
-    // 📥 AUTO LOAD ON PASTE + BLUR/ENTER
-    // =====================================
-    jsonInput.addEventListener('blur', () => {
-    
-        try {
-    
-            const value = jsonInput.value.trim();
-    
-            if (!value) return;
-    
-            console.log("📥 Attempting to load pasted JSON");
-    
-            loadJsonData(value);
-    
-        } catch (err) {
-            console.warn("Invalid pasted JSON");
-        }
-    });
-    jsonInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Tab' || (e.ctrlKey && e.key === 'Enter')) {
-            loadJsonData(jsonInput.value);
-        }
-    });
-    
-    // =========================================================
-    // 📥 LOAD JSON DATA (DUAL FORMAT)
-    // =========================================================
-           
+    // =========================
+    // 📥 JSON LOAD 
+    // =========================
     window.loadJsonData = function (data) {
-
         try {
+            if (typeof data === 'string') data = JSON.parse(data);
 
-            if (typeof data === 'string') {
-                data = JSON.parse(data);
-            }
-
-            if (Array.isArray(data) && data[0]?.Chapter !== undefined) {
-                loadGeetaJson(data);
-                return;
-            }
-
-            if (!data.timestamps) throw new Error("Invalid JSON");
-
-            isGeetaMode = false;
             tableBody.innerHTML = '';
-
             verseNumber = 1;
             startTime = null;
 
-            data.timestamps.forEach((t, i) => {
+            if (Array.isArray(data)) {
+                isGeetaMode = true;
+                currentGeetaData = data;
+                
+                let idx = 0;
+                document.getElementById('loadingIndicator')?.classList.remove('hidden');
 
-                const start = t.start ?? t.startTime ?? 0;
-                const end = t.end ?? t.endTime ?? 0;
+                // Render in batches to prevent UI freezing with large Geeta files
+                function renderBatch() {
+                    const frag = document.createDocumentFragment();
+                    for (let i = 0; i < 50 && idx < data.length; i++, idx++) {
+                        const v = data[idx];
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${v.VerseNum}</td>
+                            <td contenteditable class="startTime">${v.AudioStart || 0}</td>
+                            <td contenteditable class="endTime">${v.AudioEnd || 0}</td>
+                            <td>${v.ReadTimeInSeconds || 0}</td>
+                            <td>${generateName(v.VerseNum, v)}</td>
+                            <td>${v.OriginalText || ""}</td>
+                            <td><audio controls><source src="${v.AudioFileURL || ""}"></audio></td>
+                        `;
+                        frag.appendChild(row);
+                    }
+                    tableBody.appendChild(frag);
+                    if (idx < data.length) requestAnimationFrame(renderBatch);
+                    else {
+                        updateProgress();
+                        document.getElementById('loadingIndicator')?.classList.add('hidden');
+                    }
+                }
+                renderBatch();
+                if (data[0]?.AudioFileURL) { audioPlayer.src = data[0].AudioFileURL; audioPlayer.load(); }
+                prepareGeetaJson();
 
-                const row = document.createElement('tr');
-
-                row.innerHTML = `
-                    <td>${i + 1}</td>
-                    <td contenteditable="true" class="startTime">${start}</td>
-                    <td contenteditable="true" class="endTime">${end}</td>
-                    <td>${(end - start).toFixed(2)}</td>
-                    <td>${prefixInput.value || ""}${i + 1}${suffixInput.value || ""}</td>
-                    <td><textarea>${t.chunkLyrics || ""}</textarea></td>
-                    <td><audio controls><source src="${audioPlayer.src}#t=${start},${end}"></audio></td>
-                `;
-
-                tableBody.appendChild(row);
-            });
-
-            verseNumber = data.timestamps.length + 1;
-
-        } catch (err) {
-            console.error("JSON load error:", err);
-            alert("Invalid JSON format");
-        }
-    };
-
-    //from file
-    window.loadJsonFile = function (event) {
-        try {
-            const file = event.target.files[0];
-            if (!file) return;
-    
-            const reader = new FileReader();
-    
-            reader.onload = (e) => {
-                const content = e.target.result;
-                jsonInput.value = content;
-                loadJsonData(content);
-            };
-    
-            reader.readAsText(file);
-    
-            console.log("📂 JSON file loaded");
-    
-        } catch (err) {
-            console.error("File load error:", err);
-        }
-    };
-            
-    // =========================================================
-    // 📖 LOAD GEETA JSON
-    // =========================================================
-    function loadGeetaJson(data) {
-    
-        isGeetaMode = true;
-        tableBody.innerHTML = '';
-        window.currentGeetaData = data;
-        
-        verseNumber = 1;
-        startTime = null;
-    
-        let index = 0;
-        const batchSize = 50;
-
-        document.getElementById('loadingIndicator').classList.remove('hidden');
-
-        function renderBatch() {
-    
-            const fragment = document.createDocumentFragment();
-    
-            for (let i = 0; i < batchSize && index < data.length; i++, index++) {
-    
-                const v = data[index];
-    
-                const row = document.createElement('tr');
-    
-                const audioUrl = v.AudioFileURL || audioPlayer.src || "";
-    
-                row.innerHTML = `
-                    <td>${v.VerseNum}</td>
-                    <td contenteditable class="startTime">${v.AudioStart || 0}</td>
-                    <td contenteditable class="endTime">${v.AudioEnd || 0}</td>
-                    <td>0</td>
-                    <td>${prefixInput.value || ""}${v.VerseNum}${suffixInput.value || ""}</td>
-                    <td>${v.OriginalText}</td>
-                    <td><audio controls><source src="${audioUrl}"></audio></td>
-                `;
-    
-                fragment.appendChild(row);
-            }
-    
-            tableBody.appendChild(fragment);
-    
-            if (index < data.length) {
-                requestAnimationFrame(renderBatch);
             } else {
-                console.log("✅ Large JSON rendered safely");
-                updateProgress(); 
-                document.getElementById('loadingIndicator').classList.add('hidden');
+                isGeetaMode = false;
+                if(data.audioUrl) {
+                    audioPlayer.src = data.audioUrl;
+                    audioPlayer.load();
+                }
+                
+                data.timestamps?.forEach((t, i) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${i + 1}</td>
+                        <td contenteditable class="startTime">${t.start}</td>
+                        <td contenteditable class="endTime">${t.end}</td>
+                        <td>${(t.end - t.start).toFixed(2)}</td>
+                        <td>${t.name || generateName(i + 1)}</td>
+                        <td><textarea class="lyricsInput">${t.lyrics || ""}</textarea></td>
+                        <td><audio controls><source src="${data.audioUrl}#t=${t.start},${t.end}"></audio></td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+                verseNumber = (data.timestamps?.length || 0) + 1;
+                prepareJson();
             }
+        } catch (err) {
+            console.error("Load JSON Error:", err);
         }
-    
-        renderBatch();
-    
-        audioPlayer.src = data[0]?.AudioFileURL || "";
-    }
+    };
 
-    // =========================================================
-    // 📤 BUILD JSON
-    // =========================================================
+    // Load from local file input
+    window.loadJsonFile = function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            jsonInput.value = e.target.result;
+            window.loadJsonData(e.target.result);
+        };
+        reader.readAsText(file);
+    };
+
+    // Paste handler
+    jsonInput.addEventListener('blur', () => {
+        if(jsonInput.value.trim()) window.loadJsonData(jsonInput.value);
+    });
+
+    // =========================
+    // 📤 JSON BUILD
+    // =========================
     window.prepareJson = function () {
+        const data = {
+            audioUrl: audioPlayer.src,
+            timestamps: []
+        };
 
-        const rows = tableBody.querySelectorAll('tr');
-        const data = { timestamps: [] };
-
-        rows.forEach(row => {
-
-            const cells = row.querySelectorAll('td');
-            if (cells.length < 3) return;
+        [...tableBody.rows].forEach((r, i) => {
+            const s = safeNum(r.cells[1].textContent);
+            const e = safeNum(r.cells[2].textContent);
 
             data.timestamps.push({
-                start: parseFloat(cells[1].textContent),
-                end: parseFloat(cells[2].textContent)
+                verse: i + 1,
+                name: r.cells[4].textContent,
+                start: s,
+                end: e,
+                duration: e - s,
+                lyrics: r.cells[5].querySelector('textarea')?.value || ""
             });
         });
 
@@ -633,26 +445,28 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     function prepareGeetaJson() {
-
-        let index = 0;
-
-        tableBody.querySelectorAll('tr').forEach(row => {
-
-            const cells = row.querySelectorAll('td');
-            if (cells.length < 3) return;
-
-            window.currentGeetaData[index].AudioStart = parseFloat(cells[1].textContent) || 0;
-            window.currentGeetaData[index].AudioEnd = parseFloat(cells[2].textContent) || 0;
-
-            index++;
-        });
-
-        jsonInput.value = JSON.stringify(window.currentGeetaData, null, 2);
+        jsonInput.value = JSON.stringify(currentGeetaData, null, 2);
     }
 
-    // =========================================================
+    // =========================
+    // 💾 EXPORT GLOBALS
+    // =========================
+    window.saveData = function () {
+        const blob = new Blob([jsonInput.value], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = isGeetaMode ? 'geeta_sync.json' : 'audio_sync.json';
+        a.click();
+    };
+
+    window.copyJsonData = function () {
+        navigator.clipboard.writeText(jsonInput.value);
+        alert("Copied to clipboard!");
+    };
+
+    // =========================
     // 🚀 INIT
-    // =========================================================
+    // =========================
     loadAutoSave();
 
 });
