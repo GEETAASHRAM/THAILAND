@@ -1,17 +1,15 @@
-/* GLOBAL STYLES */
+/* ================= GLOBAL (ORIGINAL - KEEP) ================= */
 body {
   font-family: Arial, sans-serif;
-  background: #f4f6f9; /* Modern light gray */
+  background: #f4f6f9;
   margin: 0;
   padding: 10px;
   color: #333;
 }
 
-h1 {
-  text-align: center;
-}
+h1 { text-align: center; }
 
-/* CARD LAYOUT - Container style */
+/* ================= CARD ================= */
 .card {
   background: white;
   padding: 15px;
@@ -20,8 +18,22 @@ h1 {
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 
-/* LAYOUT ROWS */
-.input-row, .control-row {
+/* ================= GRID LAYOUT (NEW) ================= */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.timeline-card {
+  max-width: 1600px;
+  margin: 15px auto;
+}
+
+/* ================= INPUTS ================= */
+.input-row {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -30,8 +42,7 @@ h1 {
   align-items: center;
 }
 
-/* FORM ELEMENTS */
-input, textarea, button, select {
+input, textarea, button {
   padding: 10px;
   border-radius: 8px;
   border: 1px solid #ddd;
@@ -39,7 +50,22 @@ input, textarea, button, select {
   box-sizing: border-box;
 }
 
-/* DROPDOWN Options Style */
+/* ================= BUTTONS ================= */
+button {
+  background: #007BFF;
+  color: white;
+  border: none;
+  min-height: 44px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+button:hover { background: #0056b3; }
+.delete-button { background: #dc3545; }
+
+/* ================= DROPDOWN ================= */
+.select-container { position: relative; width: 100%; }
+
 .options-container {
   position: absolute;
   background: white;
@@ -59,53 +85,7 @@ input, textarea, button, select {
   background: #f0f0f0;
 }
 
-/* LOADING CSS */
-#loadingIndicator {
-  text-align: center;
-  padding: 10px;
-  font-weight: bold;
-}
-
-/* BUTTONS */
-button {
-  background: #007BFF; /* Modern Blue */
-  color: white;
-  border: none;
-  min-height: 44px;
-  cursor: pointer;
-  transition: background 0.3s ease;
-}
-
-button:hover {
-  background: #0056b3;
-}
-
-button:disabled {
-  background-color: #999;
-  cursor: not-allowed;
-}
-
-.delete-button {
-  background-color: #dc3545; /* Red */
-}
-
-/* PROGRESS BAR */
-.progress-bg {
-  background: #ddd;
-  height: 10px;
-  border-radius: 5px;
-  margin: 10px 0;
-}
-
-#progressBar {
-  height: 10px;
-  width: 0%;
-  background: #4caf50;
-  border-radius: 5px;
-  transition: width 0.3s ease;
-}
-
-/* TABLES */
+/* ================= TABLE ================= */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -122,147 +102,106 @@ th {
 th, td {
   border: 1px solid #ddd;
   padding: 12px;
-  text-align: left;
 }
 
-/* Give more room to audio column */
-td:nth-child(7) {
-  min-width: 280px;
-}
+tr:nth-child(even) { background: #fafafa; }
 
-td:nth-child(6) {
-  width: 200px;
-}
-
-/* Table readability */
-tr:nth-child(even) {
-  background-color: #fafafa;
-}
-
-/* Highlight animation smoother */
-tr {
-  transition: background 0.2s ease;
-}
+/* ================= SMART ROW STATES ================= */
+tr { cursor: pointer; transition: 0.2s; }
 
 tr.active-row {
   background-color: #ffeaa7 !important;
 }
 
-/* SPECIAL TEXTAREAS */
-textarea#jsonDataInput, 
-table tbody tr td textarea.lyricsInput {
-  width: 100%;
-  height: 100px;
-  background-color: #f9f9f9;
-  border: 1px solid #ccc;
-  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
-  resize: none;
+/* MERGED focus style (better version) */
+tr.focused-verse {
+  background-color: #e6f2ff !important;
+  border-left: 4px solid #007BFF;
+  box-shadow: inset 0 0 10px rgba(0,123,255,0.1);
 }
 
+/* ================= TEXTAREAS ================= */
 textarea#jsonDataInput {
+  width: 100%;
   height: 150px;
   font-family: monospace;
 }
 
-table tbody tr td textarea.lyricsInput:focus {
-  outline: none;
-  border-color: #007BFF;
-  box-shadow: 0px 6px 12px rgba(0, 123, 255, 0.2);
+/* ================= PROGRESS ================= */
+.progress-bg {
+  background: #ddd;
+  height: 10px;
+  border-radius: 5px;
 }
 
-/* ================= SMART FOCUS TRACKER ================= */
-tr.focused-verse {
-  background-color: #e6f2ff !important;
-  border-left: 5px solid #007BFF;
-  box-shadow: inset 0 0 10px rgba(0, 123, 255, 0.1);
-  transition: all 0.2s ease;
+#progressBar {
+  height: 10px;
+  width: 0%;
+  background: #4caf50;
 }
 
-/* Clicking a row gives feedback */
-tr { cursor: pointer; }
-
-/* SEARCHABLE SELECT WITH GRADIENT */
-.select-container {
-  position: relative;
-  /* display: inline-block; */
-  width: 100%;
-}
-
-.searchable-select {
-  width: 100%;
-  padding: 10px;
-  border-radius: 8px;
-  border: 2px solid #007BFF;
-  /* background: transparent; */
-  /* color: #fff; */
-  background: white;
-  color: #333;
-  outline: none;
-  /* position: relative; */
-  /* z-index: 1; */
-}
-
-/* Fixed the nested comment issue here so the CSS parses correctly */
-/* .select-container::before {
-  content: '';
-  position: absolute;
-  top: -2px; left: -2px; right: -2px; bottom: -2px;
-  z-index: 0;
-  background: linear-gradient(90deg, #007bff, #00bfff, #00ff7f, #ff00ff);
-  border-radius: 8px;
-  background-size: 600% 600%;
-  animation: gradientShift 20s linear infinite;
-  opacity: 0.6;
-} 
-*/
-
-@keyframes gradientShift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-/* FLOATING ACTION BUTTONS */
-.mark-button.floating, .delete-button.floating {
+/* ================= FLOATING BAR (NEW) ================= */
+.floating-bar {
   position: fixed;
-  border-radius: 50%;
-  width: 45px;
-  height: 45px;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  padding: 10px 20px;
+  border-radius: 40px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
   display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  gap: 15px;
+  z-index: 9999;
+  border: 1px solid #eee;
 }
 
-.mark-button.floating { bottom: 20px; right: 20px; }
-.delete-button.floating { top: 20px; right: 20px; }
+.float-btn {
+  border-radius: 25px;
+  padding: 12px 25px;
+  font-weight: bold;
+}
 
-.mark-button.floating::before { content: "+"; font-size: 24px; }
-.delete-button.floating::before { content: "-"; font-size: 24px; }
+.play-btn {
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+}
 
-/* UTILITY */
+.mark-btn {
+  background: #dc3545;
+  color: white;
+}
+
+/* ================= UTIL ================= */
 .hidden { display: none; }
-audio { width: 100%; margin-top: 10px; }
+audio { width: 100%; }
 
-/* RESPONSIVE DESIGN */
+/* ================= RESPONSIVE ================= */
+@media (max-width: 1100px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 768px) {
-  .input-row, .control-row {
-    flex-direction: column;
-  }
+  .input-row { flex-direction: column; }
 
   input, textarea, button {
-    width: 100% !important; /* Ensure they fill the card on mobile */
-    margin: 5px 0;
-  }
-
-  textarea#jsonDataInput {
-    width: 100%;
+    width: 100% !important;
   }
 
   table {
     display: block;
-    overflow-x: auto; /* Prevent table breaking layout */
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .floating-bar {
+    width: 90%;
+    justify-content: space-between;
+  }
+
+  .float-btn {
+    flex: 1;
+    font-size: 14px;
   }
 }
