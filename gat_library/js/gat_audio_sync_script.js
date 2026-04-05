@@ -1,5 +1,5 @@
 // =========================================================
-// 🚀 AUDIO SYNC SCRIPT (FLAWLESS AUTO-RESUME)
+// 🚀 FINAL AUDIO SYNC SCRIPT (FLAWLESS CONTINUOUS ENGINE)
 // =========================================================
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let redoStack = [];
 
     window.currentGeetaData = null;
+    let activeRowElem = null;
 
     // =========================
     // 📌 ELEMENTS
@@ -42,6 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressText = document.getElementById('progressText');
 
     const tableSearch = document.getElementById('tableSearch'); 
+    const floatPlayBtn = document.getElementById('floatPlayBtn');
+    const floatMarkBtn = document.getElementById('floatMarkBtn');
 
     let searchCountDisplay = null;
     if (tableSearch) {
@@ -124,9 +127,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    function togglePlayPause() {
+        if (audioPlayer.paused) audioPlayer.play();
+        else audioPlayer.pause();
+    }
+
     // =========================
     // ⚡ THE CONTINUOUS MARKING ENGINE (GEETA MODE)
     // =========================
+    function markGeetaStart() {
+        if (!isGeetaMode || !currentGeetaData) return;
+        const row = tableBody.rows[activeVerseIndex];
+        if (!row) return;
+
+        const t = parseFloat(audioPlayer.currentTime.toFixed(2));
+        
+        row.querySelector('.startTime').textContent = t.toFixed(2);
+        row.dataset.start = t;
+        currentGeetaData[activeVerseIndex].AudioStart = t;
+
+        flashRow(row);
+        prepareGeetaJson();
+        saveHistory();
+    }
+
     function markGeetaEnd() {
         if (!isGeetaMode || !currentGeetaData) return;
         const row = tableBody.rows[activeVerseIndex];
@@ -147,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let en = t;
         
         if (en <= s) {
-            alert("⚠️ End time cannot be less than or equal to Start time. Please manually edit the Start time.");
+            alert(`⚠️ End time (${en}) must be greater than Start time (${s}). Please wait or manually edit the Start time.`);
             return;
         }
 
@@ -157,27 +181,28 @@ document.addEventListener('DOMContentLoaded', () => {
         sCell.textContent = s.toFixed(2);
         eCell.textContent = en.toFixed(2);
         durCell.textContent = dur.toFixed(2);
+        row.dataset.start = s;
+        row.dataset.end = en;
 
         // Update Master JSON
         currentGeetaData[activeVerseIndex].AudioStart = s;
         currentGeetaData[activeVerseIndex].AudioEnd = en;
         currentGeetaData[activeVerseIndex].ReadTimeInSeconds = dur;
 
-        // Update Chunk Audio instantly
-        const audioRowPlayer = row.querySelector('audio');
-        const audioRowSource = row.querySelector('source');
-        if (audioRowPlayer && audioRowSource) {
+        // Reveal and Update Chunk Audio 
+        const audioRowPlayer = row.querySelector('.chunk-player');
+        if (audioRowPlayer) {
+            const audioRowSource = audioRowPlayer.querySelector('source');
             let baseUrl = currentGeetaData[activeVerseIndex].AudioFileURL || audioPlayer.src;
-            baseUrl = baseUrl.split('#')[0]; 
+            baseUrl = baseUrl.split('#')[0]; // Clean base URL
             audioRowSource.src = `${baseUrl}#t=${s},${en}`;
+            audioRowPlayer.style.display = 'block';
             audioRowPlayer.load();
         }
 
         // Hide action buttons permanently for this row
         const btnContainer = row.querySelector('.button-container');
-        if (btnContainer) {
-            btnContainer.style.display = 'none';
-        }
+        if (btnContainer) btnContainer.style.display = 'none';
 
         flashRow(row);
         prepareGeetaJson();
@@ -203,20 +228,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const nextRow = tableBody.rows[nextIndex];
 
         if (currentChapter === nextChapter) {
-            // SAME CHAPTER
+            // SAME CHAPTER: Auto Paste End Time as Next Start Time
             currentGeetaData[nextIndex].AudioStart = previousEndTime;
             if (nextRow) {
                 nextRow.querySelector('.startTime').textContent = previousEndTime.toFixed(2);
+                nextRow.dataset.start = previousEndTime;
             }
             prepareGeetaJson();
         } else {
-            // NEW CHAPTER
+            // NEW CHAPTER: Celebrate and swap audio file automatically
             console.log("🔄 Chapter complete! Loading new audio...");
             fireConfetti();
             
+            // Reset start time to 0 for the new chapter
             currentGeetaData[nextIndex].AudioStart = 0;
             if (nextRow) {
                 nextRow.querySelector('.startTime').textContent = "0.00";
+                nextRow.dataset.start = 0;
             }
             prepareGeetaJson();
 
@@ -235,17 +263,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keydown', e => {
         if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
 
-        // Spacebar -> Normal Mode (Legacy Support)
-        if (e.code === 'Space' && !isGeetaMode) {
-            e.preventDefault();
-            markNormalMode();
-        }
-
-        // ] Key -> Mark END & Advance (Geeta Mode)
-        if (e.key === ']' || e.key === '}') { 
-            e.preventDefault(); 
-            if (isGeetaMode) markGeetaEnd();
-        }
+        if (e.code === 'Space') { e.preventDefault(); togglePlayPause(); }
+        if (e.key === '[' || e.key === '{') { e.preventDefault(); if (isGeetaMode) markGeetaStart(); }
+        if (e.key === ']' || e.key === '}') { e.preventDefault(); isGeetaMode ? markGeetaEnd() : markNormalMode(); }
 
         if (e.ctrlKey && e.key === 'z') undo();
         if (e.ctrlKey && e.key === 'y') redo();
@@ -253,11 +273,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     tableBody.addEventListener('click', e => {
         if (!isGeetaMode) return;
-        if (e.target.classList.contains('row-mark-end')) {
-            setFocusRow(parseInt(e.target.getAttribute('data-index')));
-            markGeetaEnd();
+        const target = e.target;
+        if (target.classList.contains('row-mark-start') || target.classList.contains('row-mark-end')) {
+            const row = target.closest('tr');
+            setFocusRow(row.rowIndex - 1);
+            if (target.classList.contains('row-mark-start')) markGeetaStart();
+            if (target.classList.contains('row-mark-end')) markGeetaEnd();
         }
     });
+
+    document.getElementById('markButton')?.addEventListener('click', () => isGeetaMode ? markGeetaEnd() : markNormalMode());
+    floatPlayBtn?.addEventListener('click', togglePlayPause);
+    floatMarkBtn?.addEventListener('click', () => isGeetaMode ? markGeetaEnd() : markNormalMode());
 
     // =========================
     // ⚡ MARKING LOGIC (NORMAL MODE)
@@ -268,6 +295,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const end = t;
 
         const row = document.createElement('tr');
+        row.dataset.start = startTime;
+        row.dataset.end = end;
+        row.dataset.searchStr = generateName(activeVerseIndex + 1).toLowerCase();
+
         row.innerHTML = `
             <td>${activeVerseIndex + 1}</td>
             <td contenteditable class="startTime">${startTime.toFixed(2)}</td>
@@ -285,8 +316,43 @@ document.addEventListener('DOMContentLoaded', () => {
         saveHistory();
     }
 
-    document.getElementById('markButton')?.addEventListener('click', () => {
-        isGeetaMode ? markGeetaEnd() : markNormalMode();
+    // =========================
+    // 🏎️ HIGHLIGHT + SCROLL (DATA CACHED)
+    // =========================
+    audioPlayer.addEventListener('timeupdate', () => {
+        const t = audioPlayer.currentTime;
+        let foundIndex = -1;
+
+        if (isGeetaMode && currentGeetaData) {
+            const cur = currentGeetaData[activeVerseIndex];
+            if (cur && cur.AudioEnd > 0 && t >= cur.AudioStart && t <= cur.AudioEnd) foundIndex = activeVerseIndex;
+            else {
+                for (let i = 0; i < currentGeetaData.length; i++) {
+                    const v = currentGeetaData[i];
+                    if (v.AudioEnd > v.AudioStart && t >= v.AudioStart && t <= v.AudioEnd) { foundIndex = i; break; }
+                }
+            }
+        } else {
+            const rows = tableBody.rows;
+            for (let i = 0; i < rows.length; i++) {
+                const s = parseFloat(rows[i].dataset.start);
+                const e = parseFloat(rows[i].dataset.end);
+                if (!isNaN(s) && !isNaN(e) && t >= s && t <= e) { foundIndex = i; break; }
+            }
+        }
+
+        if (foundIndex !== -1) {
+            const targetRow = tableBody.rows[foundIndex];
+            if (activeRowElem !== targetRow) {
+                if (activeRowElem) activeRowElem.classList.remove('active-row');
+                targetRow.classList.add('active-row');
+                targetRow.scrollIntoView({ block: "center", behavior: "smooth" });
+                activeRowElem = targetRow;
+            }
+        } else if (activeRowElem) {
+            activeRowElem.classList.remove('active-row');
+            activeRowElem = null;
+        }
     });
 
     // =========================
@@ -296,41 +362,41 @@ document.addEventListener('DOMContentLoaded', () => {
     tableSearch?.addEventListener('input', function () {
         clearTimeout(searchDebounce);
         const term = this.value.toLowerCase().trim();
-
         if (searchCountDisplay) searchCountDisplay.innerText = "Searching...";
 
         searchDebounce = setTimeout(() => {
             const rows = Array.from(tableBody.rows);
             let matchCount = 0;
             let index = 0;
-            const batchSize = 50; 
 
             function processSearchBatch() {
-                const limit = Math.min(index + batchSize, rows.length);
+                const limit = Math.min(index + 50, rows.length);
                 for (; index < limit; index++) {
                     const row = rows[index];
-                    const lyricsEl = row.querySelector('.lyrics-text') || row.querySelector('textarea');
-                    const nameCell = row.querySelector('.name-cell') || row.cells[4];
-                    const lyricsText = lyricsEl.tagName === 'DIV' ? lyricsEl.textContent : lyricsEl.value;
-                    const textToSearch = (nameCell.textContent + " " + lyricsText).toLowerCase();
+                    const searchStr = row.dataset.searchStr;
 
                     if (!term) {
-                        row.style.display = "";
-                        if (lyricsEl.tagName === 'DIV') highlightHTML(lyricsEl, "");
-                        highlightHTML(nameCell, "");
+                        if (row.style.display !== "") row.style.display = "";
+                        if (row.dataset.highlighted === "true") {
+                            const lEl = row.querySelector('.lyrics-text') || row.querySelector('textarea');
+                            if (lEl.tagName === 'DIV') highlightHTML(lEl, "");
+                            highlightHTML(row.querySelector('.name-cell'), "");
+                            row.dataset.highlighted = "false";
+                        }
                         continue;
                     }
 
-                    if (textToSearch.includes(term)) {
+                    if (searchStr.includes(term)) {
                         row.style.display = "";
                         matchCount++;
-                        if (lyricsEl.tagName === 'DIV') highlightHTML(lyricsEl, term);
-                        highlightHTML(nameCell, term);
+                        const lEl = row.querySelector('.lyrics-text') || row.querySelector('textarea');
+                        if (lEl.tagName === 'DIV') highlightHTML(lEl, term);
+                        highlightHTML(row.querySelector('.name-cell'), term);
+                        row.dataset.highlighted = "true";
                     } else {
                         row.style.display = "none";
                     }
                 }
-
                 if (index < rows.length) requestAnimationFrame(processSearchBatch); 
                 else if (searchCountDisplay) searchCountDisplay.innerText = term ? `Found ${matchCount} results for "${term}"` : "";
             }
@@ -468,8 +534,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         // Hide buttons ONLY if it's already marked
                         const displayButtons = hasValidTimes ? 'none' : 'flex';
+                        const displayAudio = hasValidTimes ? 'block' : 'none';
 
                         const row = document.createElement('tr');
+                        row.dataset.searchStr = `${v.VerseNum} ${v.Topic}_C${v.Chapter}_V${v.VerseNum} ${v.OriginalText} ${v.EnglishText}`.toLowerCase();
+                        row.dataset.start = v.AudioStart || 0;
+                        row.dataset.end = v.AudioEnd || 0;
+
                         row.innerHTML = `
                             <td>${v.VerseNum}</td>
                             <td contenteditable class="startTime">${v.AudioStart || 0}</td>
@@ -478,10 +549,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             <td class="name-cell">${generateName(v.VerseNum, v)}</td>
                             <td><div class="lyrics-text" style="max-height: 100px; overflow-y: auto; background: #f9f9f9; padding: 10px; border: 1px solid #ccc; border-radius: 8px;">${lyricsText}</div></td>
                             <td>
-                                <div class="button-container" style="display:${displayButtons}; margin-bottom:5px;">
-                                    <button class="row-mark-end" data-index="${idx}" title="Hotkey: ]" style="width:100%; background:#dc3545; color:white; border:none; border-radius:4px; padding:6px; cursor:pointer; font-size:12px; font-weight:bold;">Mark End ]</button>
+                                <div class="button-container" style="display:${displayButtons}; gap:5px; margin-bottom:5px;">
+                                    <button class="row-mark-start" data-index="${idx}" title="Hotkey: [" style="flex:1; background:#28a745; color:white; border:none; border-radius:4px; padding:6px; cursor:pointer; font-size:12px; font-weight:bold;">Start [</button>
+                                    <button class="row-mark-end" data-index="${idx}" title="Hotkey: ]" style="flex:1; background:#dc3545; color:white; border:none; border-radius:4px; padding:6px; cursor:pointer; font-size:12px; font-weight:bold;">End ]</button>
                                 </div>
-                                <audio class="chunk-player" controls style="height:35px; width:100%;"><source src="${chunkSrc}"></audio>
+                                <audio class="chunk-player" controls style="height:35px; width:100%; display:${displayAudio};"><source src="${chunkSrc}"></audio>
                             </td>
                         `;
                         frag.appendChild(row);
@@ -493,48 +565,40 @@ document.addEventListener('DOMContentLoaded', () => {
                         updateProgress();
                         document.getElementById('loadingIndicator')?.classList.add('hidden');
                         
-                        // Set focus to the first uncompleted verse, and auto-populate start time
+                        // Resume logic
                         const firstUnfinished = data.findIndex(v => !v.AudioEnd || v.AudioEnd === 0);
                         if (firstUnfinished !== -1) {
                             setFocusRow(firstUnfinished);
                             
-                            // Auto populate correct audio file for the resumed chapter
                             const targetAudioUrl = data[firstUnfinished].AudioFileURL;
                             if (targetAudioUrl) {
                                 fileUrlInput.value = targetAudioUrl;
                                 audioPlayer.src = targetAudioUrl;
+                                // Wait for audio metadata to load before seeking!
+                                audioPlayer.addEventListener('loadedmetadata', function seekOnce() {
+                                    audioPlayer.currentTime = data[firstUnfinished].AudioStart || 0;
+                                    audioPlayer.removeEventListener('loadedmetadata', seekOnce);
+                                });
                                 audioPlayer.load();
                             }
 
-                            // Cascade start time or reset to 0
+                            // Cascade start time from previous verse
                             if (firstUnfinished > 0 && data[firstUnfinished].Chapter === data[firstUnfinished - 1].Chapter) {
                                 const prevEnd = data[firstUnfinished - 1].AudioEnd;
                                 data[firstUnfinished].AudioStart = prevEnd;
                                 tableBody.rows[firstUnfinished].querySelector('.startTime').textContent = prevEnd.toFixed(2);
+                                tableBody.rows[firstUnfinished].dataset.start = prevEnd;
                             } else {
                                 data[firstUnfinished].AudioStart = 0;
                                 tableBody.rows[firstUnfinished].querySelector('.startTime').textContent = "0.00";
+                                tableBody.rows[firstUnfinished].dataset.start = 0;
                             }
-
-                            // Auto seek main player to the starting point
-                            function performGeetaSeek() {
-                                audioPlayer.currentTime = data[firstUnfinished].AudioStart;
-                            }
-                            if (audioPlayer.readyState >= 1) performGeetaSeek();
-                            else {
-                                audioPlayer.addEventListener('loadedmetadata', function seekOnce() {
-                                    performGeetaSeek();
-                                    audioPlayer.removeEventListener('loadedmetadata', seekOnce);
-                                });
-                            }
-
                         } else {
-                            setFocusRow(0);
+                            setFocusRow(0); // If entire book is done
                         }
                     }
                 }
                 renderBatch();
-                
                 prepareGeetaJson();
 
             } else {
@@ -547,6 +611,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 data.timestamps?.forEach((t, i) => {
                     maxEndSaved = Math.max(maxEndSaved, safeNum(t.end));
                     const row = document.createElement('tr');
+                    row.dataset.searchStr = `${t.name || generateName(i + 1)} ${t.lyrics || ""}`.toLowerCase();
+                    row.dataset.start = t.start || 0;
+                    row.dataset.end = t.end || 0;
+
                     row.innerHTML = `
                         <td>${i + 1}</td>
                         <td contenteditable class="startTime">${t.start}</td>
@@ -563,19 +631,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeVerseIndex = data.timestamps?.length || 0;
                 prepareJson();
                 
-                function performSeek() {
+                audioPlayer.addEventListener('loadedmetadata', function seekOnce() {
                     audioPlayer.currentTime = maxEndSaved;
                     updateProgress();
-                }
-
-                if (audioPlayer.readyState >= 1) {
-                    performSeek();
-                } else {
-                    audioPlayer.addEventListener('loadedmetadata', function seekOnce() {
-                        performSeek();
-                        audioPlayer.removeEventListener('loadedmetadata', seekOnce);
-                    });
-                }
+                    audioPlayer.removeEventListener('loadedmetadata', seekOnce);
+                });
             }
         } catch (err) { console.error("Load JSON Error:", err); }
     };
@@ -598,6 +658,7 @@ document.addEventListener('DOMContentLoaded', () => {
         [...tableBody.rows].forEach((r, i) => {
             const s = safeNum(r.cells[1].textContent);
             const e = safeNum(r.cells[2].textContent);
+            r.dataset.start = s; r.dataset.end = e; 
             data.timestamps.push({
                 verse: i + 1, name: r.cells[4].textContent, start: s, end: e,
                 duration: parseFloat((e - s).toFixed(2)),
@@ -649,12 +710,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const dur = parseFloat((en - s).toFixed(2));
             if (en > 0) row.cells[3].textContent = dur;
             
+            row.dataset.start = s; row.dataset.end = en; 
+
             const audioEl = row.querySelector('.chunk-player');
             const sourceEl = row.querySelector('source');
             if(audioEl && sourceEl && en > 0) {
                 let baseUrl = isGeetaMode ? (currentGeetaData[row.rowIndex - 1].AudioFileURL || audioPlayer.src) : audioPlayer.src;
                 baseUrl = baseUrl.split('#')[0];
                 sourceEl.src = `${baseUrl}#t=${s},${en}`;
+                audioEl.style.display = 'block';
                 audioEl.load();
                 const btn = row.querySelector('.button-container');
                 if (btn) btn.style.display = 'none';
