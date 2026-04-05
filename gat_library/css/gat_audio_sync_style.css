@@ -119,6 +119,15 @@ th, td {
   text-align: left;
 }
 
+/* Give more room to audio column */
+td:nth-child(7) {
+  width: 250px;
+}
+
+td:nth-child(6) {
+  width: 200px;
+}
+
 /* Table readability */
 tr:nth-child(even) {
   background-color: #fafafa;
