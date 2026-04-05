@@ -1,5 +1,5 @@
 // =========================================================
-// 🚀 AUDIO SYNC SCRIPT (FLAWLESS CONTINUOUS ENGINE)
+// 🚀 AUDIO SYNC SCRIPT (ULTIMATE CONTINUOUS ENGINE)
 // =========================================================
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     tableBody.addEventListener('click', (e) => {
         const row = e.target.closest('tr');
-        if (row && !e.target.classList.contains('row-mark-start') && !e.target.classList.contains('row-mark-end')) {
+        if (row && !e.target.classList.contains('row-mark-end')) {
             setFocusRow(row.rowIndex - 1); 
         }
     });
@@ -127,26 +127,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================
     // ⚡ THE CONTINUOUS MARKING ENGINE (GEETA MODE)
     // =========================
-    function markGeetaStart() {
-        if (!isGeetaMode || !currentGeetaData) return;
-        const row = tableBody.rows[activeVerseIndex];
-        if (!row) return;
-
-        const t = parseFloat(audioPlayer.currentTime.toFixed(2));
-        
-        if (t === 0 && audioPlayer.paused) {
-            alert("⚠️ Please play the Main Audio Player at the top to start syncing!");
-            return;
-        }
-        
-        row.querySelector('.startTime').textContent = t.toFixed(2);
-        currentGeetaData[activeVerseIndex].AudioStart = t;
-
-        flashRow(row);
-        prepareGeetaJson();
-        saveHistory();
-    }
-
     function markGeetaEnd() {
         if (!isGeetaMode || !currentGeetaData) return;
         const row = tableBody.rows[activeVerseIndex];
@@ -163,37 +143,39 @@ document.addEventListener('DOMContentLoaded', () => {
         const eCell = row.querySelector('.endTime');
         const durCell = row.cells[3];
 
+        // 1. Extract Start, Assign End, Calculate Duration
         let s = safeNum(sCell.textContent);
         let en = t;
         
         if (en <= s) {
-            alert("⚠️ End time cannot be less than or equal to Start time. Press '[' to reset Start, or manually edit the table.");
+            alert("⚠️ End time cannot be less than or equal to Start time. Please manually edit the Start time.");
             return;
         }
 
         let dur = parseFloat((en - s).toFixed(2));
 
-        // Update UI Table
+        // 2. Update UI Table
         sCell.textContent = s.toFixed(2);
         eCell.textContent = en.toFixed(2);
         durCell.textContent = dur.toFixed(2);
 
-        // Update Master JSON
+        // 3. Update Master JSON
         currentGeetaData[activeVerseIndex].AudioStart = s;
         currentGeetaData[activeVerseIndex].AudioEnd = en;
         currentGeetaData[activeVerseIndex].ReadTimeInSeconds = dur;
 
-        // Update Chunk Audio instantly
-        const audioRowPlayer = row.querySelector('audio');
-        const audioRowSource = row.querySelector('source');
-        if (audioRowPlayer && audioRowSource) {
+        // 4. Update Chunk Audio instantly & Reveal it
+        const audioRowPlayer = row.querySelector('.chunk-player');
+        if (audioRowPlayer) {
+            const audioRowSource = audioRowPlayer.querySelector('source');
             let baseUrl = currentGeetaData[activeVerseIndex].AudioFileURL || audioPlayer.src;
             baseUrl = baseUrl.split('#')[0]; // Clean base URL
             audioRowSource.src = `${baseUrl}#t=${s},${en}`;
+            audioRowPlayer.style.display = 'block'; // Unhide the audio player
             audioRowPlayer.load();
         }
 
-        // Hide action buttons permanently for this row
+        // 5. Hide the End button permanently for this row
         const btnContainer = row.querySelector('.button-container');
         if (btnContainer) {
             btnContainer.style.display = 'none';
@@ -204,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateProgress();
         saveHistory();
 
-        // Auto move to next verse
+        // 6. Automatically advance to next verse
         advanceToNextGeetaVerse(en);
     }
 
@@ -223,13 +205,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const nextRow = tableBody.rows[nextIndex];
 
         if (currentChapter === nextChapter) {
-            // Auto Paste End Time as Next Start Time
+            // SAME CHAPTER: Auto Paste End Time as Next Start Time
             currentGeetaData[nextIndex].AudioStart = previousEndTime;
             if (nextRow) {
                 nextRow.querySelector('.startTime').textContent = previousEndTime.toFixed(2);
             }
             prepareGeetaJson();
         } else {
+            // NEW CHAPTER: Celebrate and swap audio file automatically
             console.log("🔄 Chapter complete! Loading new audio...");
             fireConfetti();
             
@@ -244,6 +227,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 fileUrlInput.value = nextAudioUrl;
                 audioPlayer.src = nextAudioUrl;
                 audioPlayer.load();
+                
+                // Play automatically since it's a direct result of user pressing "]"
                 audioPlayer.play().catch(e => console.log("Autoplay blocked by browser")); 
             }
         }
@@ -255,12 +240,16 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keydown', e => {
         if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
 
-        if (e.key === '[' || e.key === '{') { e.preventDefault(); markGeetaStart(); }
-        if (e.key === ']' || e.key === '}') { e.preventDefault(); markGeetaEnd(); }
-
+        // Spacebar -> Normal Mode (Legacy Support)
         if (e.code === 'Space' && !isGeetaMode) {
             e.preventDefault();
             markNormalMode();
+        }
+
+        // ] Key -> Mark END & Advance (Geeta Mode)
+        if (e.key === ']' || e.key === '}') { 
+            e.preventDefault(); 
+            if (isGeetaMode) markGeetaEnd();
         }
 
         if (e.ctrlKey && e.key === 'z') undo();
@@ -269,15 +258,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     tableBody.addEventListener('click', e => {
         if (!isGeetaMode) return;
-        const target = e.target;
-        if (target.classList.contains('row-mark-start')) {
-            const row = target.closest('tr');
-            setFocusRow(row.rowIndex - 1);
-            markGeetaStart();
-        }
-        if (target.classList.contains('row-mark-end')) {
-            const row = target.closest('tr');
-            setFocusRow(row.rowIndex - 1);
+        if (e.target.classList.contains('row-mark-end')) {
+            setFocusRow(parseInt(e.target.getAttribute('data-index')));
             markGeetaEnd();
         }
     });
@@ -298,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <td>${(end - startTime).toFixed(2)}</td>
             <td class="name-cell">${generateName(activeVerseIndex + 1)}</td>
             <td><textarea class="lyricsInput"></textarea></td>
-            <td><audio controls><source src="${audioPlayer.src}#t=${startTime},${end}"></audio></td>
+            <td><audio controls class="chunk-player" style="height:35px; width:100%; display:block;"><source src="${audioPlayer.src}#t=${startTime},${end}"></audio></td>
         `;
         tableBody.appendChild(row);
         startTime = end;
@@ -309,7 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     document.getElementById('markButton')?.addEventListener('click', () => {
-        isGeetaMode ? markGeetaStart() : markNormalMode();
+        isGeetaMode ? markGeetaEnd() : markNormalMode();
     });
 
     // =========================
@@ -486,9 +468,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         const hasValidTimes = (v.AudioEnd > 0 && v.AudioEnd > v.AudioStart);
                         let baseUrl = v.AudioFileURL || "";
-                        baseUrl = baseUrl.split('#')[0]; // Clean incoming URL
+                        baseUrl = baseUrl.split('#')[0]; 
                         const chunkSrc = hasValidTimes ? `${baseUrl}#t=${v.AudioStart},${v.AudioEnd}` : baseUrl;
+                        
+                        // Hide buttons and show audio ONLY if it's already marked
                         const displayButtons = hasValidTimes ? 'none' : 'flex';
+                        const displayAudio = hasValidTimes ? 'block' : 'none';
 
                         const row = document.createElement('tr');
                         row.innerHTML = `
@@ -499,11 +484,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             <td class="name-cell">${generateName(v.VerseNum, v)}</td>
                             <td><div class="lyrics-text" style="max-height: 100px; overflow-y: auto; background: #f9f9f9; padding: 10px; border: 1px solid #ccc; border-radius: 8px;">${lyricsText}</div></td>
                             <td>
-                                <div class="button-container" style="display:${displayButtons}; gap:5px; margin-bottom:5px;">
-                                    <button class="row-mark-start" data-index="${idx}" title="Hotkey: [" style="flex:1; background:#28a745; color:white; border:none; border-radius:4px; padding:6px; cursor:pointer; font-size:12px;">Start [</button>
-                                    <button class="row-mark-end" data-index="${idx}" title="Hotkey: ]" style="flex:1; background:#dc3545; color:white; border:none; border-radius:4px; padding:6px; cursor:pointer; font-size:12px;">End ]</button>
+                                <div class="button-container" style="display:${displayButtons}; margin-bottom:5px;">
+                                    <button class="row-mark-end" data-index="${idx}" title="Hotkey: ]" style="width:100%; background:#dc3545; color:white; border:none; border-radius:4px; padding:6px; cursor:pointer; font-size:12px; font-weight:bold;">Mark End ]</button>
                                 </div>
-                                <audio controls style="height:35px; width:100%;"><source src="${chunkSrc}"></audio>
+                                <audio class="chunk-player" controls style="height:35px; width:100%; display:${displayAudio};"><source src="${chunkSrc}"></audio>
                             </td>
                         `;
                         frag.appendChild(row);
@@ -515,6 +499,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         updateProgress();
                         document.getElementById('loadingIndicator')?.classList.add('hidden');
                         
+                        // Set focus to the first uncompleted verse, and auto-populate start time
                         const firstUnfinished = data.findIndex(v => !v.AudioEnd || v.AudioEnd === 0);
                         if (firstUnfinished !== -1) {
                             setFocusRow(firstUnfinished);
@@ -522,6 +507,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const prevEnd = data[firstUnfinished - 1].AudioEnd;
                                 data[firstUnfinished].AudioStart = prevEnd;
                                 tableBody.rows[firstUnfinished].querySelector('.startTime').textContent = prevEnd.toFixed(2);
+                            } else if (firstUnfinished === 0 || data[firstUnfinished].Chapter !== data[firstUnfinished - 1].Chapter) {
+                                data[firstUnfinished].AudioStart = 0;
+                                tableBody.rows[firstUnfinished].querySelector('.startTime').textContent = "0.00";
                             }
                         } else {
                             setFocusRow(0);
@@ -550,7 +538,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td>${(t.end - t.start).toFixed(2)}</td>
                         <td class="name-cell">${t.name || generateName(i + 1)}</td>
                         <td><textarea class="lyricsInput">${t.lyrics || ""}</textarea></td>
-                        <td><audio controls><source src="${data.audioUrl}#t=${t.start},${t.end}"></audio></td>
+                        <td><audio controls class="chunk-player" style="height:35px; width:100%; display:block;"><source src="${data.audioUrl}#t=${t.start},${t.end}"></audio></td>
                     `;
                     tableBody.appendChild(row);
                 });
@@ -641,17 +629,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const s = safeNum(row.cells[1].textContent);
             const en = safeNum(row.cells[2].textContent);
 
-            if (en < s) { alert("Invalid time"); return; }
+            if (en < s && en !== 0) { alert("Invalid time"); return; }
             const dur = parseFloat((en - s).toFixed(2));
-            row.cells[3].textContent = dur;
+            if (en > 0) row.cells[3].textContent = dur;
             
-            const audioEl = row.querySelector('audio');
+            const audioEl = row.querySelector('.chunk-player');
             const sourceEl = row.querySelector('source');
-            if(audioEl && sourceEl) {
+            if(audioEl && sourceEl && en > 0) {
                 let baseUrl = isGeetaMode ? (currentGeetaData[row.rowIndex - 1].AudioFileURL || audioPlayer.src) : audioPlayer.src;
                 baseUrl = baseUrl.split('#')[0];
                 sourceEl.src = `${baseUrl}#t=${s},${en}`;
+                audioEl.style.display = 'block';
                 audioEl.load();
+                const btn = row.querySelector('.button-container');
+                if (btn) btn.style.display = 'none';
             }
 
             if (isGeetaMode) {
@@ -659,7 +650,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(currentGeetaData[idx]) {
                     currentGeetaData[idx].AudioStart = s;
                     currentGeetaData[idx].AudioEnd = en;
-                    currentGeetaData[idx].ReadTimeInSeconds = dur;
+                    currentGeetaData[idx].ReadTimeInSeconds = dur > 0 ? dur : 0;
                 }
                 prepareGeetaJson(); 
             } else { prepareJson(); }
