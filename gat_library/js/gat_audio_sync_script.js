@@ -2,6 +2,14 @@
 // 🚀 AUDIO SYNC SCRIPT (ROBUST ENGINE)
 // =========================================================
 
+// Global function to enforce strict start/stop bounds on chunk audio players
+window.enforceChunkBounds = function(audioElem, start, end) {
+    if (end > 0 && audioElem.currentTime >= end) {
+        audioElem.pause();
+        audioElem.currentTime = start;
+    }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
 
     console.log("🚀 App Initialized - High Performance Engine (Production Build)");
@@ -52,6 +60,57 @@ document.addEventListener('DOMContentLoaded', () => {
         searchCountDisplay.style.marginBottom = '10px';
         tableSearch.parentNode.insertBefore(searchCountDisplay, tableSearch.nextSibling);
     }
+
+    // =========================
+    // 🌐 INJECT PRE-DEFINED JSON BUTTON
+    // =========================
+    const loadJsonBtn = document.querySelector('button[onclick="document.getElementById(\'loadJsonInput\').click()"]');
+    if (loadJsonBtn) {
+        const loadGeetaCompleteBtn = document.createElement('button');
+        loadGeetaCompleteBtn.textContent = "Load Geeta Complete";
+        loadGeetaCompleteBtn.style.backgroundColor = "#17a2b8"; 
+        loadGeetaCompleteBtn.style.marginLeft = "10px";
+        loadGeetaCompleteBtn.onclick = async function() {
+            try {
+                const loadingInd = document.getElementById('loadingIndicator');
+                if (loadingInd) loadingInd.classList.remove('hidden');
+                
+                console.log("Fetching data/geeta_complete.json...");
+                const response = await fetch('data/geeta_complete.json');
+                if (!response.ok) throw new Error("Network response was not ok");
+                
+                const data = await response.json();
+                window.loadJsonData(data);
+            } catch (err) {
+                console.error("Failed to load Geeta Complete JSON:", err);
+                alert("⚠️ Failed to load data/geeta_complete.json. Please ensure the file exists and your connection is active.");
+                const loadingInd = document.getElementById('loadingIndicator');
+                if (loadingInd) loadingInd.classList.add('hidden');
+            }
+        };
+        loadJsonBtn.parentNode.insertBefore(loadGeetaCompleteBtn, loadJsonBtn.nextSibling);
+    }
+
+    // =========================
+    // 🚨 AUDIO ERROR HANDLING
+    // =========================
+    audioPlayer.addEventListener('error', (e) => {
+        const err = audioPlayer.error;
+        let msg = "Unknown error occurred while loading audio.";
+        if (err) {
+            switch (err.code) {
+                case 1: msg = "Playback aborted by user."; break;
+                case 2: msg = "Network issue. Please check your connection."; break;
+                case 3: msg = "Audio decoding failed. File might be corrupted."; break;
+                case 4: msg = "Audio file not found or not reachable. Please check the URL or GitHub connectivity."; break;
+            }
+        }
+        // Only alert if there is actually a source URL attempting to load
+        if (audioPlayer.src && audioPlayer.src !== window.location.href) {
+            alert(`⚠️ Audio Error: ${msg}\n\nFailed URL: ${audioPlayer.src}`);
+            console.error("Audio Load Error:", err, audioPlayer.src);
+        }
+    });
 
     // =========================
     // 🧩 UTIL & HIGHLIGHTING
@@ -180,13 +239,14 @@ document.addEventListener('DOMContentLoaded', () => {
             currentGeetaData[activeVerseIndex].AudioEnd = en;
             currentGeetaData[activeVerseIndex].ReadTimeInSeconds = dur;
 
-            // Generate & Reveal Chunk Audio 
+            // Generate & Reveal Chunk Audio with Clipping bounds
             const audioRowPlayer = row.querySelector('.chunk-player');
             if (audioRowPlayer) {
                 const audioRowSource = audioRowPlayer.querySelector('source');
                 let baseUrl = currentGeetaData[activeVerseIndex].AudioFileURL || audioPlayer.src;
                 baseUrl = baseUrl.split('#')[0]; // Clean fragment
                 audioRowSource.src = `${baseUrl}#t=${s},${en}`;
+                audioRowPlayer.setAttribute('ontimeupdate', `enforceChunkBounds(this, ${s}, ${en})`);
                 audioRowPlayer.style.display = 'block'; 
                 audioRowPlayer.load();
             }
@@ -272,7 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${(end - startTime).toFixed(2)}</td>
                 <td class="name-cell">${generateName(activeVerseIndex + 1)}</td>
                 <td><textarea class="lyricsInput"></textarea></td>
-                <td><audio controls class="chunk-player" style="height:35px; width:100%; display:block;"><source src="${audioPlayer.src}#t=${startTime},${end}"></audio></td>
+                <td><audio controls class="chunk-player" style="height:35px; width:100%; display:block;" ontimeupdate="enforceChunkBounds(this, ${startTime}, ${end})"><source src="${audioPlayer.src}#t=${startTime},${end}"></audio></td>
             `;
             tableBody.appendChild(row);
             
@@ -300,9 +360,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
 
         if (e.code === 'Space') { e.preventDefault(); togglePlayPause(); }
+        if (e.key === '[' || e.key === '{') { e.preventDefault(); if (isGeetaMode) markGeetaStart(); }
         if (e.key === ']' || e.key === '}') { e.preventDefault(); isGeetaMode ? markGeetaEnd() : markNormalMode(); }
+
         if (e.ctrlKey && e.key === 'z') undo();
         if (e.ctrlKey && e.key === 'y') redo();
+    });
+
+    tableBody.addEventListener('click', e => {
+        if (!isGeetaMode) return;
+        if (e.target.classList.contains('row-mark-end')) {
+            setFocusRow(parseInt(e.target.getAttribute('data-index')));
+            markGeetaEnd();
+        }
     });
 
     document.getElementById('markButton')?.addEventListener('click', () => isGeetaMode ? markGeetaEnd() : markNormalMode());
@@ -597,7 +667,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <td class="name-cell">${generateName(v.VerseNum, v)}</td>
                             <td><div class="lyrics-text" style="max-height: 100px; overflow-y: auto; background: #f9f9f9; padding: 10px; border: 1px solid #ccc; border-radius: 8px;">${lTxt}</div></td>
                             <td>
-                                <audio class="chunk-player" controls style="height:35px; width:100%; display:${isDone ? 'block' : 'none'};"><source src="${chunkSrc}"></audio>
+                                <audio class="chunk-player" controls style="height:35px; width:100%; display:${isDone ? 'block' : 'none'};" ontimeupdate="enforceChunkBounds(this, ${v.AudioStart || 0}, ${v.AudioEnd || 0})"><source src="${chunkSrc}"></audio>
                             </td>
                         `;
                         frag.appendChild(row);
@@ -672,7 +742,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td>${(t.end - t.start).toFixed(2)}</td>
                         <td class="name-cell">${t.name || generateName(i + 1)}</td>
                         <td><textarea class="lyricsInput">${t.lyrics || ""}</textarea></td>
-                        <td><audio controls class="chunk-player" style="height:35px; width:100%; display:block;"><source src="${data.audioUrl}#t=${t.start},${t.end}"></audio></td>
+                        <td><audio controls class="chunk-player" style="height:35px; width:100%; display:block;" ontimeupdate="enforceChunkBounds(this, ${t.start}, ${t.end})"><source src="${data.audioUrl}#t=${t.start},${t.end}"></audio></td>
                     `;
                     tableBody.appendChild(row);
                 });
@@ -818,13 +888,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 row.dataset.start = s; 
                 row.dataset.end = en; 
 
-                // Update row's chunk audio
+                // Update row's chunk audio & clipping bounds
                 const audioEl = row.querySelector('.chunk-player');
                 const sourceEl = row.querySelector('source');
                 if(audioEl && sourceEl && en > 0) {
                     let baseUrl = isGeetaMode ? (currentGeetaData[row.rowIndex - 1].AudioFileURL || audioPlayer.src) : audioPlayer.src;
                     baseUrl = baseUrl.split('#')[0];
                     sourceEl.src = `${baseUrl}#t=${s},${en}`;
+                    audioEl.setAttribute('ontimeupdate', `enforceChunkBounds(this, ${s}, ${en})`);
                     audioEl.style.display = 'block';
                     audioEl.load();
                 }
