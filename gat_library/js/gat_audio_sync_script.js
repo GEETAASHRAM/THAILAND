@@ -64,8 +64,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================
     // 🌐 LOAD SYSTEM PRE-DEFINED JSON
     // =========================
+    window.currentSystemFile = null; // Track the active system file
+
     window.loadSystemJson = async function(filePath) {
-        if (!filePath) return; // Do nothing if they click the placeholder
+        if (!filePath) return;
 
         try {
             const loadingInd = document.getElementById('loadingIndicator');
@@ -73,27 +75,43 @@ document.addEventListener('DOMContentLoaded', () => {
             
             console.log(`Fetching ${filePath}...`);
             const response = await fetch(filePath);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
             
             const data = await response.json();
+            
+            // Mark this as the currently active system file for sharing
+            window.currentSystemFile = filePath; 
+            
             window.loadJsonData(data);
-
-            // Reset the dropdown back to the "📥 Load System JSON..." placeholder
-            document.getElementById('systemJsonSelect').selectedIndex = 0;
 
         } catch (err) {
             console.error(`Failed to load ${filePath}:`, err);
-            alert(`⚠️ Failed to load ${filePath}.\n\nPlease ensure the file exists in the correct folder and your connection is active.`);
-            
+            alert(`⚠️ Failed to load ${filePath}.\n\nPlease ensure the file exists and your network is active.`);
             const loadingInd = document.getElementById('loadingIndicator');
             if (loadingInd) loadingInd.classList.add('hidden');
-            
-            // Reset dropdown on error too
             document.getElementById('systemJsonSelect').selectedIndex = 0;
         }
+    };
+
+    // =========================
+    // 🔗 GENERATE SHARE URL
+    // =========================
+    window.copyShareLink = function() {
+        if (!window.currentSystemFile) {
+            alert("⚠️ Please load a System JSON from the dropdown first before generating a share link.");
+            return;
+        }
+
+        // Build the URL with the ?file= parameter
+        const baseUrl = window.location.origin + window.location.pathname;
+        const shareUrl = `${baseUrl}?file=${encodeURIComponent(window.currentSystemFile)}`;
+
+        navigator.clipboard.writeText(shareUrl)
+            .then(() => alert(`✅ Share Link Copied to Clipboard!\n\n${shareUrl}`))
+            .catch(e => {
+                console.error("Clipboard copy failed:", e);
+                alert("Failed to copy. Here is your link:\n\n" + shareUrl);
+            });
     };
     
     // =========================
@@ -928,7 +946,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }, true);
 
     // =========================
-    // 🏁 SYSTEM STARTUP
+    // 🏁 SYSTEM STARTUP & URL ROUTING
     // =========================
-    loadAutoSave();
+    
+    // 1. Check if the user landed here via a Share Link
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedFile = urlParams.get('file');
+
+    if (sharedFile) {
+        console.log("🔗 Shared URL detected. Auto-loading system file:", sharedFile);
+        
+        // Update the Dropdown UI to match the shared file
+        const selectObj = document.getElementById('systemJsonSelect');
+        if (selectObj) {
+            for (let i = 0; i < selectObj.options.length; i++) {
+                if (selectObj.options[i].value === sharedFile) {
+                    selectObj.selectedIndex = i;
+                    break;
+                }
+            }
+        }
+        
+        // Execute the load
+        window.loadSystemJson(sharedFile);
+        
+    } else {
+        // 2. Normal startup: restore from local browser cache
+        loadAutoSave();
+    }
 });
