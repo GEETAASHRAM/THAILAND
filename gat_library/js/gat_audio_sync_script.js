@@ -1,5 +1,5 @@
 // =========================================================
-// 🚀 AUDIO SYNC SCRIPT (ROBUST ENGINE)
+// 🚀 AUDIO SYNC SCRIPT (ENGINE)
 // =========================================================
 
 // Global function to enforce strict start/stop bounds on chunk audio players
@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeRowElem = null; // Cache for scroll performance
 
     // =========================
-    // 📌 ELEMENTS
+    // 📌 ELEMENTS (With Null Safety)
     // =========================
     const audioPlayer = document.getElementById('audioPlayer');
     const tableBody = document.querySelector('#timestampsTable tbody');
@@ -41,10 +41,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressText = document.getElementById('progressText');
     const tableSearch = document.getElementById('tableSearch'); 
     
-    // Controls & Floating Bar
-    const undoButton = document.getElementById('undoButton');
-    const redoButton = document.getElementById('redoButton');
-    const deleteButton = document.getElementById('deleteButton');
     const floatPlayBtn = document.getElementById('floatPlayBtn');
     const floatMarkBtn = document.getElementById('floatMarkBtn');
     const floatUndoBtn = document.getElementById('floatUndoBtn');
@@ -64,11 +60,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================
     // 🌐 LOAD SYSTEM PRE-DEFINED JSON
     // =========================
-    window.currentSystemFile = null; // Track the active system file
+    window.currentSystemFile = null;
 
     window.loadSystemJson = async function(filePath) {
         if (!filePath) return;
-
         try {
             const loadingInd = document.getElementById('loadingIndicator');
             if (loadingInd) loadingInd.classList.remove('hidden');
@@ -78,10 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
             
             const data = await response.json();
-            
-            // Mark this as the currently active system file for sharing
             window.currentSystemFile = filePath; 
-            
             window.loadJsonData(data);
 
         } catch (err) {
@@ -89,7 +81,8 @@ document.addEventListener('DOMContentLoaded', () => {
             alert(`⚠️ Failed to load ${filePath}.\n\nPlease ensure the file exists and your network is active.`);
             const loadingInd = document.getElementById('loadingIndicator');
             if (loadingInd) loadingInd.classList.add('hidden');
-            document.getElementById('systemJsonSelect').selectedIndex = 0;
+            const sysSelect = document.getElementById('systemJsonSelect');
+            if(sysSelect) sysSelect.selectedIndex = 0;
         }
     };
 
@@ -101,8 +94,6 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("⚠️ Please load a System JSON from the dropdown first before generating a share link.");
             return;
         }
-
-        // Build the URL with the ?file= parameter
         const baseUrl = window.location.origin + window.location.pathname;
         const shareUrl = `${baseUrl}?file=${encodeURIComponent(window.currentSystemFile)}`;
 
@@ -117,23 +108,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================
     // 🚨 AUDIO ERROR HANDLING
     // =========================
-    audioPlayer.addEventListener('error', (e) => {
-        const err = audioPlayer.error;
-        let msg = "Unknown error occurred while loading audio.";
-        if (err) {
-            switch (err.code) {
-                case 1: msg = "Playback aborted by user."; break;
-                case 2: msg = "Network issue. Please check your connection."; break;
-                case 3: msg = "Audio decoding failed. File might be corrupted."; break;
-                case 4: msg = "Audio file not found or not reachable. Please check the URL or GitHub connectivity."; break;
+    if (audioPlayer) {
+        audioPlayer.addEventListener('error', (e) => {
+            const err = audioPlayer.error;
+            let msg = "Unknown error occurred while loading audio.";
+            if (err) {
+                switch (err.code) {
+                    case 1: msg = "Playback aborted by user."; break;
+                    case 2: msg = "Network issue. Please check your connection."; break;
+                    case 3: msg = "Audio decoding failed. File might be corrupted."; break;
+                    case 4: msg = "Audio file not found or not reachable. Please check the URL or GitHub connectivity."; break;
+                }
             }
-        }
-        // Only alert if there is actually a source URL attempting to load
-        if (audioPlayer.src && audioPlayer.src !== window.location.href) {
-            alert(`⚠️ Audio Error: ${msg}\n\nFailed URL: ${audioPlayer.src}`);
-            console.error("Audio Load Error:", err, audioPlayer.src);
-        }
-    });
+            if (audioPlayer.src && audioPlayer.src !== window.location.href) {
+                alert(`⚠️ Audio Error: ${msg}\n\nFailed URL: ${audioPlayer.src}`);
+                console.error("Audio Load Error:", err, audioPlayer.src);
+            }
+        });
+    }
 
     // =========================
     // 🧩 UTIL & HIGHLIGHTING
@@ -159,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function flashRow(row) {
         const originalBg = row.style.background;
-        row.style.background = "#d4edda"; // Soft green success flash
+        row.style.background = "#d4edda"; 
         setTimeout(() => row.style.background = originalBg, 400);
     }
 
@@ -195,14 +187,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================
     function setFocusRow(index) {
         try {
-            if (index < 0 || index >= tableBody.rows.length) return;
+            if (!tableBody || index < 0 || index >= tableBody.rows.length) return;
             activeVerseIndex = index;
             
-            // Clear old focus
             const previousFocused = tableBody.querySelector('.focused-verse');
             if (previousFocused) previousFocused.classList.remove('focused-verse');
 
-            // Apply new focus
             const newFocus = tableBody.rows[index];
             if (newFocus) {
                 newFocus.classList.add('focused-verse');
@@ -213,9 +203,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    tableBody.addEventListener('click', (e) => {
+    tableBody?.addEventListener('click', (e) => {
         const row = e.target.closest('tr');
-        if (row && !e.target.classList.contains('chunk-player')) {
+        if (row && !e.target.classList.contains('row-mark-end')) {
             setFocusRow(row.rowIndex - 1); 
         }
     });
@@ -224,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ⚡ MARKING ENGINE (GEETA MODE)
     // =========================
     function markGeetaEnd() {
-        if (!isGeetaMode || !currentGeetaData) return;
+        if (!isGeetaMode || !currentGeetaData || !audioPlayer) return;
         try {
             const row = tableBody.rows[activeVerseIndex];
             if (!row) return;
@@ -242,7 +232,6 @@ document.addEventListener('DOMContentLoaded', () => {
             let s = safeNum(sCell.textContent);
             let en = t;
             
-            // Validation check
             if (en <= s) { 
                 alert(`⚠️ End time (${en}s) must be greater than Start time (${s}s). Wait for the verse to finish or manually edit the Start time.`); 
                 return; 
@@ -250,24 +239,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let dur = parseFloat((en - s).toFixed(2));
             
-            // Update Table DOM & Cache
             sCell.textContent = s.toFixed(2);
             eCell.textContent = en.toFixed(2);
             durCell.textContent = dur.toFixed(2);
             row.dataset.start = s;
             row.dataset.end = en;
 
-            // Update JSON Memory
             currentGeetaData[activeVerseIndex].AudioStart = s;
             currentGeetaData[activeVerseIndex].AudioEnd = en;
             currentGeetaData[activeVerseIndex].ReadTimeInSeconds = dur;
 
-            // Generate & Reveal Chunk Audio with Clipping bounds
             const audioRowPlayer = row.querySelector('.chunk-player');
             if (audioRowPlayer) {
                 const audioRowSource = audioRowPlayer.querySelector('source');
                 let baseUrl = currentGeetaData[activeVerseIndex].AudioFileURL || audioPlayer.src;
-                baseUrl = baseUrl.split('#')[0]; // Clean fragment
+                baseUrl = baseUrl.split('#')[0]; 
                 audioRowSource.src = `${baseUrl}#t=${s},${en}`;
                 audioRowPlayer.setAttribute('ontimeupdate', `enforceChunkBounds(this, ${s}, ${en})`);
                 audioRowPlayer.style.display = 'block'; 
@@ -303,7 +289,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const nextRow = tableBody.rows[nextIndex];
 
             if (currentChapter === nextChapter) {
-                // SAME CHAPTER: Cascade Time
                 currentGeetaData[nextIndex].AudioStart = previousEndTime;
                 if (nextRow) {
                     nextRow.querySelector('.startTime').textContent = previousEndTime.toFixed(2);
@@ -311,7 +296,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 prepareGeetaJson();
             } else {
-                // NEW CHAPTER: Swap Audio
                 console.log(`🔄 Chapter complete! Switching from Chapter ${currentChapter} to ${nextChapter}...`);
                 fireConfetti();
                 
@@ -323,7 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 prepareGeetaJson();
 
                 if (nextAudioUrl && currentGeetaData[activeVerseIndex].AudioFileURL !== nextAudioUrl) {
-                    fileUrlInput.value = nextAudioUrl;
+                    if (fileUrlInput) fileUrlInput.value = nextAudioUrl;
                     audioPlayer.src = nextAudioUrl;
                     audioPlayer.load();
                     audioPlayer.play().catch(e => console.warn("Autoplay blocked by browser. User must click play.")); 
@@ -338,6 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ⚡ MARKING ENGINE (NORMAL MODE)
     // =========================
     function markNormalMode() {
+        if(!audioPlayer) return;
         try {
             const t = audioPlayer.currentTime;
             if (startTime === null) startTime = 0; 
@@ -357,7 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td><textarea class="lyricsInput"></textarea></td>
                 <td><audio controls class="chunk-player" style="height:35px; width:100%; display:block;" ontimeupdate="enforceChunkBounds(this, ${startTime}, ${end})"><source src="${audioPlayer.src}#t=${startTime},${end}"></audio></td>
             `;
-            tableBody.appendChild(row);
+            tableBody?.appendChild(row);
             
             startTime = end;
             activeVerseIndex++;
@@ -371,6 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function togglePlayPause() {
+        if (!audioPlayer) return;
         if (audioPlayer.paused) audioPlayer.play();
         else audioPlayer.pause();
     }
@@ -379,39 +365,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // 🧠 KEYBOARD & BUTTON MAPS
     // =========================
     document.addEventListener('keydown', e => {
-        // Ignore hotkeys if user is typing in a text field
         if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
 
         if (e.code === 'Space') { e.preventDefault(); togglePlayPause(); }
-        if (e.key === '[' || e.key === '{') { e.preventDefault(); if (isGeetaMode) markGeetaStart(); }
         if (e.key === ']' || e.key === '}') { e.preventDefault(); isGeetaMode ? markGeetaEnd() : markNormalMode(); }
-
         if (e.ctrlKey && e.key === 'z') undo();
         if (e.ctrlKey && e.key === 'y') redo();
     });
 
-    tableBody.addEventListener('click', e => {
-        if (!isGeetaMode) return;
-        if (e.target.classList.contains('row-mark-end')) {
-            setFocusRow(parseInt(e.target.getAttribute('data-index')));
-            markGeetaEnd();
-        }
-    });
-
-    document.getElementById('markButton')?.addEventListener('click', () => isGeetaMode ? markGeetaEnd() : markNormalMode());
     floatPlayBtn?.addEventListener('click', togglePlayPause);
     floatMarkBtn?.addEventListener('click', () => isGeetaMode ? markGeetaEnd() : markNormalMode());
-    
-    // Wire up history & utility buttons
     floatUndoBtn?.addEventListener('click', undo);
     floatRedoBtn?.addEventListener('click', redo);
     floatDeleteBtn?.addEventListener('click', deleteLastRow);
-    deleteButton?.addEventListener('click', deleteLastRow);
 
     // =========================
     // 🏎️ CHAPTER-AWARE SCROLL ENGINE
     // =========================
-    audioPlayer.addEventListener('timeupdate', () => {
+    audioPlayer?.addEventListener('timeupdate', () => {
         try {
             const t = audioPlayer.currentTime;
             let foundIndex = -1;
@@ -420,11 +391,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cur = currentGeetaData[activeVerseIndex];
                 const activeChapter = cur ? cur.Chapter : currentGeetaData[0].Chapter;
 
-                // First check active verse
                 if (cur && cur.AudioEnd > 0 && t >= cur.AudioStart && t <= cur.AudioEnd) {
                     foundIndex = activeVerseIndex;
                 } else {
-                    // Only search within the active chapter to prevent jumping back to Chapter 1
                     for (let i = 0; i < currentGeetaData.length; i++) {
                         const v = currentGeetaData[i];
                         if (v.Chapter === activeChapter && v.AudioEnd > v.AudioStart && t >= v.AudioStart && t <= v.AudioEnd) { 
@@ -433,7 +402,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                 }
-            } else {
+            } else if (tableBody) {
                 const rows = tableBody.rows;
                 for (let i = 0; i < rows.length; i++) {
                     const s = parseFloat(rows[i].dataset.start);
@@ -445,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            if (foundIndex !== -1) {
+            if (foundIndex !== -1 && tableBody) {
                 const targetRow = tableBody.rows[foundIndex];
                 if (activeRowElem !== targetRow) {
                     if (activeRowElem) activeRowElem.classList.remove('active-row');
@@ -458,7 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeRowElem = null;
             }
         } catch (e) {
-            // Silently fail on time update to prevent browser console spam
+            // Silently fail on time update
         }
     });
 
@@ -472,6 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (searchCountDisplay) searchCountDisplay.innerText = "Searching...";
 
         searchDebounce = setTimeout(() => {
+            if (!tableBody) return;
             const rows = Array.from(tableBody.rows);
             let matchCount = 0;
             let index = 0;
@@ -487,19 +457,21 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (row.style.display !== "") row.style.display = "";
                             if (row.dataset.highlighted === "true") {
                                 const lEl = row.querySelector('.lyrics-text') || row.querySelector('textarea');
-                                if (lEl.tagName === 'DIV') highlightHTML(lEl, "");
-                                highlightHTML(row.querySelector('.name-cell'), "");
+                                if (lEl && lEl.tagName === 'DIV') highlightHTML(lEl, "");
+                                const nCell = row.querySelector('.name-cell');
+                                if (nCell) highlightHTML(nCell, "");
                                 row.dataset.highlighted = "false";
                             }
                             continue;
                         }
 
-                        if (searchStr.includes(term)) {
+                        if (searchStr && searchStr.includes(term)) {
                             row.style.display = "";
                             matchCount++;
                             const lEl = row.querySelector('.lyrics-text') || row.querySelector('textarea');
-                            if (lEl.tagName === 'DIV') highlightHTML(lEl, term);
-                            highlightHTML(row.querySelector('.name-cell'), term);
+                            if (lEl && lEl.tagName === 'DIV') highlightHTML(lEl, term);
+                            const nCell = row.querySelector('.name-cell');
+                            if (nCell) highlightHTML(nCell, term);
                             row.dataset.highlighted = "true";
                         } else {
                             row.style.display = "none";
@@ -519,6 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 🔍 DROPDOWN SEARCH
     // =========================
     const searchSelectObj = document.getElementById('searchSelect');
+    const optionsContainer = document.getElementById('optionsContainer');
     if (searchSelectObj && optionsContainer) {
         const options = optionsContainer.getElementsByTagName('div');
         
@@ -540,7 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
         optionsContainer.onclick = (e) => {
             const val = e.target.getAttribute('data-value');
             if (val) {
-                fileUrlInput.value = val; 
+                if (fileUrlInput) fileUrlInput.value = val; 
                 searchSelectObj.value = e.target.textContent; 
                 optionsContainer.classList.add('hidden'); 
                 window.loadAudio();
@@ -557,31 +530,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================
     window.loadAudio = function () {
         try {
-            if (!fileUrlInput.value && !fileInput?.files.length) { 
+            if ((!fileUrlInput || !fileUrlInput.value) && (!fileInput || !fileInput.files.length)) { 
                 alert("Please provide an audio source first."); 
                 return; 
             }
             
             console.log("🎵 Loading new audio source...");
-            tableBody.innerHTML = ''; 
+            if (tableBody) tableBody.innerHTML = ''; 
             activeVerseIndex = 0; startTime = null; isGeetaMode = false; window.currentGeetaData = null;
-            jsonInput.value = '';
+            if (jsonInput) jsonInput.value = '';
             
             if(progressBar) progressBar.style.width = "0%";
             if(progressText) progressText.innerText = `Progress: 0/0 (0%)`;
             if (searchCountDisplay) searchCountDisplay.innerText = "";
 
-            audioPlayer.onloadedmetadata = () => { updateProgress(); };
+            if(audioPlayer) {
+                audioPlayer.onloadedmetadata = () => { updateProgress(); };
 
-            if (fileUrlInput.value) {
-                audioPlayer.src = fileUrlInput.value;
-            } else if (fileInput?.files.length) {
-                const reader = new FileReader();
-                reader.onload = e => { audioPlayer.src = e.target.result; audioPlayer.load(); };
-                reader.readAsDataURL(fileInput.files[0]);
-                return;
+                if (fileUrlInput && fileUrlInput.value) {
+                    audioPlayer.src = fileUrlInput.value;
+                } else if (fileInput && fileInput.files.length) {
+                    const reader = new FileReader();
+                    reader.onload = e => { audioPlayer.src = e.target.result; audioPlayer.load(); };
+                    reader.readAsDataURL(fileInput.files[0]);
+                    return;
+                }
+                audioPlayer.load();
             }
-            audioPlayer.load();
         } catch (e) { 
             console.error("Error loading audio:", e); 
             alert("Failed to load audio source.");
@@ -591,7 +566,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================
     // 💾 AUTO SAVE & HISTORY
     // =========================
-    function autoSave() { if (jsonInput.value) localStorage.setItem("geeta_progress", jsonInput.value); }
+    function autoSave() { 
+        if (jsonInput && jsonInput.value) {
+            localStorage.setItem("geeta_progress", jsonInput.value); 
+        }
+    }
     setInterval(autoSave, 5000);
 
     function loadAutoSave() {
@@ -603,13 +582,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function saveHistory() {
+        if (!jsonInput) return;
         historyStack.push(jsonInput.value);
         if (historyStack.length > 100) historyStack.shift(); 
         redoStack = [];
     }
 
     function undo() {
-        if (!historyStack.length) {
+        if (!historyStack.length || !jsonInput) {
             console.log("No previous history to undo.");
             return;
         }
@@ -619,7 +599,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function redo() {
-        if (!redoStack.length) return;
+        if (!redoStack.length || !jsonInput) return;
         historyStack.push(jsonInput.value);
         jsonInput.value = redoStack.pop();
         window.loadJsonData(jsonInput.value);
@@ -637,7 +617,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(progressBar) progressBar.style.width = p + "%";
                 if(progressText) progressText.innerText = `Progress: ${done}/${total} Verses (${p}%)`;
             } else {
-                if (!audioPlayer || isNaN(audioPlayer.duration) || audioPlayer.duration === 0) return;
+                if (!audioPlayer || isNaN(audioPlayer.duration) || audioPlayer.duration === 0 || !tableBody) return;
                 let tm = 0; [...tableBody.rows].forEach(row => { tm += safeNum(row.cells[3].textContent); });
                 const p = Math.round((tm / audioPlayer.duration) * 100) || 0;
                 const ft = (s) => `${Math.floor(s/60).toString().padStart(2,'0')}:${Math.floor(s%60).toString().padStart(2,'0')}`;
@@ -657,7 +637,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("📥 Parsing incoming JSON Data...");
             if (typeof data === 'string') data = JSON.parse(data);
             
-            tableBody.innerHTML = ''; 
+            if(tableBody) tableBody.innerHTML = ''; 
             activeVerseIndex = 0; 
             startTime = null;
 
@@ -669,6 +649,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (loadingInd) loadingInd.classList.remove('hidden');
 
                 function renderBatch() {
+                    if (!tableBody) return;
                     const frag = document.createDocumentFragment();
                     for (let i = 0; i < 50 && idx < data.length; i++, idx++) {
                         const v = data[idx];
@@ -711,8 +692,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             const tUrl = data[firstUnf].AudioFileURL;
                             
                             // Safely auto populate correct audio file
-                            if (tUrl) {
-                                fileUrlInput.value = tUrl;
+                            if (tUrl && audioPlayer) {
+                                if (fileUrlInput) fileUrlInput.value = tUrl;
                                 audioPlayer.src = tUrl;
                                 // Wait for audio to load before jumping to the start time
                                 audioPlayer.addEventListener('loadedmetadata', function seekOnce() {
@@ -722,7 +703,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 audioPlayer.load();
                             }
 
-                            // Cascade start time from previous verse (if applicable)
+                            // Cascade start time from previous verse
                             if (firstUnf > 0 && data[firstUnf].Chapter === data[firstUnf - 1].Chapter) {
                                 const prevE = data[firstUnf - 1].AudioEnd;
                                 data[firstUnf].AudioStart = prevE;
@@ -746,7 +727,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 isGeetaMode = false;
                 let maxEndSaved = 0; 
 
-                if(data.audioUrl) { 
+                if(data.audioUrl && audioPlayer) { 
                     audioPlayer.src = data.audioUrl; 
                     audioPlayer.load(); 
                 }
@@ -767,7 +748,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td><textarea class="lyricsInput">${t.lyrics || ""}</textarea></td>
                         <td><audio controls class="chunk-player" style="height:35px; width:100%; display:block;" ontimeupdate="enforceChunkBounds(this, ${t.start}, ${t.end})"><source src="${data.audioUrl}#t=${t.start},${t.end}"></audio></td>
                     `;
-                    tableBody.appendChild(row);
+                    tableBody?.appendChild(row);
                 });
 
                 startTime = maxEndSaved; 
@@ -775,12 +756,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 prepareJson();
                 
                 function performSeek() { 
-                    audioPlayer.currentTime = maxEndSaved; 
+                    if(audioPlayer) audioPlayer.currentTime = maxEndSaved; 
                     updateProgress(); 
                 }
                 
-                if (audioPlayer.readyState >= 1) performSeek();
-                else audioPlayer.addEventListener('loadedmetadata', function seek() { 
+                if (audioPlayer && audioPlayer.readyState >= 1) performSeek();
+                else if (audioPlayer) audioPlayer.addEventListener('loadedmetadata', function seek() { 
                     performSeek(); 
                     audioPlayer.removeEventListener('loadedmetadata', seek); 
                 });
@@ -796,13 +777,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if(!f) return; 
         const r = new FileReader(); 
         r.onload = (ev) => { 
-            jsonInput.value = ev.target.result; 
+            if(jsonInput) jsonInput.value = ev.target.result; 
             window.loadJsonData(ev.target.result); 
         }; 
         r.readAsText(f); 
     };
     
-    jsonInput.addEventListener('blur', () => { 
+    jsonInput?.addEventListener('blur', () => { 
         if(jsonInput.value.trim()) window.loadJsonData(jsonInput.value); 
     });
 
@@ -811,22 +792,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================
     window.prepareJson = function () {
         try {
-            const data = { audioUrl: audioPlayer.src, timestamps: [] };
-            [...tableBody.rows].forEach((r, i) => {
-                const s = safeNum(r.cells[1].textContent);
-                const e = safeNum(r.cells[2].textContent);
-                r.dataset.start = s; 
-                r.dataset.end = e; // Sync cache
-                
-                data.timestamps.push({
-                    verse: i + 1, 
-                    name: r.cells[4].textContent, 
-                    start: s, 
-                    end: e,
-                    duration: parseFloat((e - s).toFixed(2)),
-                    lyrics: r.cells[5].querySelector('textarea')?.value || ""
+            if(!jsonInput) return;
+            const data = { audioUrl: audioPlayer ? audioPlayer.src : '', timestamps: [] };
+            if (tableBody) {
+                [...tableBody.rows].forEach((r, i) => {
+                    const s = safeNum(r.cells[1].textContent);
+                    const e = safeNum(r.cells[2].textContent);
+                    r.dataset.start = s; 
+                    r.dataset.end = e; // Sync cache
+                    
+                    data.timestamps.push({
+                        verse: i + 1, 
+                        name: r.cells[4].textContent, 
+                        start: s, 
+                        end: e,
+                        duration: parseFloat((e - s).toFixed(2)),
+                        lyrics: r.cells[5].querySelector('textarea')?.value || ""
+                    });
                 });
-            });
+            }
             jsonInput.value = JSON.stringify(data, null, 2);
         } catch(e) {
             console.error("Error preparing standard JSON:", e);
@@ -834,12 +818,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     function prepareGeetaJson() { 
-        if (currentGeetaData) jsonInput.value = JSON.stringify(currentGeetaData, null, 2); 
+        if (currentGeetaData && jsonInput) jsonInput.value = JSON.stringify(currentGeetaData, null, 2); 
     }
 
     window.saveData = function () {
         try {
-            if (!jsonInput.value) { alert("No data to save."); return; }
+            if (!jsonInput || !jsonInput.value) { alert("No data to save."); return; }
             const blob = new Blob([jsonInput.value], { type: 'application/json' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
@@ -851,7 +835,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.copyJsonData = function () { 
-        if (!jsonInput.value) { alert("No data to copy."); return; }
+        if (!jsonInput || !jsonInput.value) { alert("No data to copy."); return; }
         navigator.clipboard.writeText(jsonInput.value)
             .then(() => alert("JSON copied to clipboard!"))
             .catch(e => console.error("Clipboard copy failed:", e));
@@ -862,7 +846,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================
     function deleteLastRow() {
         try {
-            if (!tableBody.rows.length) {
+            if (!tableBody || !tableBody.rows.length) {
                 alert("Nothing to delete.");
                 return;
             }
@@ -889,7 +873,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Handle manual text editing in the table cells
-    tableBody.addEventListener('blur', e => {
+    tableBody?.addEventListener('blur', e => {
         const cell = e.target;
         if (cell.classList.contains('startTime') || cell.classList.contains('endTime')) {
             try {
@@ -899,7 +883,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (en < s && en !== 0) { 
                     alert("Invalid time configuration. End time must be greater than Start time."); 
-                    // Revert UI to previous state via dataset if possible
                     row.cells[2].textContent = row.dataset.end || "0.00";
                     return; 
                 }
@@ -948,15 +931,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================
     // 🏁 SYSTEM STARTUP & URL ROUTING
     // =========================
-    
-    // 1. Check if the user landed here via a Share Link
     const urlParams = new URLSearchParams(window.location.search);
     const sharedFile = urlParams.get('file');
 
     if (sharedFile) {
         console.log("🔗 Shared URL detected. Auto-loading system file:", sharedFile);
         
-        // Update the Dropdown UI to match the shared file
         const selectObj = document.getElementById('systemJsonSelect');
         if (selectObj) {
             for (let i = 0; i < selectObj.options.length; i++) {
@@ -967,11 +947,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // Execute the load
         window.loadSystemJson(sharedFile);
         
     } else {
-        // 2. Normal startup: restore from local browser cache
         loadAutoSave();
     }
 });
