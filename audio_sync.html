@@ -71,6 +71,22 @@
             <option value="data/geeta_twealth_chapter.json">Geeta Chapter 12</option>
       </select>
 
+        <div class="input-row">
+          <input type="file" id="loadJsonInput" style="display:none" accept=".json" onchange="loadJsonFile(event)">
+          <button onclick="document.getElementById('loadJsonInput').click()">Load Local JSON</button>
+          
+          <select id="systemJsonSelect" onchange="loadSystemJson(this.value)" style="background: #17a2b8; color: white; font-weight: bold; cursor: pointer;">
+            <option value="">📥 Load System JSON...</option>
+            <option value="data/geeta_complete.json">Geeta Complete</option>
+            <option value="data/geeta_twealth_chapter.json">Geeta Chapter 12</option>
+          </select>
+    
+          <button onclick="copyShareLink()" title="Generate URL for this System JSON" style="background: #28a745;">🔗 Share Link</button>
+          
+          <button onclick="copyJsonData()">Copy</button>
+          <button onclick="saveData()">Save</button>
+        </div>
+
       <button onclick="copyJsonData()">Copy</button>
       <button onclick="saveData()">Save</button>
         
