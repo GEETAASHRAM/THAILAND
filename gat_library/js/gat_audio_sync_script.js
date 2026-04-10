@@ -62,35 +62,40 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================
-    // 🌐 INJECT PRE-DEFINED JSON BUTTON
+    // 🌐 LOAD SYSTEM PRE-DEFINED JSON
     // =========================
-    const loadJsonBtn = document.querySelector('button[onclick="document.getElementById(\'loadJsonInput\').click()"]');
-    if (loadJsonBtn) {
-        const loadGeetaCompleteBtn = document.createElement('button');
-        loadGeetaCompleteBtn.textContent = "Load Geeta Complete";
-        loadGeetaCompleteBtn.style.backgroundColor = "#17a2b8"; 
-        loadGeetaCompleteBtn.style.marginLeft = "10px";
-        loadGeetaCompleteBtn.onclick = async function() {
-            try {
-                const loadingInd = document.getElementById('loadingIndicator');
-                if (loadingInd) loadingInd.classList.remove('hidden');
-                
-                console.log("Fetching data/geeta_complete.json...");
-                const response = await fetch('data/geeta_complete.json');
-                if (!response.ok) throw new Error("Network response was not ok");
-                
-                const data = await response.json();
-                window.loadJsonData(data);
-            } catch (err) {
-                console.error("Failed to load Geeta Complete JSON:", err);
-                alert("⚠️ Failed to load data/geeta_complete.json. Please ensure the file exists and your connection is active.");
-                const loadingInd = document.getElementById('loadingIndicator');
-                if (loadingInd) loadingInd.classList.add('hidden');
-            }
-        };
-        loadJsonBtn.parentNode.insertBefore(loadGeetaCompleteBtn, loadJsonBtn.nextSibling);
-    }
+    window.loadSystemJson = async function(filePath) {
+        if (!filePath) return; // Do nothing if they click the placeholder
 
+        try {
+            const loadingInd = document.getElementById('loadingIndicator');
+            if (loadingInd) loadingInd.classList.remove('hidden');
+            
+            console.log(`Fetching ${filePath}...`);
+            const response = await fetch(filePath);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            window.loadJsonData(data);
+
+            // Reset the dropdown back to the "📥 Load System JSON..." placeholder
+            document.getElementById('systemJsonSelect').selectedIndex = 0;
+
+        } catch (err) {
+            console.error(`Failed to load ${filePath}:`, err);
+            alert(`⚠️ Failed to load ${filePath}.\n\nPlease ensure the file exists in the correct folder and your connection is active.`);
+            
+            const loadingInd = document.getElementById('loadingIndicator');
+            if (loadingInd) loadingInd.classList.add('hidden');
+            
+            // Reset dropdown on error too
+            document.getElementById('systemJsonSelect').selectedIndex = 0;
+        }
+    };
+    
     // =========================
     // 🚨 AUDIO ERROR HANDLING
     // =========================
