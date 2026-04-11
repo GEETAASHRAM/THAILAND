@@ -14,7 +14,8 @@
 
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="gat_library/css/gat_audio_sync_style.css"> </head>
+    <link rel="stylesheet" href="gat_library/css/gat_audio_sync_style.css"> 
+</head>
 <body>
     <div class="container mt-4">
         
@@ -38,8 +39,10 @@
                     <input type="text" id="searchInput" class="form-control" placeholder="Search word...">
                 </div>
                 
-                <button id="searchButton" class="btn btn-primary search-button">Search</button>
-                <button id="clearButton" class="btn btn-danger clear-button">Clear Results</button>
+                <button id="searchButton" class="btn btn-primary search-button mb-2">Search</button>
+                <button id="clearButton" class="btn btn-danger clear-button mb-2">Clear Results</button>
+                
+                <button id="globalPresentationBtn" class="btn btn-info mb-2 shadow-sm" style="display:none;">🎤 Presentation Mode</button>
                 
                 <div class="toggle-buttons btn-group mt-3" role="group">
                     </div>
@@ -57,7 +60,6 @@
     </div>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
-    
     <script src="gat_library/js/app.js"></script>
 
     <script>
