@@ -212,99 +212,96 @@ audio {
   margin-top: 10px;
 }
 
-/* ================= FLOATING BAR ================= */
+/* ================= PREMIUM FLOATING BAR ================= */
 .floating-bar {
   position: fixed;
-  bottom: 20px;
+  bottom: 25px;
   left: 50%;
   transform: translateX(-50%);
-  background: white;
+  /* Glassmorphism Effect */
+  background: rgba(255, 255, 255, 0.75); 
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  /* Premium Shadow */
+  box-shadow: 0 12px 35px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08);
+  
   padding: 10px 15px;
   border-radius: 50px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
   display: flex;
-  gap: 12px;
+  align-items: center;
+  gap: 10px;
   z-index: 9999;
-  border: 1px solid #eee;
 }
 
-/* icon buttons */
+/* Digital Audio Timer inside the bar */
+.float-timer {
+  font-family: monospace;
+  font-size: 15px;
+  font-weight: 700;
+  color: #333;
+  padding: 0 10px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+/* Premium Icon Buttons */
 .float-btn {
   border-radius: 50%;
-  width: 50px;
-  height: 50px;
+  width: 48px;
+  height: 48px;
   padding: 0;
   font-size: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.9);
+  color: #444;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy hover */
 }
 
-/* variants */
-.play-btn {
-  background: #f8f9fa;
-  border: 1px solid #ddd;
-  color: #333;
+.float-btn:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 15px rgba(0,0,0,0.15);
 }
 
-.play-btn:hover {
-  background: #e9ecef;
+.float-btn:active {
+  transform: translateY(1px) scale(0.95);
 }
 
-.mark-btn {
-  background: #dc3545;
-  color: white;
-  border: none;
-}
-
-.mark-btn:hover {
-  background: #c82333;
-}
-
-.delete-btn {
-  background: #343a40;
-  color: white;
-  border: none;
-}
+.play-btn { background: #eef2f5; color: #007BFF; font-size: 22px; }
+.mark-btn { background: #dc3545; color: white; }
+.delete-btn { background: #343a40; color: white; }
 
 /* ================= UTIL ================= */
-.hidden {
-  display: none;
-}
+.hidden { display: none; }
+audio { width: 100%; margin-top: 10px;}
 
 /* ================= RESPONSIVE ================= */
 @media (max-width: 1100px) {
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
+  .dashboard-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 768px) {
-  .input-row {
-    flex-direction: column;
-  }
-
-  input, textarea, button {
-    width: 100% !important;
-  }
-
-  table {
-    display: block;
-    overflow-x: auto;
-  }
+  .input-row { flex-direction: column; align-items: stretch;}
+  input, textarea, button { width: 100% !important; }
+  table { display: block; overflow-x: auto; }
 }
 
 @media (max-width: 600px) {
-  .floating-bar {
-    width: auto;
-    padding: 8px 12px;
-    gap: 8px;
+  .floating-bar { 
+      width: 92%; 
+      padding: 8px; 
+      gap: 6px; 
+      justify-content: space-evenly; 
   }
-
-  .float-btn {
-    width: 44px;
-    height: 44px;
-    font-size: 18px;
+  .float-btn { 
+      width: 42px; 
+      height: 42px; 
+      font-size: 16px; 
   }
+  .play-btn { font-size: 18px; }
+  .float-timer { font-size: 12px; padding: 0 2px;}
 }
