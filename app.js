@@ -21,14 +21,16 @@ function clearResults() {
     document.getElementById('searchResults').innerHTML = '';
 }
 
+// Global reference for the dynamic chapter audio player
+let currentChapterAudio = null;
 
 const jsonData = []; // Load your JSON data here
 // Load JSON data
-fetch('data/shlokas_tbl.json')
+fetch('data/geeta_complete.json') // UPDATED JSON PATH
     .then(response => response.json())
     .then(jsonData => {
         // Populate chapterSelect with options based on the number of chapters
-        const chapters = Array.from(new Set(jsonData.map(item => item.chapter)));
+        const chapters = Array.from(new Set(jsonData.map(item => item.Chapter))); // UPDATED KEY
         chapters.sort((a, b) => parseInt(a) - parseInt(b));
 
         const chapterSelect = document.getElementById('chapterSelect');
@@ -46,13 +48,14 @@ fetch('data/shlokas_tbl.json')
 document.getElementById('chapterSelect').addEventListener('change', loadChapter);
 
 function loadChapter() {
-    const selectedChapter = chapterSelect.value;
+    const selectedChapter = document.getElementById('chapterSelect').value;
 
     // Fetch JSON data first
-    fetch('data/shlokas_tbl.json')
+    fetch('data/geeta_complete.json') // UPDATED JSON PATH
         .then(response => response.json())
         .then(jsonData => {
-            const chapterData = jsonData.filter(item => item.chapter === selectedChapter);
+            // UPDATED KEY: Ensure strict type comparison or parse it
+            const chapterData = jsonData.filter(item => item.Chapter.toString() === selectedChapter.toString());
 
             const container = document.getElementById('container');
             container.style.display = 'block'; // Show the container
@@ -61,42 +64,93 @@ function loadChapter() {
             // Clear previous data
             container.innerHTML = ''; 
             // Clear the search input value
-            searchInput.value = '';
+            document.getElementById('searchInput').value = '';
             
+            // --- NEW: CHAPTER AUDIO PLAYER ---
+            if (chapterData.length > 0 && chapterData[0].AudioFileURL) {
+                const audioContainer = document.createElement('div');
+                audioContainer.style.textAlign = 'center';
+                audioContainer.style.marginBottom = '20px';
+                audioContainer.style.padding = '15px';
+                audioContainer.style.background = '#f8f9fa';
+                audioContainer.style.borderRadius = '10px';
+                
+                const audioLabel = document.createElement('h5');
+                audioLabel.textContent = `🔊 Play Chapter ${selectedChapter} Audio`;
+                
+                currentChapterAudio = document.createElement('audio');
+                currentChapterAudio.id = 'mainChapterAudio';
+                currentChapterAudio.controls = true;
+                currentChapterAudio.src = chapterData[0].AudioFileURL;
+                currentChapterAudio.style.width = '100%';
+                
+                audioContainer.appendChild(audioLabel);
+                audioContainer.appendChild(currentChapterAudio);
+                container.appendChild(audioContainer);
+            }
+            // ----------------------------------
+
             // Loop through each verse in the selected chapter
             chapterData.forEach(verse => {
                 const verseElement = document.createElement('div');
                 verseElement.classList.add('verse');
+                verseElement.style.position = 'relative'; // Added for absolute positioning of play icon
 
-                // Sanskrit Lines
+                // --- NEW: VERSE PLAY ICON ---
+                if (verse.AudioStart && verse.AudioEnd && verse.AudioEnd > verse.AudioStart) {
+                    const playBtn = document.createElement('button');
+                    playBtn.innerHTML = '▶️ Play Verse';
+                    playBtn.classList.add('btn', 'btn-sm', 'btn-success');
+                    playBtn.style.position = 'absolute';
+                    playBtn.style.top = '10px';
+                    playBtn.style.right = '10px';
+                    
+                    playBtn.onclick = function() {
+                        if (currentChapterAudio) {
+                            currentChapterAudio.currentTime = verse.AudioStart;
+                            currentChapterAudio.play();
+                            
+                            // Clip the audio when it reaches AudioEnd
+                            const checkEnd = () => {
+                                if (currentChapterAudio.currentTime >= verse.AudioEnd) {
+                                    currentChapterAudio.pause();
+                                    currentChapterAudio.removeEventListener('timeupdate', checkEnd);
+                                }
+                            };
+                            currentChapterAudio.addEventListener('timeupdate', checkEnd);
+                        }
+                    };
+                    verseElement.appendChild(playBtn);
+                }
+                // ----------------------------
+
+                // Sanskrit Lines (UPDATED KEYS)
                 const sanskritLinesElement = document.createElement('div');
                 sanskritLinesElement.classList.add('sanskrit-lines');
-                sanskritLinesElement.innerHTML = `${verse.ShlokaSanLine1}<br>${verse.ShlokaSanLine2}<br>${verse.ShlokaSanLine3}<br>${verse.ShlokaSanLine4}`;
+                sanskritLinesElement.innerHTML = verse.OriginalText ? verse.OriginalText.replace(/\n/g, '<br>') : '';
                 verseElement.appendChild(sanskritLinesElement);
                 
-                // English Lines
+                // English Lines (UPDATED KEYS)
                 const engLinesElement = document.createElement('div');
                 engLinesElement.classList.add('english-lines');
-                engLinesElement.innerHTML = `${verse.ShlokaEngLine1}<br>${verse.ShlokaEngLine2}<br>${verse.ShlokaEngLine3}<br>${verse.ShlokaEngLine4}`;
+                engLinesElement.innerHTML = verse.EnglishText ? verse.EnglishText.replace(/\n/g, '<br>') : '';
                 verseElement.appendChild(engLinesElement);
                 
                 // Add a separator
                 const separator = document.createElement('hr');
                 verseElement.appendChild(separator);
                 
-                // Hindi Description
+                // Hindi Description (UPDATED KEYS)
                 const hindiDescriptionElement = document.createElement('div');
                 hindiDescriptionElement.classList.add('hindi-description');
-                hindiDescriptionElement.innerHTML = verse.DescriptionSan.replace(/\n/g, '<br>');
+                hindiDescriptionElement.innerHTML = verse.OriginalMeaning ? verse.OriginalMeaning.replace(/\n/g, '<br>') : '';
                 verseElement.appendChild(hindiDescriptionElement);
                 
-                // English Description
+                // English Description (UPDATED KEYS)
                 const engDescriptionElement = document.createElement('div');
                 engDescriptionElement.classList.add('english-description');
-                engDescriptionElement.innerHTML = verse.Description.replace(/\n/g, '<br>');
+                engDescriptionElement.innerHTML = verse.EnglishMeaning ? verse.EnglishMeaning.replace(/\n/g, '<br>') : '';
                 verseElement.appendChild(engDescriptionElement);
-                
-                
 
                 container.appendChild(verseElement);
             });
@@ -113,6 +167,7 @@ document.getElementById('searchInput').addEventListener('keyup', function (event
 });
 
 async function searchWord() {
+    const searchInput = document.getElementById('searchInput');
     const searchTerm = searchInput.value.toLowerCase();
     const searchResults = document.getElementById('searchResults');
 
@@ -121,94 +176,72 @@ async function searchWord() {
     document.getElementById('container').innerHTML = '';
 
     try {
-            const response = await fetch('data/shlokas_tbl.json');
-            const jsonData = await response.json();
+        const response = await fetch('data/geeta_complete.json'); // UPDATED JSON PATH
+        const jsonData = await response.json();
 
-            let totalMatches = 0;
-            let totalVerses = 0;
+        let totalMatches = 0;
+        let totalVerses = 0;
 
-            jsonData.forEach(item => {
-            
-                let verseHasMatch = false;
-                for (const key in item) {
+        jsonData.forEach(item => {
+        
+            let verseHasMatch = false;
+            for (const key in item) {
+                if (item[key] && typeof item[key] === 'string') {
                     const value = item[key].toLowerCase();
                     if (value.includes(searchTerm)) {
                         totalMatches++;
                         verseHasMatch = true;
                     }
                 }
+            }
 
-                if (verseHasMatch) {
-                    totalVerses++;
-                    const resultElement = document.createElement('div');
-                    resultElement.classList.add('verse');
+            if (verseHasMatch) {
+                totalVerses++;
+                const resultElement = document.createElement('div');
+                resultElement.classList.add('verse');
 
-                    
-                    // Display Sanskrit Lines with highlighted matching word
-                    const sanskritLines = document.createElement('p');
-                    sanskritLines.innerHTML = item.ShlokaSanLine1.replace(
-                        new RegExp(`(${searchTerm})`, 'gi'),
-                        '<span class="highlight">$1</span>'
-                    ) + '<br>' + 
-                    item.ShlokaSanLine2.replace(
-                        new RegExp(`(${searchTerm})`, 'gi'),
-                        '<span class="highlight">$1</span>'
-                    ) + '<br>' +
-                    item.ShlokaSanLine3.replace(
-                        new RegExp(`(${searchTerm})`, 'gi'),
-                        '<span class="highlight">$1</span>'
-                    ) + '<br>' +
-                    item.ShlokaSanLine4.replace(
-                        new RegExp(`(${searchTerm})`, 'gi'),
-                        '<span class="highlight">$1</span>'
-                    );
-                    resultElement.appendChild(sanskritLines);
+                // Display Sanskrit Lines with highlighted matching word (UPDATED KEYS)
+                const sanskritLines = document.createElement('p');
+                const sanText = item.OriginalText || '';
+                sanskritLines.innerHTML = sanText.replace(
+                    new RegExp(`(${searchTerm})`, 'gi'),
+                    '<span class="highlight">$1</span>'
+                ).replace(/\n/g, '<br>');
+                resultElement.appendChild(sanskritLines);
 
+                // Display English Lines with highlighted matching word (UPDATED KEYS)
+                const engLines = document.createElement('p');
+                const engText = item.EnglishText || '';
+                engLines.innerHTML = engText.replace(
+                    new RegExp(`(${searchTerm})`, 'gi'),
+                    '<span class="highlight">$1</span>'
+                ).replace(/\n/g, '<br>');
+                resultElement.appendChild(engLines);
 
-                    // Display English Lines with highlighted matching word
-                    const engLines = document.createElement('p');
-                    engLines.innerHTML = item.ShlokaEngLine1.replace(
-                        new RegExp(`(${searchTerm})`, 'gi'),
-                        '<span class="highlight">$1</span>'
-                    ) + '<br>' + 
-                    item.ShlokaEngLine2.replace(
-                        new RegExp(`(${searchTerm})`, 'gi'),
-                        '<span class="highlight">$1</span>'
-                    ) + '<br>' +
-                    item.ShlokaEngLine3.replace(
-                        new RegExp(`(${searchTerm})`, 'gi'),
-                        '<span class="highlight">$1</span>'
-                    ) + '<br>' +
-                    item.ShlokaEngLine4.replace(
-                        new RegExp(`(${searchTerm})`, 'gi'),
-                        '<span class="highlight">$1</span>'
-                    );
-                    resultElement.appendChild(engLines);
+                // Add a separator
+                const separator = document.createElement('hr');
+                resultElement.appendChild(separator);
 
-                    // Add a separator
-                    const separator = document.createElement('hr');
-                    resultElement.appendChild(separator);
+                // Display Hindi Description with highlighted matching word (UPDATED KEYS)
+                const hindiDescription = document.createElement('p');
+                const hinDesc = item.OriginalMeaning || '';
+                hindiDescription.innerHTML = hinDesc.replace(
+                    new RegExp(`(${searchTerm})`, 'gi'),
+                    '<span class="highlight">$1</span>'
+                ).replace(/\n/g, '<br>');
+                resultElement.appendChild(hindiDescription);
 
-                    // Display Hindi Description with highlighted matching word
-                    const hindiDescription = document.createElement('p');
-                    hindiDescription.innerHTML = item.DescriptionSan.replace(
-                        new RegExp(`(${searchTerm})`, 'gi'),
-                        '<span class="highlight">$1</span>'
-                    );
-                    resultElement.appendChild(hindiDescription);
+                // Display English Description with highlighted matching word (UPDATED KEYS)
+                const engDescription = document.createElement('p');
+                const engDesc = item.EnglishMeaning || '';
+                engDescription.innerHTML = engDesc.replace(
+                    new RegExp(`(${searchTerm})`, 'gi'),
+                    '<span class="highlight">$1</span>'
+                ).replace(/\n/g, '<br>');
+                resultElement.appendChild(engDescription);
 
-                    // Display English Description with highlighted matching word
-                    const engDescription = document.createElement('p');
-                    engDescription.innerHTML = item.Description.replace(
-                        new RegExp(`(${searchTerm})`, 'gi'),
-                        '<span class="highlight">$1</span>'
-                    );
-                    resultElement.appendChild(engDescription);
-
-                   
-
-                    searchResults.appendChild(resultElement);
-                }
+                searchResults.appendChild(resultElement);
+            }
         });
 
         const totalsElement = document.createElement('div');
@@ -231,10 +264,10 @@ const hindiToggle = document.getElementById('hindi-toggle');
 const descriptionToggle = document.getElementById('description-toggle');
 
 // Add click event listeners to toggle buttons
-sanskritToggle.addEventListener('click', toggleDisplay);
-englishToggle.addEventListener('click', toggleDisplay);
-hindiToggle.addEventListener('click', toggleDisplay);
-descriptionToggle.addEventListener('click', toggleDisplay);
+if(sanskritToggle) sanskritToggle.addEventListener('click', toggleDisplay);
+if(englishToggle) englishToggle.addEventListener('click', toggleDisplay);
+if(hindiToggle) hindiToggle.addEventListener('click', toggleDisplay);
+if(descriptionToggle) descriptionToggle.addEventListener('click', toggleDisplay);
 
 // Function to toggle display of respective content
 function toggleDisplay(event) {
@@ -260,7 +293,6 @@ function toggleDisplay(event) {
 document.querySelectorAll('.active-toggle').forEach(button => {
     button.click();
 });
-
 
 // // Render loop
 // function animate() {
