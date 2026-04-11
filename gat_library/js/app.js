@@ -1,16 +1,14 @@
 // =========================================================
-// 🚀 GITA APP ENGINE (PWA + SUBSCRIPTIONS + KARAOKE)
+// 🚀 GITA APP ENGINE (PWA + SUBSCRIPTIONS + KARAOKE + SHARING)
 // =========================================================
 
 const container = document.getElementById('container');
 let globalGeetaData = [];
 let currentChapterAudio = null;
-let chunkMonitorId = null; // High-precision audio clipping monitor
+let chunkMonitorId = null; 
+let currentFirstDisplayedIndex = 0; 
 
-// 🧠 Dynamic Presentation Playlist (Handles both Chapter and Search results)
 let currentPlaylist = []; 
-
-// 🧠 Async Pre-computed Subscriptions
 let precomputedSubOptions = { chapter: [], verse: [] };
 
 // ==========================================
@@ -43,9 +41,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Asynchronously pre-compute subscription arrays to prevent UI freeze
         precomputeSubscriptionOptions();
 
-        // Inject UI Modals
+        // Inject UI Modals & Screens
         injectSubscriptionModal();
         injectKaraokeModal();
+        injectWelcomeScreen();
 
         // Check if user arrived via a Subscription Link
         const isSubscriptionLink = handleSubscriptionRouting();
@@ -53,7 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Only load default if we didn't route to a specific subscription verse
         if (!isSubscriptionLink) loadChapter();
 
-        // Global Presentation Button Event (Feeds currentPlaylist into Karaoke)
+        // Global Presentation Button Event
         document.getElementById('globalPresentationBtn')?.addEventListener('click', () => {
             openKaraoke(currentPlaylist, 0, 'chapter');
         });
@@ -73,11 +72,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// Build options array in the background for blazing fast UI
+// Build options array in the background for fast UI
 function precomputeSubscriptionOptions() {
     setTimeout(() => {
         try {
-            // Chapters
             const uniqueChapters = [];
             globalGeetaData.forEach(v => {
                 if (!uniqueChapters.find(c => c.val === v.Chapter)) {
@@ -86,7 +84,6 @@ function precomputeSubscriptionOptions() {
             });
             precomputedSubOptions.chapter = uniqueChapters;
 
-            // Verses (Thousands of entries processed instantly)
             globalGeetaData.forEach((v, idx) => {
                 precomputedSubOptions.verse.push({ val: idx, text: `Ch ${v.Chapter}, Verse ${v.VerseNum}: ${v.Topic || ''}` });
             });
@@ -124,11 +121,10 @@ function loadChapter() {
         const searchInput = document.getElementById('searchInput');
         if (searchInput) searchInput.value = '';
 
-        // Reset and populate Playlist for Chapter Mode
         currentPlaylist = [];
         const chapterData = globalGeetaData.filter((item, index) => {
             if (item.Chapter.toString() === selectedChapter.toString()) {
-                currentPlaylist.push(index); // Push Absolute Index to playlist
+                currentPlaylist.push(index); 
                 return true;
             }
             return false;
@@ -138,11 +134,9 @@ function loadChapter() {
             document.getElementById('globalPresentationBtn').style.display = 'inline-block';
         }
 
-        // --- CHAPTER AUDIO PLAYER ---
         if (chapterData.length > 0 && chapterData[0].AudioFileURL) {
             const audioContainer = document.createElement('div');
             audioContainer.className = 'text-center mb-4 p-3 bg-light rounded shadow-sm';
-            
             const audioLabel = document.createElement('h5');
             audioLabel.textContent = `🔊 Play Chapter ${selectedChapter} Audio`;
             
@@ -157,7 +151,6 @@ function loadChapter() {
             container.appendChild(audioContainer);
         }
 
-        // --- VERSE RENDERING ---
         chapterData.forEach((verse) => {
             const verseElement = document.createElement('div');
             verseElement.classList.add('verse', 'position-relative', 'p-3', 'mb-3', 'border', 'rounded', 'bg-white', 'shadow-sm'); 
@@ -165,7 +158,6 @@ function loadChapter() {
             const hasAudio = verse.AudioStart !== undefined && verse.AudioEnd > verse.AudioStart;
             const absoluteIndex = globalGeetaData.findIndex(v => v.Chapter === verse.Chapter && v.VerseNum === verse.VerseNum);
 
-            // Sleek Speaker Icon (Replaced large button)
             if (hasAudio) {
                 const playBtn = document.createElement('button');
                 playBtn.className = 'btn btn-light shadow-sm text-primary rounded-circle position-absolute inline-play-btn';
@@ -190,12 +182,9 @@ function loadChapter() {
             `;
             container.appendChild(verseElement);
         });
-    } catch (error) {
-        console.error("Error rendering chapter:", error);
-    }
+    } catch (error) { console.error("Error rendering chapter:", error); }
 }
 
-// Search Logic
 document.getElementById('searchButton')?.addEventListener('click', searchWord);
 document.getElementById('searchInput')?.addEventListener('keyup', function (event) {
     if (event.key === 'Enter') searchWord();
@@ -215,7 +204,7 @@ async function searchWord() {
         cancelAnimationFrame(chunkMonitorId);
 
         let totalMatches = 0;
-        currentPlaylist = []; // Reset and populate with matched indices ONLY
+        currentPlaylist = []; 
 
         globalGeetaData.forEach((item, absoluteIndex) => {
             let verseHasMatch = false;
@@ -223,23 +212,21 @@ async function searchWord() {
                 if (item[key] && typeof item[key] === 'string') {
                     if (item[key].toLowerCase().includes(searchTerm)) {
                         verseHasMatch = true;
-                        break; // Found a match, no need to check other keys
+                        break; 
                     }
                 }
             }
 
             if (verseHasMatch) {
                 totalMatches++;
-                currentPlaylist.push(absoluteIndex); // Add to search playlist
+                currentPlaylist.push(absoluteIndex); 
 
                 const resultElement = document.createElement('div');
                 resultElement.classList.add('verse', 'position-relative', 'p-3', 'mb-3', 'border', 'rounded', 'bg-white', 'shadow-sm');
 
                 const highlightMatch = (text) => text ? text.replace(new RegExp(`(${searchTerm})`, 'gi'), '<span class="highlight">$1</span>').replace(/\n/g, '<br>') : '';
-
                 const hasAudio = item.AudioStart !== undefined && item.AudioEnd > item.AudioStart;
                 
-                // Sleek Speaker Icon
                 let iconHtml = '';
                 if (hasAudio) {
                     iconHtml = `<button class="btn btn-light shadow-sm text-primary rounded-circle position-absolute inline-play-btn" data-index="${absoluteIndex}" title="Play Verse Audio" style="width: 38px; height: 38px; top: 12px; right: 12px; z-index: 10; display:flex; align-items:center; justify-content:center; font-size: 1.2rem; border: 1px solid #ddd;">🔊</button>`;
@@ -269,24 +256,16 @@ async function searchWord() {
             searchResults.innerHTML = '<p class="text-center text-danger mt-3">No results found.</p>';
             document.getElementById('globalPresentationBtn').style.display = 'none';
         }
-    } catch (error) {
-        console.error('Error during search:', error);
-    }
+    } catch (error) { console.error('Error during search:', error); }
 }
 
-// Dedicated High-Precision Inline Player Logic
 function playVerseInline(absoluteIndex) {
     try {
         const verse = globalGeetaData[absoluteIndex];
         if (!verse || !verse.AudioFileURL || verse.AudioStart === undefined) return;
 
-        if (!currentChapterAudio) {
-            currentChapterAudio = new Audio();
-        }
-
-        if (currentChapterAudio.src.indexOf(verse.AudioFileURL) === -1) {
-            currentChapterAudio.src = verse.AudioFileURL;
-        }
+        if (!currentChapterAudio) currentChapterAudio = new Audio();
+        if (currentChapterAudio.src.indexOf(verse.AudioFileURL) === -1) currentChapterAudio.src = verse.AudioFileURL;
 
         cancelAnimationFrame(chunkMonitorId);
         currentChapterAudio.pause();
@@ -303,9 +282,7 @@ function playVerseInline(absoluteIndex) {
             }
         };
         chunkMonitorId = requestAnimationFrame(monitor);
-    } catch(e) {
-        console.error("Inline play error:", e);
-    }
+    } catch(e) { console.error("Inline play error:", e); }
 }
 
 
@@ -328,8 +305,11 @@ function injectSubscriptionModal() {
                 </div>
                 
                 <div class="form-group">
-                    <label class="font-weight-bold">Starting Point:</label>
+                    <label class="font-weight-bold mb-1">Starting Point:</label>
                     <input type="text" id="subFilter" class="form-control mb-1" placeholder="🔍 Search chapter or verse...">
+                    <div id="subFilterFeedback" class="filter-feedback text-muted">Loading options...</div>
+                    
+                    <div id="subLoading" class="loading-spinner">⏳ Processing options...</div>
                     <select id="subStart" class="form-control" size="4" style="overflow-y: auto;"></select>
                 </div>
 
@@ -354,9 +334,9 @@ function injectSubscriptionModal() {
                 </div>
 
                 <div class="d-flex flex-column gap-2 mt-4">
-                    <button id="btnGoogleCal" class="btn btn-primary mb-2 shadow-sm">➕ Add to Google Calendar</button>
-                    <button id="btnAppleCal" class="btn btn-dark mb-2 shadow-sm">🍎 Add to Apple / Outlook (.ics)</button>
-                    <button id="btnCloseSub" class="btn btn-outline-secondary">Cancel</button>
+                    <button id="btnGoogleCal" class="btn btn-primary shadow-sm">➕ Add to Google Calendar</button>
+                    <button id="btnAppleCal" class="btn btn-dark shadow-sm">🍎 Add to Apple / Outlook (.ics)</button>
+                    <button id="btnCloseSub" class="btn btn-outline-secondary mt-2">Cancel</button>
                 </div>
             </div>
         </div>`;
@@ -366,8 +346,11 @@ function injectSubscriptionModal() {
         const subType = document.getElementById('subType');
         const subStart = document.getElementById('subStart');
         const subFilter = document.getElementById('subFilter');
+        const subFilterFeedback = document.getElementById('subFilterFeedback');
+        const subLoading = document.getElementById('subLoading');
         
-        // Set Default date to tomorrow
+        let currentOptionsData = [];
+
         const tmrw = new Date(); tmrw.setDate(tmrw.getDate() + 1);
         document.getElementById('subDate').value = tmrw.toISOString().split('T')[0];
 
@@ -383,25 +366,47 @@ function injectSubscriptionModal() {
             populateSubStartOptions(subType.value);
         });
 
-        // Fast In-Memory Filtering
         subFilter?.addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
             subStart.innerHTML = '';
             const dataToSearch = subType.value === 'chapter' ? precomputedSubOptions.chapter : precomputedSubOptions.verse;
             
+            let matchCount = 0;
             dataToSearch.forEach(opt => {
                 if (opt.text.toLowerCase().includes(term)) {
                     subStart.innerHTML += `<option value="${opt.val}">${opt.text}</option>`;
+                    matchCount++;
                 }
             });
+
+            subFilterFeedback.textContent = term ? `Showing ${matchCount} matching options` : `Showing all options`;
+            subFilterFeedback.classList.add('active');
+            setTimeout(() => subFilterFeedback.classList.remove('active'), 300);
         });
 
         function populateSubStartOptions(type) {
-            subStart.innerHTML = '';
-            const dataToRender = type === 'chapter' ? precomputedSubOptions.chapter : precomputedSubOptions.verse;
-            dataToRender.forEach(opt => {
-                subStart.innerHTML += `<option value="${opt.val}">${opt.text}</option>`;
-            });
+            // Show Loading Spinner to yield thread
+            subLoading.style.display = 'block';
+            subStart.style.display = 'none';
+            subFilterFeedback.textContent = '';
+
+            setTimeout(() => {
+                subStart.innerHTML = '';
+                const dataToRender = type === 'chapter' ? precomputedSubOptions.chapter : precomputedSubOptions.verse;
+                
+                // Use a document fragment for faster DOM insertion
+                const frag = document.createDocumentFragment();
+                dataToRender.forEach(opt => {
+                    const el = document.createElement('option');
+                    el.value = opt.val; el.textContent = opt.text;
+                    frag.appendChild(el);
+                });
+                subStart.appendChild(frag);
+
+                subFilterFeedback.textContent = `Loaded ${dataToRender.length} options`;
+                subLoading.style.display = 'none';
+                subStart.style.display = 'block';
+            }, 10);
         }
 
         function generateAppUrl() {
@@ -424,7 +429,6 @@ function injectSubscriptionModal() {
             return { dtStart, dtEnd };
         }
 
-        // GOOGLE CALENDAR
         document.getElementById('btnGoogleCal')?.addEventListener('click', () => {
             if(!subStart.value) { alert("Please select a starting point"); return; }
             const appUrl = generateAppUrl();
@@ -437,7 +441,6 @@ function injectSubscriptionModal() {
             subModal.classList.remove('active');
         });
 
-        // APPLE / OUTLOOK ICS
         document.getElementById('btnAppleCal')?.addEventListener('click', () => {
             if(!subStart.value) { alert("Please select a starting point"); return; }
             const type = subType.value;
@@ -460,12 +463,44 @@ function injectSubscriptionModal() {
     } catch (e) { console.error("Error injecting Subscription Modal:", e); }
 }
 
+// ==========================================
+// 4. AUTOPLAY BYPASS & ROUTING
+// ==========================================
+function injectWelcomeScreen() {
+    const splashHTML = `
+    <div id="welcomeSplash" class="welcome-splash" style="display:none;">
+        <div class="welcome-card">
+            <div id="streakBadge" class="streak-badge" style="display:none;">🔥 1 Day Streak</div>
+            <h2>Welcome Back!</h2>
+            <p class="text-light mt-2 mb-4">Your daily Srimad Bhagavad Gita reading is ready.</p>
+            <button id="btnBeginReading" class="btn-begin">▶️ Begin Reading</button>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', splashHTML);
+}
+
 function handleSubscriptionRouting() {
     try {
         const urlParams = new URLSearchParams(window.location.search);
         const subId = urlParams.get('subId');
-        
         if (!subId) return false; 
+
+        // Update Reading Streak
+        let streak = parseInt(localStorage.getItem('gita_streak')) || 0;
+        let lastRead = localStorage.getItem('gita_last_read');
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        if (lastRead !== todayStr) {
+            streak++;
+            localStorage.setItem('gita_streak', streak);
+            localStorage.setItem('gita_last_read', todayStr);
+        }
+        
+        const badge = document.getElementById('streakBadge');
+        if (streak > 1 && badge) {
+            badge.textContent = `🔥 ${streak} Day Streak`;
+            badge.style.display = 'inline-block';
+        }
 
         const type = urlParams.get('type');
         const initialStart = parseInt(urlParams.get('start'));
@@ -486,7 +521,7 @@ function handleSubscriptionRouting() {
         }
 
         let targetIndex = 0;
-        let pList = []; // Temporary playlist for routing
+        let pList = []; 
 
         if (type === 'verse') {
             targetIndex = initialStart + progressionSteps;
@@ -494,8 +529,7 @@ function handleSubscriptionRouting() {
                 alert("🙏 You have completed all verses in your subscription! Link Expired.");
                 return true;
             }
-            pList.push(targetIndex); // Only route to one verse
-            openKaraoke(pList, 0, 'verse');
+            pList.push(targetIndex); 
 
         } else if (type === 'chapter') {
             const chapters = Array.from(new Set(globalGeetaData.map(i => parseInt(i.Chapter))));
@@ -508,14 +542,23 @@ function handleSubscriptionRouting() {
             }
             const targetChapter = chapters[targetChapIndex];
             
-            // Build playlist for the entire chapter
             globalGeetaData.forEach((v, i) => {
                 if (parseInt(v.Chapter) === targetChapter) pList.push(i);
             });
-            openKaraoke(pList, 0, 'chapter');
         }
 
-        console.log(`Successfully routed to Subscription: ${type}`);
+        // Show Welcome Splash (Bypasses Browser Autoplay Policy)
+        const splash = document.getElementById('welcomeSplash');
+        splash.style.display = 'flex';
+        
+        document.getElementById('btnBeginReading').addEventListener('click', () => {
+            splash.classList.add('fade-out');
+            setTimeout(() => splash.style.display = 'none', 500);
+            
+            // Interaction achieved! Audio is now allowed to play.
+            openKaraoke(pList, 0, type);
+        });
+
         return true;
     } catch (e) {
         console.error("Routing error:", e);
@@ -524,13 +567,13 @@ function handleSubscriptionRouting() {
 }
 
 // ==========================================
-// 4. ADVANCED PLAYLIST KARAOKE MODAL
+// 5. ADVANCED PLAYLIST KARAOKE MODAL
 // ==========================================
 let kState = { 
-    playlist: [], // Array of absolute indices to play 
-    listIndex: 0, // Current position in the playlist
+    playlist: [], 
+    listIndex: 0, 
     mode: 'chapter', 
-    interval: null, 
+    animId: null, 
     audio: new Audio() 
 };
 
@@ -539,6 +582,9 @@ function injectKaraokeModal() {
         const modalHTML = `
         <div id="karaokeModal" class="karaoke-modal">
             <div class="k-close-hint">Click anywhere outside text to close</div>
+            
+            <button id="kShareBtn" class="btn btn-sm btn-outline-info position-absolute" style="top: 20px; left: 20px; z-index:100001;">🔗 Share Verse</button>
+
             <div id="kContent" class="karaoke-content">
                 <div id="kTitle" class="karaoke-title"></div>
                 <div id="kLyrics" class="karaoke-lyrics"></div>
@@ -570,6 +616,21 @@ function injectKaraokeModal() {
         document.getElementById('kPlayPause')?.addEventListener('click', () => {
             if(kState.audio) kState.audio.paused ? kState.audio.play() : kState.audio.pause();
         });
+
+        // Share Feature Logic
+        document.getElementById('kShareBtn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const v = globalGeetaData[kState.playlist[kState.listIndex]];
+            const text = `Bhagavad Gita - Chapter ${v.Chapter}, Verse ${v.VerseNum}\n\n${v.OriginalText}\n\n${v.EnglishText}\n\nRead on Gita App!`;
+            
+            if (navigator.share) {
+                navigator.share({ title: 'Bhagavad Gita', text: text, url: window.location.origin + window.location.pathname });
+            } else {
+                navigator.clipboard.writeText(text);
+                alert("Verse copied to clipboard! You can paste it anywhere.");
+            }
+        });
+
     } catch (e) { console.error("Error injecting Karaoke Modal:", e); }
 }
 
@@ -598,7 +659,7 @@ function closeKaraoke() {
     try {
         document.getElementById('karaokeModal').classList.remove('active');
         kState.audio.pause();
-        cancelAnimationFrame(kState.interval);
+        cancelAnimationFrame(kState.animId);
     } catch (e) { console.error("Error closing Karaoke:", e); }
 }
 
@@ -621,7 +682,7 @@ function playCurrentKaraoke() {
         const manualControls = document.getElementById('kManualControls');
         
         kContent.classList.add('fade-out');
-        cancelAnimationFrame(kState.interval);
+        cancelAnimationFrame(kState.animId);
 
         setTimeout(() => {
             document.getElementById('kTitle').textContent = `Chapter ${v.Chapter}, Verse ${v.VerseNum} ${v.Topic ? ' - ' + v.Topic : ''}`;
@@ -630,47 +691,54 @@ function playCurrentKaraoke() {
             kContent.classList.remove('fade-out');
 
             const hasTimestamps = v.AudioStart !== undefined && v.AudioEnd > v.AudioStart;
-            
-            // Show manual controls only if NO timestamps exist
             manualControls.style.display = hasTimestamps ? 'none' : 'block';
 
             if (v.AudioFileURL) {
+                let fileChanged = false;
                 if (kState.audio.src.indexOf(v.AudioFileURL) === -1) {
                     kState.audio.src = v.AudioFileURL;
-                    kState.audio.load();
+                    fileChanged = true;
                 }
 
                 if (hasTimestamps) {
-                    kState.audio.currentTime = v.AudioStart;
-                    kState.audio.play().catch(e => console.warn("Autoplay blocked by browser"));
                     
+                    // PREVENT AUDIO REWIND GLITCH
+                    // If audio is already flowing naturally into this verse, let it continue.
+                    const timeDiff = Math.abs(kState.audio.currentTime - v.AudioStart);
+                    const isContiguous = !fileChanged && !kState.audio.paused && timeDiff < 0.4;
+
+                    if (!isContiguous) {
+                        kState.audio.currentTime = v.AudioStart;
+                        kState.audio.play().catch(e => console.warn("Autoplay blocked by browser"));
+                    }
+                    
+                    // High Precision Monitor
                     function monitorAudio() {
                         if (kState.audio.currentTime >= v.AudioEnd) {
                             if (kState.mode === 'verse') {
                                 // Loop single verse
                                 kState.audio.currentTime = v.AudioStart;
-                                kState.interval = requestAnimationFrame(monitorAudio);
+                                kState.animId = requestAnimationFrame(monitorAudio);
                             } else {
                                 // Auto advance through PLAYLIST
                                 if (kState.listIndex < kState.playlist.length - 1) {
                                     kState.listIndex++;
-                                    playCurrentKaraoke();
+                                    playCurrentKaraoke(); // Instantly trigger next
                                 } else {
                                     kState.audio.pause(); // Reached end of playlist
                                 }
                             }
                         } else {
-                            kState.interval = requestAnimationFrame(monitorAudio);
+                            kState.animId = requestAnimationFrame(monitorAudio);
                         }
                     }
-                    kState.interval = requestAnimationFrame(monitorAudio);
+                    kState.animId = requestAnimationFrame(monitorAudio);
                     
                 } else {
-                    // No valid timestamps: Just play and let user use Manual Controls
                     kState.audio.play().catch(e => console.warn("Autoplay blocked"));
                 }
             }
-        }, 400); 
+        }, 300); // Shortened transition time for smoother playback
     } catch (e) {
         console.error("Error playing Karaoke:", e);
     }
