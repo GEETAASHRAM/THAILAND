@@ -1,5 +1,5 @@
 // =========================================================
-// 🚀 AUDIO SYNC SCRIPT (ENGINE)
+// 🚀 FINAL AUDIO SYNC SCRIPT (BULLETPROOF + KARAOKE MODAL)
 // =========================================================
 
 // Global function to enforce strict start/stop bounds on chunk audio players
@@ -12,7 +12,7 @@ window.enforceChunkBounds = function(audioElem, start, end) {
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    console.log("🚀 App Initialized - High Performance Engine (Production Build)");
+    console.log("🚀 App Initialized - High Performance Engine + Presentation Mode");
 
     // =========================
     // 🧠 GLOBAL STATE
@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let historyStack = [];
     let redoStack = [];
     window.currentGeetaData = null;
-    let activeRowElem = null; // Cache for scroll performance
+    let activeRowElem = null; 
 
     // =========================
     // 📌 ELEMENTS (With Null Safety)
@@ -47,7 +47,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const floatRedoBtn = document.getElementById('floatRedoBtn');
     const floatDeleteBtn = document.getElementById('floatDeleteBtn');
 
-    // Dynamic Search Counter
     let searchCountDisplay = null;
     if (tableSearch) {
         searchCountDisplay = document.createElement('div');
@@ -56,6 +55,112 @@ document.addEventListener('DOMContentLoaded', () => {
         searchCountDisplay.style.marginBottom = '10px';
         tableSearch.parentNode.insertBefore(searchCountDisplay, tableSearch.nextSibling);
     }
+
+    // =========================
+    // 🎤 PRESENTATION (KARAOKE) MODAL UI INJECTION
+    // =========================
+    const modalHtml = `
+        <div id="karaokeModal" class="karaoke-modal">
+            <div class="k-close-hint">Click anywhere outside text to close</div>
+            <div id="karaokeContent" class="karaoke-content">
+                <div id="kTitle" class="karaoke-title">Chapter 1, Verse 1</div>
+                <div id="kLyrics" class="karaoke-lyrics">Sanskrit Text</div>
+                <div id="kEnglish" class="karaoke-english">English Translation</div>
+            </div>
+            <div class="karaoke-controls" id="kControls">
+                <button id="kPrevBtn" class="k-btn">⏮️ Prev</button>
+                <button id="kNextBtn" class="k-btn">Next ⏭️</button>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    const karaokeModal = document.getElementById('karaokeModal');
+    const karaokeContent = document.getElementById('karaokeContent');
+    const kTitle = document.getElementById('kTitle');
+    const kLyrics = document.getElementById('kLyrics');
+    const kEnglish = document.getElementById('kEnglish');
+    let presentationIndex = 0;
+    let presentationInterval = null;
+
+    function openPresentation(startIndex) {
+        if (!window.currentGeetaData || window.currentGeetaData.length === 0) return;
+        presentationIndex = startIndex;
+        karaokeModal.classList.add('active');
+        playPresentationVerse();
+    }
+
+    function closePresentation() {
+        karaokeModal.classList.remove('active');
+        if (audioPlayer) audioPlayer.pause();
+        clearInterval(presentationInterval);
+    }
+
+    // Close if clicked outside content
+    karaokeModal.addEventListener('click', (e) => {
+        if (e.target === karaokeModal) closePresentation();
+    });
+
+    document.getElementById('kPrevBtn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (presentationIndex > 0) {
+            presentationIndex--;
+            playPresentationVerse();
+        }
+    });
+
+    document.getElementById('kNextBtn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (presentationIndex < window.currentGeetaData.length - 1) {
+            presentationIndex++;
+            playPresentationVerse();
+        }
+    });
+
+    function playPresentationVerse() {
+        if (!window.currentGeetaData) return;
+        const v = window.currentGeetaData[presentationIndex];
+        
+        // Fade Out Old Content
+        karaokeContent.classList.add('fade-out');
+        clearInterval(presentationInterval);
+
+        setTimeout(() => {
+            // Update Content
+            kTitle.textContent = `${v.Topic || 'Geeta'} - Chapter ${v.Chapter}, Verse ${v.VerseNum}`;
+            kLyrics.innerHTML = v.OriginalText ? v.OriginalText.replace(/\n/g, '<br>') : 'No Text Available';
+            kEnglish.innerHTML = v.EnglishText ? v.EnglishText.replace(/\n/g, '<br>') : '';
+            
+            // Fade In New Content
+            karaokeContent.classList.remove('fade-out');
+
+            // Handle Audio Playback
+            if (audioPlayer && v.AudioStart !== undefined && v.AudioEnd > v.AudioStart) {
+                
+                // Switch audio source if chapter changed
+                if (v.AudioFileURL && (!audioPlayer.src || audioPlayer.src.indexOf(v.AudioFileURL) === -1)) {
+                    audioPlayer.src = v.AudioFileURL;
+                }
+
+                audioPlayer.currentTime = v.AudioStart;
+                audioPlayer.play().catch(err => console.warn("Autoplay blocked in presentation mode."));
+
+                // Monitor time to auto-advance
+                presentationInterval = setInterval(() => {
+                    if (audioPlayer.currentTime >= v.AudioEnd) {
+                        clearInterval(presentationInterval);
+                        if (presentationIndex < window.currentGeetaData.length - 1) {
+                            presentationIndex++;
+                            playPresentationVerse(); // Auto trigger next verse
+                        } else {
+                            audioPlayer.pause(); 
+                        }
+                    }
+                }, 100);
+            }
+        }, 400); // Wait for CSS fade out
+    }
+
 
     // =========================
     // 🌐 LOAD SYSTEM PRE-DEFINED JSON
@@ -117,12 +222,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     case 1: msg = "Playback aborted by user."; break;
                     case 2: msg = "Network issue. Please check your connection."; break;
                     case 3: msg = "Audio decoding failed. File might be corrupted."; break;
-                    case 4: msg = "Audio file not found or not reachable. Please check the URL or GitHub connectivity."; break;
+                    case 4: msg = "Audio file not found or not reachable."; break;
                 }
             }
             if (audioPlayer.src && audioPlayer.src !== window.location.href) {
                 alert(`⚠️ Audio Error: ${msg}\n\nFailed URL: ${audioPlayer.src}`);
-                console.error("Audio Load Error:", err, audioPlayer.src);
             }
         });
     }
@@ -144,9 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const regex = new RegExp(`(${escapedTerm})`, 'gi');
             element.innerHTML = text.replace(regex, `<mark style="background-color: yellow; color: black; border-radius: 2px;">$1</mark>`);
-        } catch (e) {
-            console.warn("Highlighting skipped due to error:", e);
-        }
+        } catch (e) {}
     }
 
     function flashRow(row) {
@@ -177,9 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ], { duration: duration * 1000, easing: 'cubic-bezier(.37,0,.63,1)' });
                 setTimeout(() => conf.remove(), duration * 1000);
             }
-        } catch (e) {
-            console.warn("Confetti animation failed:", e);
-        }
+        } catch (e) {}
     }
 
     // =========================
@@ -198,14 +298,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 newFocus.classList.add('focused-verse');
                 newFocus.scrollIntoView({ block: "center", behavior: "smooth" });
             }
-        } catch (e) {
-            console.error("Error setting row focus:", e);
-        }
+        } catch (e) {}
     }
 
+    // Listen for Karaoke Play clicks OR row focusing
     tableBody?.addEventListener('click', (e) => {
+        const presBtn = e.target.closest('.pres-play-btn');
+        if (presBtn) {
+            const index = parseInt(presBtn.getAttribute('data-index'));
+            openPresentation(index);
+            return;
+        }
+
         const row = e.target.closest('tr');
-        if (row && !e.target.classList.contains('row-mark-end')) {
+        if (row && !e.target.classList.contains('chunk-player')) {
             setFocusRow(row.rowIndex - 1); 
         }
     });
@@ -258,6 +364,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 audioRowPlayer.setAttribute('ontimeupdate', `enforceChunkBounds(this, ${s}, ${en})`);
                 audioRowPlayer.style.display = 'block'; 
                 audioRowPlayer.load();
+
+                // Reveal presentation button now that timing is set
+                const presBtn = row.querySelector('.pres-play-btn');
+                if (presBtn) presBtn.style.display = 'block';
             }
 
             flashRow(row);
@@ -296,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 prepareGeetaJson();
             } else {
-                console.log(`🔄 Chapter complete! Switching from Chapter ${currentChapter} to ${nextChapter}...`);
+                console.log(`🔄 Chapter complete! Switching to ${nextChapter}...`);
                 fireConfetti();
                 
                 currentGeetaData[nextIndex].AudioStart = 0;
@@ -310,12 +420,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (fileUrlInput) fileUrlInput.value = nextAudioUrl;
                     audioPlayer.src = nextAudioUrl;
                     audioPlayer.load();
-                    audioPlayer.play().catch(e => console.warn("Autoplay blocked by browser. User must click play.")); 
+                    audioPlayer.play().catch(e => {}); 
                 }
             }
-        } catch (err) {
-            console.error("Error advancing to next verse:", err);
-        }
+        } catch (err) {}
     }
 
     // =========================
@@ -350,9 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
             prepareJson();
             updateProgress();
             saveHistory();
-        } catch (err) {
-            console.error("Error marking in Normal Mode:", err);
-        }
+        } catch (err) {}
     }
 
     function togglePlayPause() {
@@ -380,19 +486,19 @@ document.addEventListener('DOMContentLoaded', () => {
     floatDeleteBtn?.addEventListener('click', deleteLastRow);
 
     // =========================
-    // 🏎️ CHAPTER-AWARE SCROLL ENGINE
+    // 🏎️ CHAPTER-AWARE SCROLL & TIMER ENGINE
     // =========================
     audioPlayer?.addEventListener('timeupdate', () => {
         try {
             const t = audioPlayer.currentTime;
-
+            
             const floatTimer = document.getElementById('floatTimer');
             if (floatTimer) {
                 const dur = audioPlayer.duration || 0;
                 const format = (s) => isNaN(s) ? "00:00" : `${Math.floor(s/60).toString().padStart(2,'0')}:${Math.floor(s%60).toString().padStart(2,'0')}`;
                 floatTimer.textContent = `${format(t)} / ${format(dur)}`;
             }
-            
+
             let foundIndex = -1;
 
             if (isGeetaMode && currentGeetaData) {
@@ -434,9 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeRowElem.classList.remove('active-row');
                 activeRowElem = null;
             }
-        } catch (e) {
-            // Silently fail on time update
-        }
+        } catch (e) {}
     });
 
     // =========================
@@ -487,9 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     if (index < rows.length) requestAnimationFrame(processSearchBatch); 
                     else if (searchCountDisplay) searchCountDisplay.innerText = term ? `Found ${matchCount} results for "${term}"` : "";
-                } catch (e) {
-                    console.error("Search batch failed:", e);
-                }
+                } catch (e) {}
             }
             processSearchBatch();
         }, 300); 
@@ -566,7 +668,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 audioPlayer.load();
             }
         } catch (e) { 
-            console.error("Error loading audio:", e); 
             alert("Failed to load audio source.");
         }
     };
@@ -584,7 +685,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadAutoSave() {
         const saved = localStorage.getItem("geeta_progress");
         if (saved) {
-            console.log("📂 Restoring workspace from Auto-Save...");
             window.loadJsonData(saved);
         }
     }
@@ -597,10 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function undo() {
-        if (!historyStack.length || !jsonInput) {
-            console.log("No previous history to undo.");
-            return;
-        }
+        if (!historyStack.length || !jsonInput) return;
         redoStack.push(jsonInput.value);
         jsonInput.value = historyStack.pop();
         window.loadJsonData(jsonInput.value);
@@ -632,13 +729,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(progressBar) progressBar.style.width = Math.min(p, 100) + "%";
                 if(progressText) progressText.innerText = `Progress: ${ft(tm)} / ${ft(audioPlayer.duration)} (${p}%)`;
             }
-        } catch (e) {
-            console.error("Progress calculation failed:", e);
-        }
+        } catch (e) {}
     }
 
     // =========================
-    // 📥 ASYNC JSON LOAD (DATA CACHED)
+    // 📥 ASYNC JSON LOAD
     // =========================
     window.loadJsonData = function (data) {
         try {
@@ -671,6 +766,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         row.dataset.start = v.AudioStart || 0;
                         row.dataset.end = v.AudioEnd || 0;
 
+                        // INJECTED PRESENTATION BUTTON
                         row.innerHTML = `
                             <td>${v.VerseNum}</td>
                             <td contenteditable class="startTime">${v.AudioStart || 0}</td>
@@ -679,6 +775,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <td class="name-cell">${generateName(v.VerseNum, v)}</td>
                             <td><div class="lyrics-text" style="max-height: 100px; overflow-y: auto; background: #f9f9f9; padding: 10px; border: 1px solid #ccc; border-radius: 8px;">${lTxt}</div></td>
                             <td>
+                                <button class="pres-play-btn" data-index="${idx}" style="display:${isDone ? 'block' : 'none'}; width:100%; margin-bottom:5px; background:#17a2b8; color:white; border:none; border-radius:4px; padding:6px; cursor:pointer; font-weight:bold;">🎤 Play Presentation</button>
                                 <audio class="chunk-player" controls style="height:35px; width:100%; display:${isDone ? 'block' : 'none'};" ontimeupdate="enforceChunkBounds(this, ${v.AudioStart || 0}, ${v.AudioEnd || 0})"><source src="${chunkSrc}"></audio>
                             </td>
                         `;
@@ -689,21 +786,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (idx < data.length) {
                         requestAnimationFrame(renderBatch);
                     } else {
-                        // Batch rendering complete
                         updateProgress(); 
                         if (loadingInd) loadingInd.classList.add('hidden');
                         
-                        // Auto-Resume logic
                         const firstUnf = data.findIndex(v => !v.AudioEnd || v.AudioEnd === 0);
                         if (firstUnf !== -1) {
                             setFocusRow(firstUnf);
                             const tUrl = data[firstUnf].AudioFileURL;
                             
-                            // Safely auto populate correct audio file
                             if (tUrl && audioPlayer) {
                                 if (fileUrlInput) fileUrlInput.value = tUrl;
                                 audioPlayer.src = tUrl;
-                                // Wait for audio to load before jumping to the start time
                                 audioPlayer.addEventListener('loadedmetadata', function seekOnce() {
                                     audioPlayer.currentTime = data[firstUnf].AudioStart || 0;
                                     audioPlayer.removeEventListener('loadedmetadata', seekOnce);
@@ -711,7 +804,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                 audioPlayer.load();
                             }
 
-                            // Cascade start time from previous verse
                             if (firstUnf > 0 && data[firstUnf].Chapter === data[firstUnf - 1].Chapter) {
                                 const prevE = data[firstUnf - 1].AudioEnd;
                                 data[firstUnf].AudioStart = prevE;
@@ -723,7 +815,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 tableBody.rows[firstUnf].dataset.start = 0;
                             }
                         } else {
-                            setFocusRow(0); // If entire book is done
+                            setFocusRow(0); 
                         }
                     }
                 }
@@ -775,8 +867,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
         } catch (err) { 
-            console.error("Load JSON Error. The file may be corrupted.", err); 
-            alert("Failed to load JSON data. Please check the file format.");
+            console.error("Load JSON Error.", err); 
+            alert("Failed to load JSON data.");
         }
     };
 
@@ -820,9 +912,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             jsonInput.value = JSON.stringify(data, null, 2);
-        } catch(e) {
-            console.error("Error preparing standard JSON:", e);
-        }
+        } catch(e) {}
     };
 
     function prepareGeetaJson() { 
@@ -837,16 +927,14 @@ document.addEventListener('DOMContentLoaded', () => {
             a.href = URL.createObjectURL(blob);
             a.download = isGeetaMode ? 'geeta_sync.json' : 'audio_sync.json';
             a.click();
-        } catch (e) {
-            console.error("Error saving data:", e);
-        }
+        } catch (e) {}
     };
 
     window.copyJsonData = function () { 
         if (!jsonInput || !jsonInput.value) { alert("No data to copy."); return; }
         navigator.clipboard.writeText(jsonInput.value)
             .then(() => alert("JSON copied to clipboard!"))
-            .catch(e => console.error("Clipboard copy failed:", e));
+            .catch(e => alert("Clipboard copy failed."));
     };
 
     // =========================
@@ -854,11 +942,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================
     function deleteLastRow() {
         try {
-            if (!tableBody || !tableBody.rows.length) {
-                alert("Nothing to delete.");
-                return;
-            }
-            
+            if (!tableBody || !tableBody.rows.length) return;
             tableBody.deleteRow(-1);
             activeVerseIndex--;
             startTime = tableBody.rows.length ? safeNum(tableBody.rows[tableBody.rows.length - 1].cells[2].textContent) : null;
@@ -868,19 +952,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentGeetaData[activeVerseIndex].AudioEnd = 0;
                 currentGeetaData[activeVerseIndex].ReadTimeInSeconds = 0;
                 prepareGeetaJson(); 
-            } else {
-                prepareJson();
-            }
+            } else prepareJson();
             
-            updateProgress();
-            saveHistory();
-            console.log(`Deleted row. Active index moved back to ${activeVerseIndex}`);
-        } catch(e) {
-            console.error("Error during deletion:", e);
-        }
+            updateProgress(); saveHistory();
+        } catch(e) {}
     }
 
-    // Handle manual text editing in the table cells
     tableBody?.addEventListener('blur', e => {
         const cell = e.target;
         if (cell.classList.contains('startTime') || cell.classList.contains('endTime')) {
@@ -898,11 +975,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const dur = parseFloat((en - s).toFixed(2));
                 if (en > 0) row.cells[3].textContent = dur;
                 
-                // Update Cache
                 row.dataset.start = s; 
                 row.dataset.end = en; 
 
-                // Update row's chunk audio & clipping bounds
                 const audioEl = row.querySelector('.chunk-player');
                 const sourceEl = row.querySelector('source');
                 if(audioEl && sourceEl && en > 0) {
@@ -911,10 +986,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     sourceEl.src = `${baseUrl}#t=${s},${en}`;
                     audioEl.setAttribute('ontimeupdate', `enforceChunkBounds(this, ${s}, ${en})`);
                     audioEl.style.display = 'block';
+                    
+                    const presBtn = row.querySelector('.pres-play-btn');
+                    if (presBtn) presBtn.style.display = 'block';
+                    
                     audioEl.load();
                 }
 
-                // Update Master JSONs
                 if (isGeetaMode) {
                     const idx = row.rowIndex - 1; 
                     if(currentGeetaData[idx]) {
@@ -923,16 +1001,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         currentGeetaData[idx].ReadTimeInSeconds = dur > 0 ? dur : 0;
                     }
                     prepareGeetaJson(); 
-                } else {
-                    prepareJson();
-                }
+                } else prepareJson();
                 
-                updateProgress(); 
-                saveHistory();
-                console.log(`Manually updated row ${row.rowIndex}`);
-            } catch (err) {
-                console.error("Error processing manual table edit:", err);
-            }
+                updateProgress(); saveHistory();
+            } catch (err) {}
         }
     }, true);
 
@@ -944,7 +1016,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (sharedFile) {
         console.log("🔗 Shared URL detected. Auto-loading system file:", sharedFile);
-        
         const selectObj = document.getElementById('systemJsonSelect');
         if (selectObj) {
             for (let i = 0; i < selectObj.options.length; i++) {
@@ -954,9 +1025,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-        
         window.loadSystemJson(sharedFile);
-        
     } else {
         loadAutoSave();
     }
