@@ -5,8 +5,13 @@
 const container = document.getElementById('container');
 let globalGeetaData = [];
 let currentChapterAudio = null;
-let chunkMonitorId = null; // Used to track high-precision audio clipping
-let currentFirstDisplayedIndex = 0; // Tracks the first visible verse for Presentation mode
+let chunkMonitorId = null; // High-precision audio clipping monitor
+
+// 🧠 Dynamic Presentation Playlist (Handles both Chapter and Search results)
+let currentPlaylist = []; 
+
+// 🧠 Async Pre-computed Subscriptions
+let precomputedSubOptions = { chapter: [], verse: [] };
 
 // ==========================================
 // 1. SYSTEM INITIALIZATION & DATA LOADING
@@ -35,6 +40,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             chapterSelect.addEventListener('change', loadChapter);
         }
 
+        // Asynchronously pre-compute subscription arrays to prevent UI freeze
+        precomputeSubscriptionOptions();
+
         // Inject UI Modals
         injectSubscriptionModal();
         injectKaraokeModal();
@@ -42,13 +50,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Check if user arrived via a Subscription Link
         const isSubscriptionLink = handleSubscriptionRouting();
         
-        if (!isSubscriptionLink) {
-            loadChapter();
-        }
+        // Only load default if we didn't route to a specific subscription verse
+        if (!isSubscriptionLink) loadChapter();
 
-        // Global Presentation Button Event
+        // Global Presentation Button Event (Feeds currentPlaylist into Karaoke)
         document.getElementById('globalPresentationBtn')?.addEventListener('click', () => {
-            openKaraoke(currentFirstDisplayedIndex, 'chapter');
+            openKaraoke(currentPlaylist, 0, 'chapter');
+        });
+
+        // Event Delegation for Inline Verse Play Icons
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.inline-play-btn');
+            if (btn) {
+                const absoluteIndex = parseInt(btn.getAttribute('data-index'));
+                playVerseInline(absoluteIndex);
+            }
         });
 
     } catch (error) {
@@ -57,15 +73,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+// Build options array in the background for blazing fast UI
+function precomputeSubscriptionOptions() {
+    setTimeout(() => {
+        try {
+            // Chapters
+            const uniqueChapters = [];
+            globalGeetaData.forEach(v => {
+                if (!uniqueChapters.find(c => c.val === v.Chapter)) {
+                    uniqueChapters.push({ val: v.Chapter, text: `Chapter ${v.Chapter}: ${v.Topic || 'Geeta'}` });
+                }
+            });
+            precomputedSubOptions.chapter = uniqueChapters;
+
+            // Verses (Thousands of entries processed instantly)
+            globalGeetaData.forEach((v, idx) => {
+                precomputedSubOptions.verse.push({ val: idx, text: `Ch ${v.Chapter}, Verse ${v.VerseNum}: ${v.Topic || ''}` });
+            });
+            console.log("✅ Subscription dropdown data pre-computed.");
+        } catch(e) { console.error("Precompute error:", e); }
+    }, 100);
+}
+
 // ==========================================
 // 2. CORE READING UI (CHAPTERS & SEARCH)
 // ==========================================
+
 document.getElementById('clearButton')?.addEventListener('click', () => {
     try {
         document.getElementById('container').innerHTML = '';
         document.getElementById('searchResults').innerHTML = '';
         document.getElementById('globalPresentationBtn').style.display = 'none';
         if (currentChapterAudio) currentChapterAudio.pause();
+        cancelAnimationFrame(chunkMonitorId);
+        currentPlaylist = [];
     } catch (e) { console.error(e); }
 });
 
@@ -75,8 +116,6 @@ function loadChapter() {
         if (!chapterSelect) return;
         const selectedChapter = chapterSelect.value;
 
-        const chapterData = globalGeetaData.filter(item => item.Chapter.toString() === selectedChapter.toString());
-
         const container = document.getElementById('container');
         container.style.display = 'block'; 
         document.getElementById('searchResults').innerHTML = ''; 
@@ -85,11 +124,19 @@ function loadChapter() {
         const searchInput = document.getElementById('searchInput');
         if (searchInput) searchInput.value = '';
 
-        // Show Global Presentation Button
-        document.getElementById('globalPresentationBtn').style.display = 'inline-block';
-        
-        // Determine first index of this chapter for presentation mode
-        currentFirstDisplayedIndex = globalGeetaData.findIndex(v => v.Chapter.toString() === selectedChapter.toString());
+        // Reset and populate Playlist for Chapter Mode
+        currentPlaylist = [];
+        const chapterData = globalGeetaData.filter((item, index) => {
+            if (item.Chapter.toString() === selectedChapter.toString()) {
+                currentPlaylist.push(index); // Push Absolute Index to playlist
+                return true;
+            }
+            return false;
+        });
+
+        if (currentPlaylist.length > 0) {
+            document.getElementById('globalPresentationBtn').style.display = 'inline-block';
+        }
 
         // --- CHAPTER AUDIO PLAYER ---
         if (chapterData.length > 0 && chapterData[0].AudioFileURL) {
@@ -113,48 +160,21 @@ function loadChapter() {
         // --- VERSE RENDERING ---
         chapterData.forEach((verse) => {
             const verseElement = document.createElement('div');
-            verseElement.classList.add('verse', 'position-relative'); 
+            verseElement.classList.add('verse', 'position-relative', 'p-3', 'mb-3', 'border', 'rounded', 'bg-white', 'shadow-sm'); 
 
             const hasAudio = verse.AudioStart !== undefined && verse.AudioEnd > verse.AudioStart;
+            const absoluteIndex = globalGeetaData.findIndex(v => v.Chapter === verse.Chapter && v.VerseNum === verse.VerseNum);
 
-            // Verse Play Icon
-            const playBtn = document.createElement('button');
-            playBtn.innerHTML = hasAudio ? '🎤 Play Verse' : '▶️ Play Chapter Here';
-            playBtn.classList.add('btn', 'btn-sm', hasAudio ? 'btn-success' : 'btn-secondary');
-            playBtn.style.position = 'absolute';
-            playBtn.style.top = '10px';
-            playBtn.style.right = '10px';
-            
-            // Precision Playback logic
-            playBtn.onclick = function() {
-                if (currentChapterAudio) {
-                    cancelAnimationFrame(chunkMonitorId); // Cancel previous monitors
-                    currentChapterAudio.pause();
-                    
-                    if (hasAudio) {
-                        currentChapterAudio.currentTime = verse.AudioStart;
-                        currentChapterAudio.play();
-                        
-                        // HIGH PRECISION CLIPPING
-                        const end = verse.AudioEnd;
-                        const monitor = () => {
-                            if (currentChapterAudio.currentTime >= end) {
-                                currentChapterAudio.pause();
-                                currentChapterAudio.currentTime = verse.AudioStart; // Reset to start
-                            } else if (!currentChapterAudio.paused) {
-                                chunkMonitorId = requestAnimationFrame(monitor);
-                            }
-                        };
-                        chunkMonitorId = requestAnimationFrame(monitor);
-                    } else {
-                        // Fallback if no precise timestamps exist
-                        const absoluteIndex = globalGeetaData.findIndex(v => v.Chapter === verse.Chapter && v.VerseNum === verse.VerseNum);
-                        openKaraoke(absoluteIndex, 'chapter'); 
-                    }
-                }
-            };
-            
-            verseElement.appendChild(playBtn);
+            // Sleek Speaker Icon (Replaced large button)
+            if (hasAudio) {
+                const playBtn = document.createElement('button');
+                playBtn.className = 'btn btn-light shadow-sm text-primary rounded-circle position-absolute inline-play-btn';
+                playBtn.setAttribute('data-index', absoluteIndex);
+                playBtn.title = "Play Verse Audio";
+                playBtn.style.cssText = "width: 38px; height: 38px; top: 12px; right: 12px; z-index: 10; display:flex; align-items:center; justify-content:center; font-size: 1.2rem; border: 1px solid #ddd;";
+                playBtn.innerHTML = '🔊';
+                verseElement.appendChild(playBtn);
+            }
 
             const sanText = verse.OriginalText ? verse.OriginalText.replace(/\n/g, '<br>') : '';
             const engText = verse.EnglishText ? verse.EnglishText.replace(/\n/g, '<br>') : '';
@@ -162,8 +182,8 @@ function loadChapter() {
             const engDesc = verse.EnglishMeaning ? verse.EnglishMeaning.replace(/\n/g, '<br>') : '';
 
             verseElement.innerHTML += `
-                <div class="sanskrit-lines font-weight-bold text-center text-danger mb-2">${sanText}</div>
-                <div class="english-lines text-center font-italic mb-3">${engText}</div>
+                <div class="sanskrit-lines font-weight-bold text-center text-danger mb-2" style="padding-right: 40px;">${sanText}</div>
+                <div class="english-lines text-center font-italic mb-3" style="padding-right: 40px;">${engText}</div>
                 <hr>
                 <div class="hindi-description mb-2">${hinDesc}</div>
                 <div class="english-description text-muted">${engDesc}</div>
@@ -190,38 +210,46 @@ async function searchWord() {
         const searchResults = document.getElementById('searchResults');
         searchResults.innerHTML = '';
         document.getElementById('container').innerHTML = '';
+        
         if (currentChapterAudio) currentChapterAudio.pause();
         cancelAnimationFrame(chunkMonitorId);
 
         let totalMatches = 0;
-        let totalVerses = 0;
-        let firstMatchAbsoluteIndex = -1;
+        currentPlaylist = []; // Reset and populate with matched indices ONLY
 
         globalGeetaData.forEach((item, absoluteIndex) => {
             let verseHasMatch = false;
             for (const key in item) {
                 if (item[key] && typeof item[key] === 'string') {
-                    const value = item[key].toLowerCase();
-                    if (value.includes(searchTerm)) {
-                        totalMatches++;
+                    if (item[key].toLowerCase().includes(searchTerm)) {
                         verseHasMatch = true;
+                        break; // Found a match, no need to check other keys
                     }
                 }
             }
 
             if (verseHasMatch) {
-                totalVerses++;
-                if (firstMatchAbsoluteIndex === -1) firstMatchAbsoluteIndex = absoluteIndex;
+                totalMatches++;
+                currentPlaylist.push(absoluteIndex); // Add to search playlist
 
                 const resultElement = document.createElement('div');
-                resultElement.classList.add('verse', 'position-relative');
+                resultElement.classList.add('verse', 'position-relative', 'p-3', 'mb-3', 'border', 'rounded', 'bg-white', 'shadow-sm');
 
                 const highlightMatch = (text) => text ? text.replace(new RegExp(`(${searchTerm})`, 'gi'), '<span class="highlight">$1</span>').replace(/\n/g, '<br>') : '';
 
+                const hasAudio = item.AudioStart !== undefined && item.AudioEnd > item.AudioStart;
+                
+                // Sleek Speaker Icon
+                let iconHtml = '';
+                if (hasAudio) {
+                    iconHtml = `<button class="btn btn-light shadow-sm text-primary rounded-circle position-absolute inline-play-btn" data-index="${absoluteIndex}" title="Play Verse Audio" style="width: 38px; height: 38px; top: 12px; right: 12px; z-index: 10; display:flex; align-items:center; justify-content:center; font-size: 1.2rem; border: 1px solid #ddd;">🔊</button>`;
+                }
+
                 resultElement.innerHTML = `
+                    ${iconHtml}
                     <div class="text-info font-weight-bold mb-2">Chapter ${item.Chapter}, Verse ${item.VerseNum}</div>
-                    <p class="font-weight-bold text-danger">${highlightMatch(item.OriginalText)}</p>
-                    <p class="font-italic">${highlightMatch(item.EnglishText)}</p>
+                    <p class="font-weight-bold text-danger pr-4">${highlightMatch(item.OriginalText)}</p>
+                    <p class="font-italic pr-4">${highlightMatch(item.EnglishText)}</p>
                     <hr>
                     <p>${highlightMatch(item.OriginalMeaning)}</p>
                     <p class="text-muted">${highlightMatch(item.EnglishMeaning)}</p>
@@ -232,11 +260,10 @@ async function searchWord() {
 
         const totalsElement = document.createElement('div');
         totalsElement.classList.add('search-totals', 'alert', 'alert-info');
-        totalsElement.innerHTML = `<strong>Total matches:</strong> ${totalMatches} <br> <strong>Total verses:</strong> ${totalVerses}`;
+        totalsElement.innerHTML = `<strong>Total matches found:</strong> ${totalMatches} verses`;
         searchResults.insertBefore(totalsElement, searchResults.firstChild);
 
-        if (totalVerses > 0) {
-            currentFirstDisplayedIndex = firstMatchAbsoluteIndex;
+        if (totalMatches > 0) {
             document.getElementById('globalPresentationBtn').style.display = 'inline-block';
         } else {
             searchResults.innerHTML = '<p class="text-center text-danger mt-3">No results found.</p>';
@@ -247,8 +274,43 @@ async function searchWord() {
     }
 }
 
+// Dedicated High-Precision Inline Player Logic
+function playVerseInline(absoluteIndex) {
+    try {
+        const verse = globalGeetaData[absoluteIndex];
+        if (!verse || !verse.AudioFileURL || verse.AudioStart === undefined) return;
+
+        if (!currentChapterAudio) {
+            currentChapterAudio = new Audio();
+        }
+
+        if (currentChapterAudio.src.indexOf(verse.AudioFileURL) === -1) {
+            currentChapterAudio.src = verse.AudioFileURL;
+        }
+
+        cancelAnimationFrame(chunkMonitorId);
+        currentChapterAudio.pause();
+        currentChapterAudio.currentTime = verse.AudioStart;
+        currentChapterAudio.play().catch(e => console.warn("Autoplay blocked", e));
+
+        const end = verse.AudioEnd;
+        const monitor = () => {
+            if (currentChapterAudio.currentTime >= end) {
+                currentChapterAudio.pause();
+                currentChapterAudio.currentTime = verse.AudioStart; // Perfect Clipping
+            } else if (!currentChapterAudio.paused) {
+                chunkMonitorId = requestAnimationFrame(monitor);
+            }
+        };
+        chunkMonitorId = requestAnimationFrame(monitor);
+    } catch(e) {
+        console.error("Inline play error:", e);
+    }
+}
+
+
 // ==========================================
-// 3. ADVANCED SUBSCRIPTION MODAL
+// 3. ADVANCED SUBSCRIPTION MODAL (SEARCHABLE)
 // ==========================================
 function injectSubscriptionModal() {
     try {
@@ -305,8 +367,6 @@ function injectSubscriptionModal() {
         const subStart = document.getElementById('subStart');
         const subFilter = document.getElementById('subFilter');
         
-        let currentOptionsData = [];
-
         // Set Default date to tomorrow
         const tmrw = new Date(); tmrw.setDate(tmrw.getDate() + 1);
         document.getElementById('subDate').value = tmrw.toISOString().split('T')[0];
@@ -323,11 +383,13 @@ function injectSubscriptionModal() {
             populateSubStartOptions(subType.value);
         });
 
-        // Search Filter Logic for Options
+        // Fast In-Memory Filtering
         subFilter?.addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
             subStart.innerHTML = '';
-            currentOptionsData.forEach(opt => {
+            const dataToSearch = subType.value === 'chapter' ? precomputedSubOptions.chapter : precomputedSubOptions.verse;
+            
+            dataToSearch.forEach(opt => {
                 if (opt.text.toLowerCase().includes(term)) {
                     subStart.innerHTML += `<option value="${opt.val}">${opt.text}</option>`;
                 }
@@ -335,26 +397,9 @@ function injectSubscriptionModal() {
         });
 
         function populateSubStartOptions(type) {
-            currentOptionsData = [];
             subStart.innerHTML = '';
-            if (type === 'chapter') {
-                const uniqueChapters = [];
-                globalGeetaData.forEach(v => {
-                    if (!uniqueChapters.find(c => c.val === v.Chapter)) {
-                        const title = `Chapter ${v.Chapter}: ${v.Topic || 'Geeta'}`;
-                        uniqueChapters.push({ val: v.Chapter, text: title });
-                    }
-                });
-                currentOptionsData = uniqueChapters;
-            } else {
-                globalGeetaData.forEach((v, idx) => {
-                    const title = `Ch ${v.Chapter}, Verse ${v.VerseNum}: ${v.Topic || ''}`;
-                    currentOptionsData.push({ val: idx, text: title });
-                });
-            }
-            
-            // Render Initial
-            currentOptionsData.forEach(opt => {
+            const dataToRender = type === 'chapter' ? precomputedSubOptions.chapter : precomputedSubOptions.verse;
+            dataToRender.forEach(opt => {
                 subStart.innerHTML += `<option value="${opt.val}">${opt.text}</option>`;
             });
         }
@@ -441,12 +486,17 @@ function handleSubscriptionRouting() {
         }
 
         let targetIndex = 0;
+        let pList = []; // Temporary playlist for routing
+
         if (type === 'verse') {
             targetIndex = initialStart + progressionSteps;
             if (targetIndex >= globalGeetaData.length) {
                 alert("🙏 You have completed all verses in your subscription! Link Expired.");
                 return true;
             }
+            pList.push(targetIndex); // Only route to one verse
+            openKaraoke(pList, 0, 'verse');
+
         } else if (type === 'chapter') {
             const chapters = Array.from(new Set(globalGeetaData.map(i => parseInt(i.Chapter))));
             const startChapIndex = chapters.indexOf(initialStart);
@@ -457,11 +507,15 @@ function handleSubscriptionRouting() {
                 return true;
             }
             const targetChapter = chapters[targetChapIndex];
-            targetIndex = globalGeetaData.findIndex(v => parseInt(v.Chapter) === targetChapter);
+            
+            // Build playlist for the entire chapter
+            globalGeetaData.forEach((v, i) => {
+                if (parseInt(v.Chapter) === targetChapter) pList.push(i);
+            });
+            openKaraoke(pList, 0, 'chapter');
         }
 
-        console.log(`Routing to ${type} Mode. Absolute Index: ${targetIndex}`);
-        openKaraoke(targetIndex, type);
+        console.log(`Successfully routed to Subscription: ${type}`);
         return true;
     } catch (e) {
         console.error("Routing error:", e);
@@ -470,9 +524,15 @@ function handleSubscriptionRouting() {
 }
 
 // ==========================================
-// 4. KARAOKE / PRESENTATION MODAL
+// 4. ADVANCED PLAYLIST KARAOKE MODAL
 // ==========================================
-let kState = { index: 0, mode: 'chapter', interval: null, audio: new Audio() };
+let kState = { 
+    playlist: [], // Array of absolute indices to play 
+    listIndex: 0, // Current position in the playlist
+    mode: 'chapter', 
+    interval: null, 
+    audio: new Audio() 
+};
 
 function injectKaraokeModal() {
     try {
@@ -486,7 +546,7 @@ function injectKaraokeModal() {
                 
                 <div id="kManualControls" class="mt-4" style="display:none;">
                     <button id="kRewind" class="btn btn-outline-light m-1">⏪ -5s</button>
-                    <button id="kPlayPause" class="btn btn-light m-1 px-4">⏯️ Play</button>
+                    <button id="kPlayPause" class="btn btn-light m-1 px-4">⏯️ Play / Pause</button>
                     <button id="kForward" class="btn btn-outline-light m-1">+5s ⏩</button>
                 </div>
             </div>
@@ -513,10 +573,15 @@ function injectKaraokeModal() {
     } catch (e) { console.error("Error injecting Karaoke Modal:", e); }
 }
 
-function openKaraoke(absoluteIndex, mode = 'chapter') {
+function openKaraoke(playlistArr, startListIndex = 0, mode = 'chapter') {
     try {
-        if (!globalGeetaData[absoluteIndex]) return;
-        kState.index = absoluteIndex;
+        if (!playlistArr || playlistArr.length === 0) {
+            alert("No verses available to present.");
+            return;
+        }
+
+        kState.playlist = playlistArr;
+        kState.listIndex = startListIndex;
         kState.mode = mode; 
         
         if (currentChapterAudio) currentChapterAudio.pause();
@@ -539,9 +604,9 @@ function closeKaraoke() {
 
 function traverseKaraoke(direction) {
     try {
-        const nextIdx = kState.index + direction;
-        if (globalGeetaData[nextIdx]) {
-            kState.index = nextIdx;
+        const nextListIdx = kState.listIndex + direction;
+        if (nextListIdx >= 0 && nextListIdx < kState.playlist.length) {
+            kState.listIndex = nextListIdx;
             playCurrentKaraoke();
         }
     } catch(e) { console.error(e); }
@@ -549,7 +614,9 @@ function traverseKaraoke(direction) {
 
 function playCurrentKaraoke() {
     try {
-        const v = globalGeetaData[kState.index];
+        const absoluteIndex = kState.playlist[kState.listIndex];
+        const v = globalGeetaData[absoluteIndex];
+        
         const kContent = document.getElementById('kContent');
         const manualControls = document.getElementById('kManualControls');
         
@@ -563,6 +630,8 @@ function playCurrentKaraoke() {
             kContent.classList.remove('fade-out');
 
             const hasTimestamps = v.AudioStart !== undefined && v.AudioEnd > v.AudioStart;
+            
+            // Show manual controls only if NO timestamps exist
             manualControls.style.display = hasTimestamps ? 'none' : 'block';
 
             if (v.AudioFileURL) {
@@ -582,12 +651,12 @@ function playCurrentKaraoke() {
                                 kState.audio.currentTime = v.AudioStart;
                                 kState.interval = requestAnimationFrame(monitorAudio);
                             } else {
-                                // Auto advance chapter
-                                if (globalGeetaData[kState.index + 1] && globalGeetaData[kState.index + 1].Chapter === v.Chapter) {
-                                    kState.index++;
+                                // Auto advance through PLAYLIST
+                                if (kState.listIndex < kState.playlist.length - 1) {
+                                    kState.listIndex++;
                                     playCurrentKaraoke();
                                 } else {
-                                    kState.audio.pause(); 
+                                    kState.audio.pause(); // Reached end of playlist
                                 }
                             }
                         } else {
@@ -597,6 +666,7 @@ function playCurrentKaraoke() {
                     kState.interval = requestAnimationFrame(monitorAudio);
                     
                 } else {
+                    // No valid timestamps: Just play and let user use Manual Controls
                     kState.audio.play().catch(e => console.warn("Autoplay blocked"));
                 }
             }
