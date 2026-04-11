@@ -18,12 +18,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         console.log("🚀 Initializing Main Gita Application...");
         
+        // PWA Install Logic
+        initPWAInstallPrompt();
+
         const response = await fetch('data/geeta_complete.json');
         if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
         
         globalGeetaData = await response.json();
         
-        // Populate Chapter Dropdown
         const chapters = Array.from(new Set(globalGeetaData.map(item => item.Chapter)));
         chapters.sort((a, b) => parseInt(a) - parseInt(b));
 
@@ -38,26 +40,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             chapterSelect.addEventListener('change', loadChapter);
         }
 
-        // Asynchronously pre-compute subscription arrays to prevent UI freeze
         precomputeSubscriptionOptions();
-
-        // Inject UI Modals & Screens
         injectSubscriptionModal();
         injectKaraokeModal();
         injectWelcomeScreen();
 
-        // Check if user arrived via a Subscription Link
         const isSubscriptionLink = handleSubscriptionRouting();
-        
-        // Only load default if we didn't route to a specific subscription verse
         if (!isSubscriptionLink) loadChapter();
 
-        // Global Presentation Button Event
+        // 🎤 Launch Presentation (Handles if we are looking at Chapter or Search Results)
         document.getElementById('globalPresentationBtn')?.addEventListener('click', () => {
-            openKaraoke(currentPlaylist, 0, 'chapter');
+            // Check if we are presenting search results or full chapter
+            const mode = document.getElementById('searchResults').innerHTML !== '' ? 'search' : 'chapter';
+            openKaraoke(currentPlaylist, 0, mode);
         });
 
-        // Event Delegation for Inline Verse Play Icons
+        // Inline Verse Audio Click
         document.addEventListener('click', (e) => {
             const btn = e.target.closest('.inline-play-btn');
             if (btn) {
@@ -72,7 +70,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// Build options array in the background for fast UI
+// PWA Install Toast Logic
+function initPWAInstallPrompt() {
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault(); // Prevent native browser prompt
+        deferredPrompt = e;
+        const toast = document.getElementById('pwaInstallToast');
+        // Show if not previously dismissed
+        if (toast && !localStorage.getItem('pwa_toast_dismissed')) {
+            toast.style.display = 'flex';
+        }
+    });
+
+    document.getElementById('btnInstallPwa')?.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                document.getElementById('pwaInstallToast').style.display = 'none';
+            }
+            deferredPrompt = null;
+        }
+    });
+
+    document.getElementById('btnClosePwaToast')?.addEventListener('click', () => {
+        document.getElementById('pwaInstallToast').style.display = 'none';
+        localStorage.setItem('pwa_toast_dismissed', 'true'); // Don't annoy user again
+    });
+}
+
 function precomputeSubscriptionOptions() {
     setTimeout(() => {
         try {
@@ -87,7 +114,6 @@ function precomputeSubscriptionOptions() {
             globalGeetaData.forEach((v, idx) => {
                 precomputedSubOptions.verse.push({ val: idx, text: `Ch ${v.Chapter}, Verse ${v.VerseNum}: ${v.Topic || ''}` });
             });
-            console.log("✅ Subscription dropdown data pre-computed.");
         } catch(e) { console.error("Precompute error:", e); }
     }, 100);
 }
@@ -95,7 +121,6 @@ function precomputeSubscriptionOptions() {
 // ==========================================
 // 2. CORE READING UI (CHAPTERS & SEARCH)
 // ==========================================
-
 document.getElementById('clearButton')?.addEventListener('click', () => {
     try {
         document.getElementById('container').innerHTML = '';
@@ -104,7 +129,7 @@ document.getElementById('clearButton')?.addEventListener('click', () => {
         if (currentChapterAudio) currentChapterAudio.pause();
         cancelAnimationFrame(chunkMonitorId);
         currentPlaylist = [];
-    } catch (e) { console.error(e); }
+    } catch (e) {}
 });
 
 function loadChapter() {
@@ -158,12 +183,13 @@ function loadChapter() {
             const hasAudio = verse.AudioStart !== undefined && verse.AudioEnd > verse.AudioStart;
             const absoluteIndex = globalGeetaData.findIndex(v => v.Chapter === verse.Chapter && v.VerseNum === verse.VerseNum);
 
+            // FIX: Tiny Speaker Icon on mobile (no overlapping text)
             if (hasAudio) {
                 const playBtn = document.createElement('button');
                 playBtn.className = 'btn btn-light shadow-sm text-primary rounded-circle position-absolute inline-play-btn';
                 playBtn.setAttribute('data-index', absoluteIndex);
                 playBtn.title = "Play Verse Audio";
-                playBtn.style.cssText = "width: 38px; height: 38px; top: 12px; right: 12px; z-index: 10; display:flex; align-items:center; justify-content:center; font-size: 1.2rem; border: 1px solid #ddd;";
+                playBtn.style.cssText = "width: 28px; height: 28px; top: 8px; right: 8px; z-index: 10; display:flex; align-items:center; justify-content:center; font-size: 0.9rem; border: 1px solid #ddd; padding: 0;";
                 playBtn.innerHTML = '🔊';
                 verseElement.appendChild(playBtn);
             }
@@ -173,9 +199,10 @@ function loadChapter() {
             const hinDesc = verse.OriginalMeaning ? verse.OriginalMeaning.replace(/\n/g, '<br>') : '';
             const engDesc = verse.EnglishMeaning ? verse.EnglishMeaning.replace(/\n/g, '<br>') : '';
 
+            // Added padding-right: 45px so text never slides under the button
             verseElement.innerHTML += `
-                <div class="sanskrit-lines font-weight-bold text-center text-danger mb-2" style="padding-right: 40px;">${sanText}</div>
-                <div class="english-lines text-center font-italic mb-3" style="padding-right: 40px;">${engText}</div>
+                <div class="sanskrit-lines font-weight-bold text-center text-danger mb-2" style="padding-right: 45px; padding-left: 10px;">${sanText}</div>
+                <div class="english-lines text-center font-italic mb-3" style="padding-right: 45px; padding-left: 10px;">${engText}</div>
                 <hr>
                 <div class="hindi-description mb-2">${hinDesc}</div>
                 <div class="english-description text-muted">${engDesc}</div>
@@ -229,14 +256,14 @@ async function searchWord() {
                 
                 let iconHtml = '';
                 if (hasAudio) {
-                    iconHtml = `<button class="btn btn-light shadow-sm text-primary rounded-circle position-absolute inline-play-btn" data-index="${absoluteIndex}" title="Play Verse Audio" style="width: 38px; height: 38px; top: 12px; right: 12px; z-index: 10; display:flex; align-items:center; justify-content:center; font-size: 1.2rem; border: 1px solid #ddd;">🔊</button>`;
+                    iconHtml = `<button class="btn btn-light shadow-sm text-primary rounded-circle position-absolute inline-play-btn" data-index="${absoluteIndex}" title="Play Verse Audio" style="width: 28px; height: 28px; top: 8px; right: 8px; z-index: 10; display:flex; align-items:center; justify-content:center; font-size: 0.9rem; border: 1px solid #ddd; padding: 0;">🔊</button>`;
                 }
 
                 resultElement.innerHTML = `
                     ${iconHtml}
                     <div class="text-info font-weight-bold mb-2">Chapter ${item.Chapter}, Verse ${item.VerseNum}</div>
-                    <p class="font-weight-bold text-danger pr-4">${highlightMatch(item.OriginalText)}</p>
-                    <p class="font-italic pr-4">${highlightMatch(item.EnglishText)}</p>
+                    <p class="font-weight-bold text-danger" style="padding-right: 45px;">${highlightMatch(item.OriginalText)}</p>
+                    <p class="font-italic" style="padding-right: 45px;">${highlightMatch(item.EnglishText)}</p>
                     <hr>
                     <p>${highlightMatch(item.OriginalMeaning)}</p>
                     <p class="text-muted">${highlightMatch(item.EnglishMeaning)}</p>
@@ -276,21 +303,27 @@ function playVerseInline(absoluteIndex) {
         const monitor = () => {
             if (currentChapterAudio.currentTime >= end) {
                 currentChapterAudio.pause();
-                currentChapterAudio.currentTime = verse.AudioStart; // Perfect Clipping
+                currentChapterAudio.currentTime = verse.AudioStart; 
             } else if (!currentChapterAudio.paused) {
                 chunkMonitorId = requestAnimationFrame(monitor);
             }
         };
         chunkMonitorId = requestAnimationFrame(monitor);
-    } catch(e) { console.error("Inline play error:", e); }
+    } catch(e) {}
 }
 
 
 // ==========================================
-// 3. ADVANCED SUBSCRIPTION MODAL (SEARCHABLE)
+// 3. ADVANCED SUBSCRIPTION MODAL (SMART DEFAULTS)
 // ==========================================
 function injectSubscriptionModal() {
     try {
+        // Calculate exactly 21:15 GMT+7 (Bangkok Time) -> 14:15 UTC to user's Local Time
+        const targetUTC = new Date();
+        targetUTC.setUTCHours(14, 15, 0, 0); // 14:15 UTC is 21:15 BKK
+        const localH = targetUTC.getHours().toString().padStart(2, '0');
+        const localM = targetUTC.getMinutes().toString().padStart(2, '0');
+
         const modalHTML = `
         <div id="subModal" class="karaoke-modal" style="z-index: 105000;">
             <div class="karaoke-content bg-light text-dark p-4 rounded text-left" style="max-width:550px; width: 95%;">
@@ -307,7 +340,7 @@ function injectSubscriptionModal() {
                 <div class="form-group">
                     <label class="font-weight-bold mb-1">Starting Point:</label>
                     <input type="text" id="subFilter" class="form-control mb-1" placeholder="🔍 Search chapter or verse...">
-                    <div id="subFilterFeedback" class="filter-feedback text-muted">Loading options...</div>
+                    <div id="subFilterFeedback" class="filter-feedback text-muted"></div>
                     
                     <div id="subLoading" class="loading-spinner">⏳ Processing options...</div>
                     <select id="subStart" class="form-control" size="4" style="overflow-y: auto;"></select>
@@ -320,7 +353,7 @@ function injectSubscriptionModal() {
                     </div>
                     <div class="col-sm-6 form-group">
                         <label class="font-weight-bold">Notification Time:</label>
-                        <input type="time" id="subTime" class="form-control" value="08:00">
+                        <input type="time" id="subTime" class="form-control" value="${localH}:${localM}">
                     </div>
                 </div>
 
@@ -354,8 +387,13 @@ function injectSubscriptionModal() {
         const tmrw = new Date(); tmrw.setDate(tmrw.getDate() + 1);
         document.getElementById('subDate').value = tmrw.toISOString().split('T')[0];
 
+        // Ensure Smart Defaults Apply when Opened
         document.getElementById('btnOpenSubModal')?.addEventListener('click', () => {
-            populateSubStartOptions('chapter');
+            subType.value = 'chapter';
+            populateSubStartOptions('chapter', () => {
+                subStart.value = '12'; // Default to Chapter 12
+            });
+            document.getElementById('subFreq').value = 'daily';
             subModal.classList.add('active');
         });
         
@@ -379,13 +417,12 @@ function injectSubscriptionModal() {
                 }
             });
 
-            subFilterFeedback.textContent = term ? `Showing ${matchCount} matching options` : `Showing all options`;
+            subFilterFeedback.textContent = term ? `Showing ${matchCount} matching options` : ``;
             subFilterFeedback.classList.add('active');
             setTimeout(() => subFilterFeedback.classList.remove('active'), 300);
         });
 
-        function populateSubStartOptions(type) {
-            // Show Loading Spinner to yield thread
+        function populateSubStartOptions(type, callback) {
             subLoading.style.display = 'block';
             subStart.style.display = 'none';
             subFilterFeedback.textContent = '';
@@ -394,7 +431,6 @@ function injectSubscriptionModal() {
                 subStart.innerHTML = '';
                 const dataToRender = type === 'chapter' ? precomputedSubOptions.chapter : precomputedSubOptions.verse;
                 
-                // Use a document fragment for faster DOM insertion
                 const frag = document.createDocumentFragment();
                 dataToRender.forEach(opt => {
                     const el = document.createElement('option');
@@ -403,9 +439,9 @@ function injectSubscriptionModal() {
                 });
                 subStart.appendChild(frag);
 
-                subFilterFeedback.textContent = `Loaded ${dataToRender.length} options`;
                 subLoading.style.display = 'none';
                 subStart.style.display = 'block';
+                if (callback) callback();
             }, 10);
         }
 
@@ -425,7 +461,7 @@ function injectSubscriptionModal() {
             
             const formatUTC = (d) => d.toISOString().replace(/-|:|\.\d+/g, '');
             const dtStart = formatUTC(localDate);
-            const dtEnd = formatUTC(new Date(localDate.getTime() + 15 * 60000)); // 15 mins later
+            const dtEnd = formatUTC(new Date(localDate.getTime() + 15 * 60000)); 
             return { dtStart, dtEnd };
         }
 
@@ -547,35 +583,23 @@ function handleSubscriptionRouting() {
             });
         }
 
-        // Show Welcome Splash (Bypasses Browser Autoplay Policy)
         const splash = document.getElementById('welcomeSplash');
         splash.style.display = 'flex';
         
         document.getElementById('btnBeginReading').addEventListener('click', () => {
             splash.classList.add('fade-out');
             setTimeout(() => splash.style.display = 'none', 500);
-            
-            // Interaction achieved! Audio is now allowed to play.
-            openKaraoke(pList, 0, type);
+            openKaraoke(pList, 0, type); // 'chapter' or 'verse'
         });
 
         return true;
-    } catch (e) {
-        console.error("Routing error:", e);
-        return false;
-    }
+    } catch (e) { console.error("Routing error:", e); return false; }
 }
 
 // ==========================================
 // 5. ADVANCED PLAYLIST KARAOKE MODAL
 // ==========================================
-let kState = { 
-    playlist: [], 
-    listIndex: 0, 
-    mode: 'chapter', 
-    animId: null, 
-    audio: new Audio() 
-};
+let kState = { playlist: [], listIndex: 0, mode: 'chapter', animId: null, audio: new Audio() };
 
 function injectKaraokeModal() {
     try {
@@ -590,10 +614,10 @@ function injectKaraokeModal() {
                 <div id="kLyrics" class="karaoke-lyrics"></div>
                 <div id="kEnglish" class="karaoke-english"></div>
                 
-                <div id="kManualControls" class="mt-4" style="display:none;">
-                    <button id="kRewind" class="btn btn-outline-light m-1">⏪ -5s</button>
-                    <button id="kPlayPause" class="btn btn-light m-1 px-4">⏯️ Play / Pause</button>
-                    <button id="kForward" class="btn btn-outline-light m-1">+5s ⏩</button>
+                <div id="kManualControls" class="k-manual-container" style="display:none;">
+                    <button id="kRewind" class="k-icon-btn" title="Rewind 5s">⏪</button>
+                    <button id="kPlayPause" class="k-icon-btn" title="Play/Pause">⏯️</button>
+                    <button id="kForward" class="k-icon-btn" title="Forward 5s">⏩</button>
                 </div>
             </div>
             
@@ -617,18 +641,12 @@ function injectKaraokeModal() {
             if(kState.audio) kState.audio.paused ? kState.audio.play() : kState.audio.pause();
         });
 
-        // Share Feature Logic
         document.getElementById('kShareBtn')?.addEventListener('click', (e) => {
             e.stopPropagation();
             const v = globalGeetaData[kState.playlist[kState.listIndex]];
             const text = `Bhagavad Gita - Chapter ${v.Chapter}, Verse ${v.VerseNum}\n\n${v.OriginalText}\n\n${v.EnglishText}\n\nRead on Gita App!`;
-            
-            if (navigator.share) {
-                navigator.share({ title: 'Bhagavad Gita', text: text, url: window.location.origin + window.location.pathname });
-            } else {
-                navigator.clipboard.writeText(text);
-                alert("Verse copied to clipboard! You can paste it anywhere.");
-            }
+            if (navigator.share) { navigator.share({ title: 'Bhagavad Gita', text: text, url: window.location.origin + window.location.pathname });
+            } else { navigator.clipboard.writeText(text); alert("Verse copied to clipboard!"); }
         });
 
     } catch (e) { console.error("Error injecting Karaoke Modal:", e); }
@@ -636,14 +654,11 @@ function injectKaraokeModal() {
 
 function openKaraoke(playlistArr, startListIndex = 0, mode = 'chapter') {
     try {
-        if (!playlistArr || playlistArr.length === 0) {
-            alert("No verses available to present.");
-            return;
-        }
+        if (!playlistArr || playlistArr.length === 0) { alert("No verses available."); return; }
 
         kState.playlist = playlistArr;
         kState.listIndex = startListIndex;
-        kState.mode = mode; 
+        kState.mode = mode; // 'chapter', 'verse', or 'search'
         
         if (currentChapterAudio) currentChapterAudio.pause();
         cancelAnimationFrame(chunkMonitorId);
@@ -652,25 +667,21 @@ function openKaraoke(playlistArr, startListIndex = 0, mode = 'chapter') {
         document.getElementById('kControls').style.display = mode === 'verse' ? 'none' : 'flex';
         
         playCurrentKaraoke();
-    } catch (e) { console.error("Error opening Karaoke:", e); }
+    } catch (e) {}
 }
 
 function closeKaraoke() {
-    try {
-        document.getElementById('karaokeModal').classList.remove('active');
-        kState.audio.pause();
-        cancelAnimationFrame(kState.animId);
-    } catch (e) { console.error("Error closing Karaoke:", e); }
+    document.getElementById('karaokeModal').classList.remove('active');
+    kState.audio.pause();
+    cancelAnimationFrame(kState.animId);
 }
 
 function traverseKaraoke(direction) {
-    try {
-        const nextListIdx = kState.listIndex + direction;
-        if (nextListIdx >= 0 && nextListIdx < kState.playlist.length) {
-            kState.listIndex = nextListIdx;
-            playCurrentKaraoke();
-        }
-    } catch(e) { console.error(e); }
+    const nextListIdx = kState.listIndex + direction;
+    if (nextListIdx >= 0 && nextListIdx < kState.playlist.length) {
+        kState.listIndex = nextListIdx;
+        playCurrentKaraoke();
+    }
 }
 
 function playCurrentKaraoke() {
@@ -691,7 +702,7 @@ function playCurrentKaraoke() {
             kContent.classList.remove('fade-out');
 
             const hasTimestamps = v.AudioStart !== undefined && v.AudioEnd > v.AudioStart;
-            manualControls.style.display = hasTimestamps ? 'none' : 'block';
+            manualControls.style.display = hasTimestamps ? 'none' : 'flex'; // Uses flex for the new icon row layout
 
             if (v.AudioFileURL) {
                 let fileChanged = false;
@@ -701,31 +712,25 @@ function playCurrentKaraoke() {
                 }
 
                 if (hasTimestamps) {
-                    
-                    // PREVENT AUDIO REWIND GLITCH
-                    // If audio is already flowing naturally into this verse, let it continue.
                     const timeDiff = Math.abs(kState.audio.currentTime - v.AudioStart);
                     const isContiguous = !fileChanged && !kState.audio.paused && timeDiff < 0.4;
 
                     if (!isContiguous) {
                         kState.audio.currentTime = v.AudioStart;
-                        kState.audio.play().catch(e => console.warn("Autoplay blocked by browser"));
+                        kState.audio.play().catch(e => console.warn("Autoplay blocked"));
                     }
                     
-                    // High Precision Monitor
                     function monitorAudio() {
                         if (kState.audio.currentTime >= v.AudioEnd) {
                             if (kState.mode === 'verse') {
-                                // Loop single verse
                                 kState.audio.currentTime = v.AudioStart;
                                 kState.animId = requestAnimationFrame(monitorAudio);
                             } else {
-                                // Auto advance through PLAYLIST
                                 if (kState.listIndex < kState.playlist.length - 1) {
                                     kState.listIndex++;
-                                    playCurrentKaraoke(); // Instantly trigger next
+                                    playCurrentKaraoke(); 
                                 } else {
-                                    kState.audio.pause(); // Reached end of playlist
+                                    kState.audio.pause(); 
                                 }
                             }
                         } else {
@@ -735,11 +740,15 @@ function playCurrentKaraoke() {
                     kState.animId = requestAnimationFrame(monitorAudio);
                     
                 } else {
-                    kState.audio.play().catch(e => console.warn("Autoplay blocked"));
+                    // FIX: Search Presentation Mode ignores full chapter playback if missing timestamps
+                    if (kState.mode !== 'search') {
+                        kState.audio.play().catch(e => console.warn("Autoplay blocked"));
+                    } else {
+                        console.log("Search Mode: Verse has no audio timestamps. Silencing chapter track.");
+                        kState.audio.pause();
+                    }
                 }
             }
-        }, 300); // Shortened transition time for smoother playback
-    } catch (e) {
-        console.error("Error playing Karaoke:", e);
-    }
+        }, 300); 
+    } catch (e) { console.error("Error playing Karaoke:", e); }
 }
