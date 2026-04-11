@@ -212,6 +212,82 @@ audio {
   margin-top: 10px;
 }
 
+/* ================= ELEGANT KARAOKE MODAL ================= */
+.karaoke-modal {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(10, 15, 25, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 100000;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.karaoke-modal.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.karaoke-content {
+  text-align: center;
+  max-width: 800px;
+  width: 90%;
+  color: white;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.karaoke-content.fade-out {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+.karaoke-title {
+  color: #17a2b8;
+  font-size: 1.2rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+.karaoke-lyrics {
+  font-size: 2.5rem;
+  line-height: 1.4;
+  font-weight: bold;
+  text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  margin-bottom: 30px;
+}
+
+.karaoke-english {
+  font-size: 1.5rem;
+  color: #adb5bd;
+  font-style: italic;
+}
+
+.karaoke-controls {
+  position: absolute;
+  bottom: 40px;
+  display: flex;
+  gap: 20px;
+}
+
+.k-btn {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: white;
+  border-radius: 50px;
+  padding: 12px 30px;
+  font-size: 18px;
+}
+.k-btn:hover { background: rgba(255,255,255,0.2); }
+.k-close-hint { position: absolute; top: 20px; right: 20px; color: rgba(255,255,255,0.5); font-size: 14px;}
+
+
 /* ================= PREMIUM FLOATING BAR ================= */
 .floating-bar {
   position: fixed;
