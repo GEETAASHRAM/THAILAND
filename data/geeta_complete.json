@@ -1450,10 +1450,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "सञ्जय उवाच",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 10.64,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/03%20-%20Chapter%202.mp3",
     "AudioStart": 154.11,
-    "AudioEnd": null
+    "AudioEnd": 164.75
   },
   {
     "ROWID": 57,
@@ -1476,10 +1476,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 8.59,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/03%20-%20Chapter%202.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 164.75,
+    "AudioEnd": 173.34
   },
   {
     "ROWID": 58,
@@ -1502,10 +1502,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "श्री भगवानुवाच",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 10,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/03%20-%20Chapter%202.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 175.34,
+    "AudioEnd": 185.34
   },
   {
     "ROWID": 59,
@@ -1528,10 +1528,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 12.33,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/03%20-%20Chapter%202.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 185.93,
+    "AudioEnd": 198.26
   },
   {
     "ROWID": 60,
@@ -1556,7 +1556,7 @@
     "SpeakerNameOriginal": "",
     "ReadTimeInSeconds": 8,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/03%20-%20Chapter%202.mp3",
-    "AudioStart": null,
+    "AudioStart": 198.26,
     "AudioEnd": null
   },
   {
@@ -12214,10 +12214,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "अर्जुन उवाच",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 11.97,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 4,
+    "AudioEnd": 15.97
   },
   {
     "ROWID": 471,
@@ -12240,10 +12240,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "श्री भगवानुवाच",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 12.09,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 15.97,
+    "AudioEnd": 28.06
   },
   {
     "ROWID": 472,
@@ -12266,10 +12266,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 12.36,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 28.06,
+    "AudioEnd": 40.42
   },
   {
     "ROWID": 473,
@@ -12292,10 +12292,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 12.55,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 40.42,
+    "AudioEnd": 52.97
   },
   {
     "ROWID": 474,
@@ -12318,10 +12318,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 12.84,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 52.97,
+    "AudioEnd": 65.81
   },
   {
     "ROWID": 475,
@@ -12344,10 +12344,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 12.42,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 65.81,
+    "AudioEnd": 78.23
   },
   {
     "ROWID": 476,
@@ -12370,10 +12370,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 13.66,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 78.23,
+    "AudioEnd": 91.89
   },
   {
     "ROWID": 477,
@@ -12396,10 +12396,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 11.98,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 91.89,
+    "AudioEnd": 103.87
   },
   {
     "ROWID": 478,
@@ -12422,10 +12422,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 13.98,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 103.87,
+    "AudioEnd": 117.85
   },
   {
     "ROWID": 479,
@@ -12448,10 +12448,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 13.02,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 117.85,
+    "AudioEnd": 130.87
   },
   {
     "ROWID": 480,
@@ -12474,10 +12474,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 12.59,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 130.87,
+    "AudioEnd": 143.46
   },
   {
     "ROWID": 481,
@@ -12500,10 +12500,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 14.83,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 143.46,
+    "AudioEnd": 158.29
   },
   {
     "ROWID": 482,
@@ -12526,10 +12526,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 13.49,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 158.29,
+    "AudioEnd": 171.78
   },
   {
     "ROWID": 483,
@@ -12552,10 +12552,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 13.76,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 171.78,
+    "AudioEnd": 185.54
   },
   {
     "ROWID": 484,
@@ -12578,10 +12578,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 12.89,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 185.54,
+    "AudioEnd": 198.43
   },
   {
     "ROWID": 485,
@@ -12604,10 +12604,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 13.73,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 198.43,
+    "AudioEnd": 212.16
   },
   {
     "ROWID": 486,
@@ -12630,10 +12630,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 11.46,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 212.16,
+    "AudioEnd": 223.62
   },
   {
     "ROWID": 487,
@@ -12656,10 +12656,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 13.8,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 223.62,
+    "AudioEnd": 237.42
   },
   {
     "ROWID": 488,
@@ -12682,10 +12682,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 11.85,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 237.42,
+    "AudioEnd": 249.27
   },
   {
     "ROWID": 489,
@@ -12708,10 +12708,10 @@
     "Status": "Active",
     "Remarks": "",
     "SpeakerNameOriginal": "",
-    "ReadTimeInSeconds": 8,
+    "ReadTimeInSeconds": 12.95,
     "AudioFileURL": "https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3",
-    "AudioStart": null,
-    "AudioEnd": null
+    "AudioStart": 249.27,
+    "AudioEnd": 262.22
   },
   {
     "ROWID": 490,
