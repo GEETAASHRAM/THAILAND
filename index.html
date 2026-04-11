@@ -14,8 +14,7 @@
 
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="gat_library/css/gat_audio_sync_style.css"> 
-</head>
+    <link rel="stylesheet" href="gat_library/css/gat_audio_sync_style.css"> </head>
 <body>
     <div class="container mt-4">
         
@@ -29,20 +28,20 @@
                 <h1 class="text-center mb-4">Srimad Bhagavad Gita</h1>
                 
                 <div class="form-group">
-                    <label for="chapterSelect">Select Chapter:</label>
-                    <select id="chapterSelect" class="form-control">
-                        </select>
+                    <label for="chapterSelect" class="font-weight-bold">Select Chapter:</label>
+                    <select id="chapterSelect" class="form-control"></select>
                 </div>
                 
                 <div class="form-group">
-                    <label for="searchInput">Search Word:</label>
+                    <label for="searchInput" class="font-weight-bold">Search Word:</label>
                     <input type="text" id="searchInput" class="form-control" placeholder="Search word...">
                 </div>
                 
-                <button id="searchButton" class="btn btn-primary search-button mb-2">Search</button>
-                <button id="clearButton" class="btn btn-danger clear-button mb-2">Clear Results</button>
-                
-                <button id="globalPresentationBtn" class="btn btn-info mb-2 shadow-sm" style="display:none;">🎤 Presentation Mode</button>
+                <div class="d-flex flex-wrap justify-content-center mt-3 mb-2">
+                    <button id="searchButton" class="btn btn-primary shadow-sm mx-1 mb-2 px-4">Search</button>
+                    <button id="clearButton" class="btn btn-danger shadow-sm mx-1 mb-2">Clear Results</button>
+                    <button id="globalPresentationBtn" class="btn btn-info shadow-sm mx-1 mb-2" style="display:none;">🎤 Presentation Mode</button>
+                </div>
                 
                 <div class="toggle-buttons btn-group mt-3" role="group">
                     </div>
@@ -66,7 +65,7 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('sw.js').then(reg => {
-            console.log('PWA Service worker registered.', reg);
+            console.log('PWA Service worker registered.');
           }).catch(err => console.error('PWA SW Registration failed:', err));
         });
       }
