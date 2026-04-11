@@ -14,7 +14,8 @@
 
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="gat_library/css/gat_audio_sync_style.css"> </head>
+    <link rel="stylesheet" href="gat_library/css/gat_audio_sync_style.css"> 
+</head>
 <body>
     <div class="container mt-4">
         
@@ -42,9 +43,6 @@
                     <button id="clearButton" class="btn btn-danger shadow-sm mx-1 mb-2">Clear Results</button>
                     <button id="globalPresentationBtn" class="btn btn-info shadow-sm mx-1 mb-2" style="display:none;">🎤 Presentation Mode</button>
                 </div>
-                
-                <div class="toggle-buttons btn-group mt-3" role="group">
-                    </div>
             </div>
         </div>
         
@@ -57,8 +55,13 @@
             </div>
         </div>
     </div>
+
+    <div id="pwaInstallToast" class="pwa-toast" style="display: none;">
+        <p class="pwa-toast-text">Install the Gita App on your Home Screen for offline access!</p>
+        <button id="btnInstallPwa" class="pwa-btn-install">Install</button>
+        <button id="btnClosePwaToast" class="pwa-btn-close">×</button>
+    </div>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
     <script src="gat_library/js/app.js"></script>
 
     <script>
