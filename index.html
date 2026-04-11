@@ -1,19 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- ... (other head content) -->
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Srimad Bhagavad Gita</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#f4f6f9">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="gat_library/images/swami_hariharji_with_audio_symbol.png"> 
+    <link rel="icon" href="gat_library/images/guru_wave_favicon.ico">
+
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="styles.css">
         
 </head>
 <body>
-    <div class="container">
+    <div class="container mt-4">
+        <div class="text-right mb-3">
+            <a href="audio_sync.html" class="btn btn-outline-info btn-sm shadow-sm">
+                🛠️ Open Audio Sync Tool
+            </a>
+        </div>
+            
         <div id="filterBox" class="row justify-content-center">
             <div class="col-md-6">
-                <h1 class="text-center">Srimad Bhagavad Gita</h1>
+                <h1 class="text-center mb-4">Srimad Bhagavad Gita</h1>
                 <div class="form-group">
                     <label for="chapterSelect">Select Chapter:</label>
                     <select id="chapterSelect" class="form-control">
@@ -26,7 +39,7 @@
                 </div>
                 <button id="searchButton" class="btn btn-primary search-button">Search</button>
                 <button id="clearButton" class="btn btn-danger clear-button">Clear Results</button>
-                <div class="toggle-buttons btn-group" role="group">
+                <div class="toggle-buttons btn-group mt-3" role="group">
 <!--                     <label class="switch"><input type="checkbox" id="sanskrit-toggle" checked><span class="slider round"></span></label>
                     <p>Sanskrit Verse</p>
                     <label class="switch"><input type="checkbox" id="english-toggle" checked><span class="slider round"></span></label>
@@ -38,7 +51,7 @@
                 </div>
             </div>
         </div>
-        <div class="row justify-content-center">
+        <div class="row justify-content-center mt-4">
             <div class="col-md-8">
                 <div class="result-container" id="searchResults"></div>
             </div>
