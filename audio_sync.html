@@ -2,10 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Geeta Audio Sync Tool</title>
-
-    <link rel="icon" href="data:,">
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#f4f6f9">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="gat_library/images/swami_hariharji_with_audio_symbol.png"> <link rel="icon" href="gat_library/images/guru_wave_favicon.ico">
     <link rel="stylesheet" type="text/css" href="gat_library/css/gat_audio_sync_style.css">
     <script src="gat_library/js/jquery-3.7.1.slim.min.js"></script>
 </head>
@@ -21,6 +25,7 @@
     <div class="input-row">
       <div class="select-container">
         <input type="text" id="searchSelect" class="searchable-select" placeholder="Search audio files...">
+        
          <div id="optionsContainer" class="options-container hidden">
           <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/01%20-%20Introduction.mp3">0.1) Geeta Ashram Mission & Introduction</div>
           <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/20%20-%20Geeta%20Mahatmyam.mp3">0.2) Geeta Mahatmyam</div>
@@ -67,7 +72,7 @@
       <select id="systemJsonSelect" onchange="loadSystemJson(this.value)" style="background: #17a2b8; color: white; font-weight: bold; cursor: pointer;">
         <option value="">📥 Load System JSON...</option>
         <option value="data/geeta_complete.json">Geeta Complete</option>
-        <option value="data/geeta_twelfth_chapter.json">Geeta Chapter 12</option>
+        <option value="data/geeta_twealth_chapter.json">Geeta Chapter 12</option>
       </select>
 
       <button onclick="copyShareLink()" title="Generate URL for this System JSON" style="background: #28a745;">🔗 Share Link</button>
@@ -93,8 +98,7 @@
   <div id="loadingIndicator" class="hidden">Loading large JSON... Please wait.</div>
   <input type="text" id="tableSearch" placeholder="Search rows..." style="width:100%; margin-bottom:15px;">
 
-  <div style="overflow-x:auto;">
-    <table id="timestampsTable">
+  <div style="overflow-x:auto; padding-bottom: 80px;"> <table id="timestampsTable">
       <thead>
         <tr>
           <th>#</th>
@@ -113,6 +117,9 @@
 
 <div id="floatingControlBar" class="floating-bar">
   <button id="floatUndoBtn" class="float-btn" title="Undo (Ctrl+Z)">↩️</button>
+  
+  <div id="floatTimer" class="float-timer">00:00 / 00:00</div>
+  
   <button id="floatPlayBtn" class="float-btn play-btn" title="Play/Pause (Spacebar)">⏯️</button>
   <button id="floatMarkBtn" class="float-btn mark-btn" title="Mark End ( ] )">📍</button>
   <button id="floatDeleteBtn" class="float-btn delete-btn" title="Delete Last">🗑️</button>
@@ -120,6 +127,16 @@
 </div>
 
 <script src="gat_library/js/gat_audio_sync_script.js"></script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').then(reg => {
+        console.log('PWA Service worker registered.', reg);
+      }).catch(err => console.error('PWA SW Registration failed:', err));
+    });
+  }
+</script>
 
 </body>
 </html>
