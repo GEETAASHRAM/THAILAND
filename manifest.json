@@ -1,0 +1,22 @@
+  {
+    "name": "Geeta Audio Sync Tool",
+    "short_name": "Geeta Sync",
+    "description": "Professional audio and text synchronization tool.",
+    "start_url": "./audio_sync.html",
+    "display": "standalone",
+    "background_color": "#f4f6f9",
+    "theme_color": "#f4f6f9",
+    "orientation": "portrait-primary",
+    "icons": [
+      {
+        "src": "gat_library/images/icon-192x192.png", 
+        "sizes": "192x192",
+        "type": "image/png"
+      },
+      {
+        "src": "gat_library/images/icon-512x512.png",
+        "sizes": "512x512",
+        "type": "image/png"
+      }
+    ]
+  }
