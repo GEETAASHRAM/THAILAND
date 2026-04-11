@@ -5,6 +5,8 @@
 const container = document.getElementById('container');
 let globalGeetaData = [];
 let currentChapterAudio = null;
+let chunkMonitorId = null; // Used to track high-precision audio clipping
+let currentFirstDisplayedIndex = 0; // Tracks the first visible verse for Presentation mode
 
 // ==========================================
 // 1. SYSTEM INITIALIZATION & DATA LOADING
@@ -13,7 +15,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         console.log("🚀 Initializing Main Gita Application...");
         
-        // Fetch Master JSON
         const response = await fetch('data/geeta_complete.json');
         if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
         
@@ -34,17 +35,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             chapterSelect.addEventListener('change', loadChapter);
         }
 
-        // Inject UI Modals for advanced features
+        // Inject UI Modals
         injectSubscriptionModal();
         injectKaraokeModal();
 
-        // 🧠 ROUTER: Check if user arrived via a Subscription Link
+        // Check if user arrived via a Subscription Link
         const isSubscriptionLink = handleSubscriptionRouting();
         
-        // Only load default chapter 1 if we didn't just route to a specific subscription verse
         if (!isSubscriptionLink) {
             loadChapter();
         }
+
+        // Global Presentation Button Event
+        document.getElementById('globalPresentationBtn')?.addEventListener('click', () => {
+            openKaraoke(currentFirstDisplayedIndex, 'chapter');
+        });
 
     } catch (error) {
         console.error('Error during app initialization:', error);
@@ -55,12 +60,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ==========================================
 // 2. CORE READING UI (CHAPTERS & SEARCH)
 // ==========================================
-
-// Clear Results logic
 document.getElementById('clearButton')?.addEventListener('click', () => {
     try {
         document.getElementById('container').innerHTML = '';
         document.getElementById('searchResults').innerHTML = '';
+        document.getElementById('globalPresentationBtn').style.display = 'none';
         if (currentChapterAudio) currentChapterAudio.pause();
     } catch (e) { console.error(e); }
 });
@@ -71,7 +75,6 @@ function loadChapter() {
         if (!chapterSelect) return;
         const selectedChapter = chapterSelect.value;
 
-        // Filter global data for this chapter
         const chapterData = globalGeetaData.filter(item => item.Chapter.toString() === selectedChapter.toString());
 
         const container = document.getElementById('container');
@@ -81,7 +84,13 @@ function loadChapter() {
         
         const searchInput = document.getElementById('searchInput');
         if (searchInput) searchInput.value = '';
+
+        // Show Global Presentation Button
+        document.getElementById('globalPresentationBtn').style.display = 'inline-block';
         
+        // Determine first index of this chapter for presentation mode
+        currentFirstDisplayedIndex = globalGeetaData.findIndex(v => v.Chapter.toString() === selectedChapter.toString());
+
         // --- CHAPTER AUDIO PLAYER ---
         if (chapterData.length > 0 && chapterData[0].AudioFileURL) {
             const audioContainer = document.createElement('div');
@@ -106,7 +115,7 @@ function loadChapter() {
             const verseElement = document.createElement('div');
             verseElement.classList.add('verse', 'position-relative'); 
 
-            const hasAudio = verse.AudioStart && verse.AudioEnd && verse.AudioEnd > verse.AudioStart;
+            const hasAudio = verse.AudioStart !== undefined && verse.AudioEnd > verse.AudioStart;
 
             // Verse Play Icon
             const playBtn = document.createElement('button');
@@ -116,38 +125,49 @@ function loadChapter() {
             playBtn.style.top = '10px';
             playBtn.style.right = '10px';
             
-            // Find absolute index for Karaoke
-            const absoluteIndex = globalGeetaData.findIndex(v => v.Chapter === verse.Chapter && v.VerseNum === verse.VerseNum);
-            playBtn.onclick = () => openKaraoke(absoluteIndex, 'chapter'); 
+            // Precision Playback logic
+            playBtn.onclick = function() {
+                if (currentChapterAudio) {
+                    cancelAnimationFrame(chunkMonitorId); // Cancel previous monitors
+                    currentChapterAudio.pause();
+                    
+                    if (hasAudio) {
+                        currentChapterAudio.currentTime = verse.AudioStart;
+                        currentChapterAudio.play();
+                        
+                        // HIGH PRECISION CLIPPING
+                        const end = verse.AudioEnd;
+                        const monitor = () => {
+                            if (currentChapterAudio.currentTime >= end) {
+                                currentChapterAudio.pause();
+                                currentChapterAudio.currentTime = verse.AudioStart; // Reset to start
+                            } else if (!currentChapterAudio.paused) {
+                                chunkMonitorId = requestAnimationFrame(monitor);
+                            }
+                        };
+                        chunkMonitorId = requestAnimationFrame(monitor);
+                    } else {
+                        // Fallback if no precise timestamps exist
+                        const absoluteIndex = globalGeetaData.findIndex(v => v.Chapter === verse.Chapter && v.VerseNum === verse.VerseNum);
+                        openKaraoke(absoluteIndex, 'chapter'); 
+                    }
+                }
+            };
             
             verseElement.appendChild(playBtn);
 
-            // Sanskrit Lines
-            const sanskritLinesElement = document.createElement('div');
-            sanskritLinesElement.classList.add('sanskrit-lines', 'font-weight-bold', 'text-danger');
-            sanskritLinesElement.innerHTML = verse.OriginalText ? verse.OriginalText.replace(/\n/g, '<br>') : '';
-            verseElement.appendChild(sanskritLinesElement);
-            
-            // English Lines
-            const engLinesElement = document.createElement('div');
-            engLinesElement.classList.add('english-lines', 'font-italic');
-            engLinesElement.innerHTML = verse.EnglishText ? verse.EnglishText.replace(/\n/g, '<br>') : '';
-            verseElement.appendChild(engLinesElement);
-            
-            verseElement.appendChild(document.createElement('hr'));
-            
-            // Hindi Description 
-            const hindiDescriptionElement = document.createElement('div');
-            hindiDescriptionElement.classList.add('hindi-description');
-            hindiDescriptionElement.innerHTML = verse.OriginalMeaning ? verse.OriginalMeaning.replace(/\n/g, '<br>') : '';
-            verseElement.appendChild(hindiDescriptionElement);
-            
-            // English Description 
-            const engDescriptionElement = document.createElement('div');
-            engDescriptionElement.classList.add('english-description', 'text-muted');
-            engDescriptionElement.innerHTML = verse.EnglishMeaning ? verse.EnglishMeaning.replace(/\n/g, '<br>') : '';
-            verseElement.appendChild(engDescriptionElement);
+            const sanText = verse.OriginalText ? verse.OriginalText.replace(/\n/g, '<br>') : '';
+            const engText = verse.EnglishText ? verse.EnglishText.replace(/\n/g, '<br>') : '';
+            const hinDesc = verse.OriginalMeaning ? verse.OriginalMeaning.replace(/\n/g, '<br>') : '';
+            const engDesc = verse.EnglishMeaning ? verse.EnglishMeaning.replace(/\n/g, '<br>') : '';
 
+            verseElement.innerHTML += `
+                <div class="sanskrit-lines font-weight-bold text-center text-danger mb-2">${sanText}</div>
+                <div class="english-lines text-center font-italic mb-3">${engText}</div>
+                <hr>
+                <div class="hindi-description mb-2">${hinDesc}</div>
+                <div class="english-description text-muted">${engDesc}</div>
+            `;
             container.appendChild(verseElement);
         });
     } catch (error) {
@@ -164,17 +184,20 @@ document.getElementById('searchInput')?.addEventListener('keyup', function (even
 async function searchWord() {
     try {
         const searchInput = document.getElementById('searchInput');
-        const searchTerm = searchInput.value.toLowerCase();
-        const searchResults = document.getElementById('searchResults');
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        if (!searchTerm) return;
 
+        const searchResults = document.getElementById('searchResults');
         searchResults.innerHTML = '';
         document.getElementById('container').innerHTML = '';
         if (currentChapterAudio) currentChapterAudio.pause();
+        cancelAnimationFrame(chunkMonitorId);
 
         let totalMatches = 0;
         let totalVerses = 0;
+        let firstMatchAbsoluteIndex = -1;
 
-        globalGeetaData.forEach(item => {
+        globalGeetaData.forEach((item, absoluteIndex) => {
             let verseHasMatch = false;
             for (const key in item) {
                 if (item[key] && typeof item[key] === 'string') {
@@ -188,29 +211,21 @@ async function searchWord() {
 
             if (verseHasMatch) {
                 totalVerses++;
+                if (firstMatchAbsoluteIndex === -1) firstMatchAbsoluteIndex = absoluteIndex;
+
                 const resultElement = document.createElement('div');
-                resultElement.classList.add('verse');
+                resultElement.classList.add('verse', 'position-relative');
 
                 const highlightMatch = (text) => text ? text.replace(new RegExp(`(${searchTerm})`, 'gi'), '<span class="highlight">$1</span>').replace(/\n/g, '<br>') : '';
 
-                const sanLines = document.createElement('p');
-                sanLines.innerHTML = highlightMatch(item.OriginalText);
-                resultElement.appendChild(sanLines);
-
-                const engLines = document.createElement('p');
-                engLines.innerHTML = highlightMatch(item.EnglishText);
-                resultElement.appendChild(engLines);
-
-                resultElement.appendChild(document.createElement('hr'));
-
-                const hinDesc = document.createElement('p');
-                hinDesc.innerHTML = highlightMatch(item.OriginalMeaning);
-                resultElement.appendChild(hinDesc);
-
-                const engDesc = document.createElement('p');
-                engDesc.innerHTML = highlightMatch(item.EnglishMeaning);
-                resultElement.appendChild(engDesc);
-
+                resultElement.innerHTML = `
+                    <div class="text-info font-weight-bold mb-2">Chapter ${item.Chapter}, Verse ${item.VerseNum}</div>
+                    <p class="font-weight-bold text-danger">${highlightMatch(item.OriginalText)}</p>
+                    <p class="font-italic">${highlightMatch(item.EnglishText)}</p>
+                    <hr>
+                    <p>${highlightMatch(item.OriginalMeaning)}</p>
+                    <p class="text-muted">${highlightMatch(item.EnglishMeaning)}</p>
+                `;
                 searchResults.appendChild(resultElement);
             }
         });
@@ -220,8 +235,12 @@ async function searchWord() {
         totalsElement.innerHTML = `<strong>Total matches:</strong> ${totalMatches} <br> <strong>Total verses:</strong> ${totalVerses}`;
         searchResults.insertBefore(totalsElement, searchResults.firstChild);
 
-        if (searchResults.innerHTML === '') {
-            searchResults.innerHTML = '<p class="text-center text-danger">No results found.</p>';
+        if (totalVerses > 0) {
+            currentFirstDisplayedIndex = firstMatchAbsoluteIndex;
+            document.getElementById('globalPresentationBtn').style.display = 'inline-block';
+        } else {
+            searchResults.innerHTML = '<p class="text-center text-danger mt-3">No results found.</p>';
+            document.getElementById('globalPresentationBtn').style.display = 'none';
         }
     } catch (error) {
         console.error('Error during search:', error);
@@ -229,43 +248,54 @@ async function searchWord() {
 }
 
 // ==========================================
-// 3. SUBSCRIPTION MODAL & ROUTING LOGIC
+// 3. ADVANCED SUBSCRIPTION MODAL
 // ==========================================
 function injectSubscriptionModal() {
     try {
         const modalHTML = `
         <div id="subModal" class="karaoke-modal" style="z-index: 105000;">
-            <div class="karaoke-content bg-light text-dark p-4 rounded text-left" style="max-width:500px;">
+            <div class="karaoke-content bg-light text-dark p-4 rounded text-left" style="max-width:550px; width: 95%;">
                 <h3 class="text-primary mb-3">📅 Setup Daily Reading</h3>
                 
                 <div class="form-group">
-                    <label>Subscribe to:</label>
-                    <select id="subType" class="form-control">
+                    <label class="font-weight-bold">Subscribe to:</label>
+                    <select id="subType" class="form-control border-primary">
                         <option value="chapter">One Chapter at a time</option>
                         <option value="verse">One Verse at a time</option>
                     </select>
                 </div>
                 
                 <div class="form-group">
-                    <label>Starting Point:</label>
-                    <select id="subStart" class="form-control"></select>
+                    <label class="font-weight-bold">Starting Point:</label>
+                    <input type="text" id="subFilter" class="form-control mb-1" placeholder="🔍 Search chapter or verse...">
+                    <select id="subStart" class="form-control" size="4" style="overflow-y: auto;"></select>
+                </div>
+
+                <div class="row">
+                    <div class="col-sm-6 form-group">
+                        <label class="font-weight-bold">Start Date:</label>
+                        <input type="date" id="subDate" class="form-control">
+                    </div>
+                    <div class="col-sm-6 form-group">
+                        <label class="font-weight-bold">Notification Time:</label>
+                        <input type="time" id="subTime" class="form-control" value="08:00">
+                    </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Frequency:</label>
+                    <label class="font-weight-bold">Frequency:</label>
                     <select id="subFreq" class="form-control">
                         <option value="daily">Daily</option>
                         <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label>Start Date:</label>
-                    <input type="date" id="subDate" class="form-control">
+                <div class="d-flex flex-column gap-2 mt-4">
+                    <button id="btnGoogleCal" class="btn btn-primary mb-2 shadow-sm">➕ Add to Google Calendar</button>
+                    <button id="btnAppleCal" class="btn btn-dark mb-2 shadow-sm">🍎 Add to Apple / Outlook (.ics)</button>
+                    <button id="btnCloseSub" class="btn btn-outline-secondary">Cancel</button>
                 </div>
-
-                <button id="btnGenerateSub" class="btn btn-success btn-block mt-4">Download Calendar Invite</button>
-                <button id="btnCloseSub" class="btn btn-secondary btn-block mt-2">Cancel</button>
             </div>
         </div>`;
         document.body.insertAdjacentHTML('beforeend', modalHTML);
@@ -273,8 +303,11 @@ function injectSubscriptionModal() {
         const subModal = document.getElementById('subModal');
         const subType = document.getElementById('subType');
         const subStart = document.getElementById('subStart');
+        const subFilter = document.getElementById('subFilter');
         
-        // Default date to tomorrow
+        let currentOptionsData = [];
+
+        // Set Default date to tomorrow
         const tmrw = new Date(); tmrw.setDate(tmrw.getDate() + 1);
         document.getElementById('subDate').value = tmrw.toISOString().split('T')[0];
 
@@ -285,35 +318,89 @@ function injectSubscriptionModal() {
         
         document.getElementById('btnCloseSub')?.addEventListener('click', () => subModal.classList.remove('active'));
 
-        subType?.addEventListener('change', () => populateSubStartOptions(subType.value));
+        subType?.addEventListener('change', () => {
+            subFilter.value = '';
+            populateSubStartOptions(subType.value);
+        });
+
+        // Search Filter Logic for Options
+        subFilter?.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            subStart.innerHTML = '';
+            currentOptionsData.forEach(opt => {
+                if (opt.text.toLowerCase().includes(term)) {
+                    subStart.innerHTML += `<option value="${opt.val}">${opt.text}</option>`;
+                }
+            });
+        });
 
         function populateSubStartOptions(type) {
+            currentOptionsData = [];
             subStart.innerHTML = '';
             if (type === 'chapter') {
-                const chapters = Array.from(new Set(globalGeetaData.map(i => i.Chapter)));
-                chapters.forEach(ch => subStart.innerHTML += `<option value="${ch}">Chapter ${ch}</option>`);
+                const uniqueChapters = [];
+                globalGeetaData.forEach(v => {
+                    if (!uniqueChapters.find(c => c.val === v.Chapter)) {
+                        const title = `Chapter ${v.Chapter}: ${v.Topic || 'Geeta'}`;
+                        uniqueChapters.push({ val: v.Chapter, text: title });
+                    }
+                });
+                currentOptionsData = uniqueChapters;
             } else {
                 globalGeetaData.forEach((v, idx) => {
-                    subStart.innerHTML += `<option value="${idx}">Ch ${v.Chapter}, Verse ${v.VerseNum}</option>`;
+                    const title = `Ch ${v.Chapter}, Verse ${v.VerseNum}: ${v.Topic || ''}`;
+                    currentOptionsData.push({ val: idx, text: title });
                 });
             }
+            
+            // Render Initial
+            currentOptionsData.forEach(opt => {
+                subStart.innerHTML += `<option value="${opt.val}">${opt.text}</option>`;
+            });
         }
 
-        document.getElementById('btnGenerateSub')?.addEventListener('click', () => {
+        function generateAppUrl() {
             const type = subType.value;
             const startVal = subStart.value;
             const freq = document.getElementById('subFreq').value;
             const startDate = document.getElementById('subDate').value;
             const subId = 'sub_' + Date.now();
+            return window.location.origin + window.location.pathname + `?subId=${subId}&type=${type}&start=${startVal}&freq=${freq}&date=${startDate}`;
+        }
 
-            const appUrl = window.location.origin + window.location.pathname 
-                + `?subId=${subId}&type=${type}&start=${startVal}&freq=${freq}&date=${startDate}`;
-
-            const dParts = startDate.split('-');
-            const icsDate = `${dParts[0]}${dParts[1]}${dParts[2]}T080000Z`;
-            const rrule = freq === 'daily' ? 'DAILY' : 'WEEKLY';
+        function getUTCStartAndEnd() {
+            const dateVal = document.getElementById('subDate').value;
+            const timeVal = document.getElementById('subTime').value;
+            const localDate = new Date(`${dateVal}T${timeVal}:00`);
             
-            const icsData = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//GitaApp//EN\nCALSCALE:GREGORIAN\nBEGIN:VEVENT\nSUMMARY:📖 Gita Reading\nDTSTART:${icsDate}\nRRULE:FREQ=${rrule}\nDESCRIPTION:Tap to open today's reading:\\n${appUrl}\nURL:${appUrl}\nSTATUS:CONFIRMED\nBEGIN:VALARM\nTRIGGER:-PT0M\nACTION:DISPLAY\nDESCRIPTION:Reminder\nEND:VALARM\nEND:VEVENT\nEND:VCALENDAR`;
+            const formatUTC = (d) => d.toISOString().replace(/-|:|\.\d+/g, '');
+            const dtStart = formatUTC(localDate);
+            const dtEnd = formatUTC(new Date(localDate.getTime() + 15 * 60000)); // 15 mins later
+            return { dtStart, dtEnd };
+        }
+
+        // GOOGLE CALENDAR
+        document.getElementById('btnGoogleCal')?.addEventListener('click', () => {
+            if(!subStart.value) { alert("Please select a starting point"); return; }
+            const appUrl = generateAppUrl();
+            const freq = document.getElementById('subFreq').value.toUpperCase();
+            const { dtStart, dtEnd } = getUTCStartAndEnd();
+            
+            const gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=📖+Gita+Reading&dates=${dtStart}/${dtEnd}&details=Tap+the+link+to+open+today's+reading:%0A${encodeURIComponent(appUrl)}&recur=RRULE:FREQ=${freq}`;
+            
+            window.open(gCalUrl, '_blank');
+            subModal.classList.remove('active');
+        });
+
+        // APPLE / OUTLOOK ICS
+        document.getElementById('btnAppleCal')?.addEventListener('click', () => {
+            if(!subStart.value) { alert("Please select a starting point"); return; }
+            const type = subType.value;
+            const appUrl = generateAppUrl();
+            const freq = document.getElementById('subFreq').value.toUpperCase();
+            const { dtStart } = getUTCStartAndEnd();
+            
+            const icsData = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//GitaApp//EN\nCALSCALE:GREGORIAN\nBEGIN:VEVENT\nSUMMARY:📖 Gita Reading\nDTSTART:${dtStart}\nRRULE:FREQ=${freq}\nDESCRIPTION:Tap to open today's reading:\\n${appUrl}\nURL:${appUrl}\nSTATUS:CONFIRMED\nBEGIN:VALARM\nTRIGGER:-PT0M\nACTION:DISPLAY\nDESCRIPTION:Reminder\nEND:VALARM\nEND:VEVENT\nEND:VCALENDAR`;
 
             const blob = new Blob([icsData], { type: 'text/calendar;charset=utf-8' });
             const link = document.createElement('a');
@@ -333,20 +420,25 @@ function handleSubscriptionRouting() {
         const urlParams = new URLSearchParams(window.location.search);
         const subId = urlParams.get('subId');
         
-        if (!subId) return false; // Not a subscription link
+        if (!subId) return false; 
 
         const type = urlParams.get('type');
         const initialStart = parseInt(urlParams.get('start'));
         const startDateStr = urlParams.get('date');
+        const freq = urlParams.get('freq');
 
         const startDate = new Date(startDateStr);
         const today = new Date();
-        const diffTime = Math.max(0, today - startDate); // Ensure no negative progression
+        const diffTime = Math.max(0, today - startDate); 
         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
         
         let progressionSteps = 0;
-        if (urlParams.get('freq') === 'daily') progressionSteps = diffDays;
-        if (urlParams.get('freq') === 'weekly') progressionSteps = Math.floor(diffDays / 7);
+        if (freq === 'daily') progressionSteps = diffDays;
+        if (freq === 'weekly') progressionSteps = Math.floor(diffDays / 7);
+        if (freq === 'monthly') {
+            progressionSteps = (today.getFullYear() - startDate.getFullYear()) * 12 + (today.getMonth() - startDate.getMonth());
+            if (progressionSteps < 0) progressionSteps = 0;
+        }
 
         let targetIndex = 0;
         if (type === 'verse') {
@@ -413,7 +505,6 @@ function injectKaraokeModal() {
         document.getElementById('kPrevBtn')?.addEventListener('click', () => traverseKaraoke(-1));
         document.getElementById('kNextBtn')?.addEventListener('click', () => traverseKaraoke(1));
 
-        // Manual controls
         document.getElementById('kRewind')?.addEventListener('click', () => { if(kState.audio) kState.audio.currentTime -= 5; });
         document.getElementById('kForward')?.addEventListener('click', () => { if(kState.audio) kState.audio.currentTime += 5; });
         document.getElementById('kPlayPause')?.addEventListener('click', () => {
@@ -428,8 +519,8 @@ function openKaraoke(absoluteIndex, mode = 'chapter') {
         kState.index = absoluteIndex;
         kState.mode = mode; 
         
-        // Pause underlying main page audio if playing
         if (currentChapterAudio) currentChapterAudio.pause();
+        cancelAnimationFrame(chunkMonitorId);
 
         document.getElementById('karaokeModal').classList.add('active');
         document.getElementById('kControls').style.display = mode === 'verse' ? 'none' : 'flex';
@@ -466,7 +557,7 @@ function playCurrentKaraoke() {
         cancelAnimationFrame(kState.interval);
 
         setTimeout(() => {
-            document.getElementById('kTitle').textContent = `Chapter ${v.Chapter}, Verse ${v.VerseNum}`;
+            document.getElementById('kTitle').textContent = `Chapter ${v.Chapter}, Verse ${v.VerseNum} ${v.Topic ? ' - ' + v.Topic : ''}`;
             document.getElementById('kLyrics').innerHTML = v.OriginalText ? v.OriginalText.replace(/\n/g, '<br>') : 'Text Unavailable';
             document.getElementById('kEnglish').innerHTML = v.EnglishText ? v.EnglishText.replace(/\n/g, '<br>') : '';
             kContent.classList.remove('fade-out');
@@ -487,16 +578,16 @@ function playCurrentKaraoke() {
                     function monitorAudio() {
                         if (kState.audio.currentTime >= v.AudioEnd) {
                             if (kState.mode === 'verse') {
-                                // Subscribed to specific verse: Loop it!
+                                // Loop single verse
                                 kState.audio.currentTime = v.AudioStart;
                                 kState.interval = requestAnimationFrame(monitorAudio);
                             } else {
-                                // Chapter mode: Auto Advance to next verse
+                                // Auto advance chapter
                                 if (globalGeetaData[kState.index + 1] && globalGeetaData[kState.index + 1].Chapter === v.Chapter) {
                                     kState.index++;
                                     playCurrentKaraoke();
                                 } else {
-                                    kState.audio.pause(); // End of chapter
+                                    kState.audio.pause(); 
                                 }
                             }
                         } else {
@@ -506,11 +597,10 @@ function playCurrentKaraoke() {
                     kState.interval = requestAnimationFrame(monitorAudio);
                     
                 } else {
-                    // No timestamps: just play standard audio and let user control
                     kState.audio.play().catch(e => console.warn("Autoplay blocked"));
                 }
             }
-        }, 400); // Wait for CSS fade out
+        }, 400); 
     } catch (e) {
         console.error("Error playing Karaoke:", e);
     }
