@@ -385,6 +385,14 @@ document.addEventListener('DOMContentLoaded', () => {
     audioPlayer?.addEventListener('timeupdate', () => {
         try {
             const t = audioPlayer.currentTime;
+
+            const floatTimer = document.getElementById('floatTimer');
+            if (floatTimer) {
+                const dur = audioPlayer.duration || 0;
+                const format = (s) => isNaN(s) ? "00:00" : `${Math.floor(s/60).toString().padStart(2,'0')}:${Math.floor(s%60).toString().padStart(2,'0')}`;
+                floatTimer.textContent = `${format(t)} / ${format(dur)}`;
+            }
+            
             let foundIndex = -1;
 
             if (isGeetaMode && currentGeetaData) {
