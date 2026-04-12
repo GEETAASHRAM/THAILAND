@@ -3,6 +3,7 @@
   "short_name": "Gita App",
   "description": "Read, listen, and sync the Srimad Bhagavad Gita.",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#f4f6f9",
   "theme_color": "#f4f6f9",
