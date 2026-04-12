@@ -190,6 +190,43 @@
     }
   }
 
+  function fitKaraokeTextToViewport(contentEl, lyricsEl, englishEl) {
+    if (!contentEl || !lyricsEl || !englishEl) return;
+  
+    // Reset to default large sizes first
+    lyricsEl.style.fontSize = '';
+    englishEl.style.fontSize = '';
+    lyricsEl.style.lineHeight = '';
+    englishEl.style.lineHeight = '';
+  
+    const contentMax = Math.max(220, window.innerHeight - 240);
+  
+    let lyricsSize = parseFloat(getComputedStyle(lyricsEl).fontSize) || 44;
+    let englishSize = parseFloat(getComputedStyle(englishEl).fontSize) || 24;
+  
+    const minLyrics = 22;
+    const minEnglish = 15;
+  
+    let guard = 0;
+    while (contentEl.scrollHeight > contentMax && guard < 18) {
+      if (lyricsSize > minLyrics) {
+        lyricsSize -= 2;
+        lyricsEl.style.fontSize = `${lyricsSize}px`;
+        lyricsEl.style.lineHeight = '1.35';
+      }
+  
+      if (contentEl.scrollHeight <= contentMax) break;
+  
+      if (englishSize > minEnglish) {
+        englishSize -= 1;
+        englishEl.style.fontSize = `${englishSize}px`;
+        englishEl.style.lineHeight = '1.55';
+      }
+  
+      guard++;
+    }
+  }
+
   async function loadAudio() {
     try {
       if ((!fileUrlInput || !fileUrlInput.value) && (!fileInput || !fileInput.files.length)) {
