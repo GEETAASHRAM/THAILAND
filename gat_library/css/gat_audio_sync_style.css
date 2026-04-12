@@ -77,7 +77,7 @@ h4 {
    ---------------------------------------------------------
    Reason:
    - Bootstrap + emoji + default line-height + min-height
-   :
+   Fix:
    - lower padding on small screens
    - consistent line-height
    - remove forced large min-height
@@ -1211,6 +1211,8 @@ audio {
 
   /* Let file input breathe a bit, but not jumbo */
   .sync-page #fileInput {
+    min-height: 36px !important;
+    height: auto !important;
     padding-top: 5px !important;
     padding-bottom: 5px !important;
   }
