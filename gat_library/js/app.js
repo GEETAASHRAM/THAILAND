@@ -1236,6 +1236,15 @@ async function copyQrImageToClipboard() {
     document.getElementById('shareEmailBtn').onclick = () => {
       window.location.href = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(text)}`;
     };
+
+    document.getElementById('shareQrImageBtn').onclick = async () => {
+      await shareQrImageFile({ title, text, url });
+    };
+    
+    document.getElementById('copyQrImageBtn').onclick = async () => {
+      await copyQrImageToClipboard();
+    };
+
   }
 
   function closeShareSheet() {
