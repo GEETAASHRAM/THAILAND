@@ -1194,7 +1194,7 @@ audio {
   .sync-page .input-row > select,
   .sync-page .input-row > button,
   .sync-page .input-row > .btn-green,
-  .sync-page .input-row > .select-container,
+  /* .sync-page .input-row > .select-container, */
   .sync-page #fileUrlInput,
   .sync-page #fileInput,
   .sync-page #prefixInput,
