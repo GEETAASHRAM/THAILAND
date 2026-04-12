@@ -12,6 +12,16 @@
     }
   };
 
+  window.addEventListener('resize', () => {
+    const content =
+      document.getElementById('kContent') || document.getElementById('karaokeContent');
+    const lyrics = document.getElementById('kLyrics');
+    const english = document.getElementById('kEnglish');
+    if (content && lyrics && english) {
+      fitKaraokeTextToViewport(content, lyrics, english);
+    }
+  });
+
   let startTime = null;
   let activeVerseIndex = 0;
   let isGeetaMode = false;
@@ -690,8 +700,12 @@
       kTitle.textContent = `${v.Topic || 'Geeta'} - Chapter ${v.Chapter}, Verse ${v.VerseNum}`;
       kLyrics.innerHTML = nl2br(v.OriginalText || 'No Text Available');
       kEnglish.innerHTML = nl2br(v.EnglishText || '');
-
+      
       karaokeContent.classList.remove('fade-out');
+      
+      requestAnimationFrame(() => {
+        fitKaraokeTextToViewport(karaokeContent, kLyrics, kEnglish);
+      });
 
       if (v.AudioStart !== undefined && Number(v.AudioEnd) > Number(v.AudioStart)) {
         if (v.AudioFileURL && (!audioPlayer.src || audioPlayer.src.indexOf(v.AudioFileURL) === -1)) {
