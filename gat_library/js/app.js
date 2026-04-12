@@ -1,20 +1,9 @@
-// =========================================================
-// GITA APP ENGINE
-// - Main reading UI
-// - Search
-// - Chapter playback
-// - Subscription modal
-// - Karaoke / presentation mode
-// - Share sheet
-// - PWA install prompt
-// =========================================================
-
 (function () {
   'use strict';
 
-  // -------------------------------------------------------
-  // State
-  // -------------------------------------------------------
+  const QR_LOGO_URL =
+    'https://raw.githubusercontent.com/GEETAASHRAM/THAILAND/refs/heads/main/gat_library/images/favicon_swamiharihar_ji_maharaj.ico';
+
   const container = document.getElementById('container');
   const searchResults = document.getElementById('searchResults');
   const chapterSelect = document.getElementById('chapterSelect');
@@ -36,9 +25,6 @@
     audio: new Audio()
   };
 
-  // -------------------------------------------------------
-  // Utility helpers
-  // -------------------------------------------------------
   function escapeHtml(str = '') {
     return String(str)
       .replace(/&/g, '&amp;')
@@ -78,13 +64,12 @@
   }
 
   function safeAudioErrorToast(src = '') {
-    const shortUrl = src ? `<div style="font-size:12px;opacity:.85;margin-top:4px;word-break:break-all;">${escapeHtml(src)}</div>` : '';
+    const shortUrl = src
+      ? `<div style="font-size:12px;opacity:.85;margin-top:4px;word-break:break-all;">${escapeHtml(src)}</div>`
+      : '';
     showToast(`Audio could not be loaded. Please check your connection and try again.${shortUrl}`, 'error', 6000);
   }
 
-  // -------------------------------------------------------
-  // Boot
-  // -------------------------------------------------------
   document.addEventListener('DOMContentLoaded', async () => {
     try {
       initPWAInstallPrompt();
@@ -112,9 +97,6 @@
     }
   });
 
-  // -------------------------------------------------------
-  // Static bindings
-  // -------------------------------------------------------
   function bindStaticEvents() {
     document.getElementById('searchButton')?.addEventListener('click', searchWord);
 
@@ -149,9 +131,6 @@
     });
   }
 
-  // -------------------------------------------------------
-  // PWA install
-  // -------------------------------------------------------
   function initPWAInstallPrompt() {
     setTimeout(() => {
       if (!deferredPwaPrompt && !localStorage.getItem('pwa_help_shown')) {
@@ -159,7 +138,7 @@
         localStorage.setItem('pwa_help_shown', 'true');
       }
     }, 3500);
-        
+
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
       deferredPwaPrompt = e;
@@ -192,9 +171,6 @@
     });
   }
 
-  // -------------------------------------------------------
-  // Data precompute
-  // -------------------------------------------------------
   function populateChapterDropdown() {
     const chapters = Array.from(new Set(globalGeetaData.map(item => Number(item.Chapter)))).sort((a, b) => a - b);
     chapterSelect.innerHTML = '';
@@ -234,9 +210,6 @@
     }
   }
 
-  // -------------------------------------------------------
-  // Rendering helpers
-  // -------------------------------------------------------
   function buildVerseCard(item, absoluteIndex, highlightTerm = '') {
     const hasAudio = item.AudioStart !== undefined && Number(item.AudioEnd) > Number(item.AudioStart);
 
@@ -271,9 +244,6 @@
     `;
   }
 
-  // -------------------------------------------------------
-  // Chapter load
-  // -------------------------------------------------------
   function clearResults() {
     container.innerHTML = '';
     searchResults.innerHTML = '';
@@ -338,9 +308,6 @@
     }
   }
 
-  // -------------------------------------------------------
-  // Search
-  // -------------------------------------------------------
   function searchWord() {
     try {
       const term = searchInput.value.toLowerCase().trim();
@@ -394,9 +361,6 @@
     }
   }
 
-  // -------------------------------------------------------
-  // Inline verse playback
-  // -------------------------------------------------------
   function playVerseInline(absoluteIndex) {
     try {
       const verse = globalGeetaData[absoluteIndex];
@@ -440,9 +404,6 @@
     }
   }
 
-  // -------------------------------------------------------
-  // Subscription modal
-  // -------------------------------------------------------
   function injectSubscriptionModal() {
     const html = `
       <div id="subscriptionModal" class="app-modal-overlay">
@@ -494,7 +455,7 @@
           <div class="modal-actions-stack mt-3">
             <button id="btnGoogleCal" class="btn btn-primary">➕ Add to Google Calendar</button>
             <button id="btnAppleCal" class="btn btn-dark">🍎 Add to Apple / Outlook (.ics)</button>
-            <button id="btnCopySubLink" class="btn btn-info">🔗 Copy Subscription Link</button>
+            <button id="btnCopySubLink" class="btn btn-info">🔗 Share / Copy Subscription Link</button>
             <button id="btnCloseSubModal" class="btn btn-outline-secondary">Cancel</button>
           </div>
         </div>
@@ -551,7 +512,7 @@
       subFeedback.textContent = term ? `Showing ${count} matching options` : '';
     });
 
-    document.getElementById('btnCopySubLink')?.addEventListener('click', async () => {
+    document.getElementById('btnCopySubLink')?.addEventListener('click', () => {
       try {
         if (!subStart.value) {
           showToast('Please select a starting point.', 'warning');
@@ -564,11 +525,14 @@
           `Open today’s reading here:\n${appUrl}\n\n` +
           `Shared from Geeta App`;
 
-        await navigator.clipboard.writeText(message);
-        showToast('Subscription link copied with custom message.', 'success');
+        openShareSheet({
+          title: 'Bhagavad Gita Subscription',
+          text: message,
+          url: appUrl
+        });
       } catch (error) {
         console.error('Copy sub link error:', error);
-        showToast('Failed to copy subscription link.', 'error');
+        showToast('Failed to prepare subscription link.', 'error');
       }
     });
 
@@ -712,7 +676,6 @@
 
     document.getElementById('subFreq').value = freq;
 
-    // Bangkok 21:15 translated to user's local timezone via UTC 14:15
     const targetUTC = new Date();
     targetUTC.setUTCHours(14, 15, 0, 0);
     const localH = String(targetUTC.getHours()).padStart(2, '0');
@@ -722,9 +685,6 @@
     modal.classList.add('active');
   }
 
-  // -------------------------------------------------------
-  // Welcome splash
-  // -------------------------------------------------------
   function injectWelcomeScreen() {
     const html = `
       <div id="welcomeSplash" class="welcome-splash" style="display:none;">
@@ -740,12 +700,8 @@
     document.body.insertAdjacentHTML('beforeend', html);
   }
 
-  // -------------------------------------------------------
-  // Subscription routing
-  // -------------------------------------------------------
   function handleSubscriptionRouting() {
     try {
-      // FIXED BUG: was newSearchParams in old code
       const urlParams = new URLSearchParams(window.location.search);
       const subId = urlParams.get('subId');
 
@@ -839,9 +795,6 @@
     }
   }
 
-  // -------------------------------------------------------
-  // Share sheet
-  // -------------------------------------------------------
   let currentSharePayload = null;
 
   function injectShareSheet() {
@@ -849,7 +802,19 @@
       <div id="shareSheet" class="share-sheet">
         <div class="share-sheet__panel">
           <div class="share-sheet__title">Share</div>
-          <div id="sharePreview" class="share-sheet__preview"></div>
+
+          <div class="share-sheet__layout">
+            <div id="sharePreview" class="share-sheet__preview"></div>
+
+            <div class="share-qr-card">
+              <div class="share-qr-title">Scan QR to open</div>
+              <div class="share-qr-wrap">
+                <canvas id="shareQrCanvas" width="180" height="180"></canvas>
+                <img id="shareQrLogo" class="share-qr-logo" alt="QR Logo" />
+              </div>
+              <div id="shareQrUrl" class="share-qr-url"></div>
+            </div>
+          </div>
 
           <div class="share-grid">
             <button id="shareNativeBtn">📲 Share</button>
@@ -876,10 +841,43 @@
     document.getElementById('shareSheetClose')?.addEventListener('click', closeShareSheet);
   }
 
+  async function renderShareQr(url) {
+    const canvas = document.getElementById('shareQrCanvas');
+    const logo = document.getElementById('shareQrLogo');
+    const urlText = document.getElementById('shareQrUrl');
+    if (!canvas || !window.QRCode) return;
+
+    try {
+      await window.QRCode.toCanvas(canvas, url, {
+        width: 180,
+        margin: 1,
+        errorCorrectionLevel: 'H',
+        color: {
+          dark: '#111827',
+          light: '#ffffff'
+        }
+      });
+
+      if (logo) {
+        logo.src = QR_LOGO_URL;
+      }
+
+      if (urlText) {
+        urlText.textContent = url;
+      }
+    } catch (error) {
+      console.error('QR render error:', error);
+      if (urlText) {
+        urlText.textContent = url;
+      }
+    }
+  }
+
   function openShareSheet({ title, text, url }) {
     currentSharePayload = { title, text, url };
     document.getElementById('sharePreview').textContent = text;
     document.getElementById('shareSheet').classList.add('active');
+    renderShareQr(url);
 
     document.getElementById('shareNativeBtn').onclick = async () => {
       if (!navigator.share) {
@@ -899,7 +897,6 @@
       try {
         await navigator.clipboard.writeText(text);
         showToast('Message copied.', 'success');
-        closeShareSheet();
       } catch (error) {
         console.error('Copy message error:', error);
         showToast('Failed to copy message.', 'error');
@@ -910,7 +907,6 @@
       try {
         await navigator.clipboard.writeText(url);
         showToast('Link copied.', 'success');
-        closeShareSheet();
       } catch (error) {
         console.error('Copy link error:', error);
         showToast('Failed to copy link.', 'error');
@@ -935,9 +931,6 @@
     currentSharePayload = null;
   }
 
-  // -------------------------------------------------------
-  // Karaoke modal
-  // -------------------------------------------------------
   function injectKaraokeModal() {
     const html = `
       <div id="karaokeModal" class="karaoke-modal">
@@ -986,7 +979,6 @@
       const btn = e.currentTarget;
       btn.classList.add('clicked');
       setTimeout(() => btn.classList.remove('clicked'), 180);
-    
       kState.audio.currentTime += 5;
       btn.blur();
     });
