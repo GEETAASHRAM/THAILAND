@@ -1,9 +1,23 @@
+// =========================================================
+// GITA APP ENGINE
+// - Main reading UI
+// - Search
+// - Chapter playback
+// - Subscription modal
+// - Karaoke / presentation mode
+// - Share sheet with QR
+// - PWA install prompt
+// =========================================================
+
 (function () {
   'use strict';
 
   const QR_LOGO_URL =
     'https://raw.githubusercontent.com/GEETAASHRAM/THAILAND/refs/heads/main/gat_library/images/favicon_swamiharihar_ji_maharaj.ico';
 
+  // -------------------------------------------------------
+  // State
+  // -------------------------------------------------------
   const container = document.getElementById('container');
   const searchResults = document.getElementById('searchResults');
   const chapterSelect = document.getElementById('chapterSelect');
@@ -16,6 +30,7 @@
   let currentPlaylist = [];
   let precomputedSubOptions = { chapter: [], verse: [] };
   let deferredPwaPrompt = null;
+  let currentSharePayload = null;
 
   const kState = {
     playlist: [],
@@ -25,21 +40,16 @@
     audio: new Audio()
   };
 
-  window.addEventListener('resize', () => {
-    const content =
-      document.getElementById('kContent') || document.getElementById('karaokeContent');
-    const lyrics = document.getElementById('kLyrics');
-    const english = document.getElementById('kEnglish');
-    if (content && lyrics && english) {
-      fitKaraokeTextToViewport(content, lyrics, english);
-    }
-  });
-    
+  // -------------------------------------------------------
+  // Utility helpers
+  // -------------------------------------------------------
   function escapeHtml(str = '') {
     return String(str)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   function nl2br(str = '') {
@@ -77,9 +87,68 @@
     const shortUrl = src
       ? `<div style="font-size:12px;opacity:.85;margin-top:4px;word-break:break-all;">${escapeHtml(src)}</div>`
       : '';
-    showToast(`Audio could not be loaded. Please check your connection and try again.${shortUrl}`, 'error', 6000);
+    showToast(
+      `Audio could not be loaded. Please check your connection and try again.${shortUrl}`,
+      'error',
+      6000
+    );
   }
 
+  function fitKaraokeTextToViewport(contentEl, lyricsEl, englishEl) {
+    if (!contentEl || !lyricsEl || !englishEl) return;
+
+    // Reset to default sizes first (large by default)
+    lyricsEl.style.fontSize = '';
+    englishEl.style.fontSize = '';
+    lyricsEl.style.lineHeight = '';
+    englishEl.style.lineHeight = '';
+
+    const contentMax = Math.max(220, window.innerHeight - 240);
+
+    let lyricsSize = parseFloat(getComputedStyle(lyricsEl).fontSize) || 44;
+    let englishSize = parseFloat(getComputedStyle(englishEl).fontSize) || 24;
+
+    const minLyrics = 22;
+    const minEnglish = 15;
+
+    let guard = 0;
+    while (contentEl.scrollHeight > contentMax && guard < 18) {
+      if (lyricsSize > minLyrics) {
+        lyricsSize -= 2;
+        lyricsEl.style.fontSize = `${lyricsSize}px`;
+        lyricsEl.style.lineHeight = '1.35';
+      }
+
+      if (contentEl.scrollHeight <= contentMax) break;
+
+      if (englishSize > minEnglish) {
+        englishSize -= 1;
+        englishEl.style.fontSize = `${englishSize}px`;
+        englishEl.style.lineHeight = '1.55';
+      }
+
+      guard++;
+    }
+
+    if (contentEl.scrollHeight > contentMax) {
+      contentEl.style.overflowY = 'auto';
+    } else {
+      contentEl.style.overflowY = 'hidden';
+    }
+  }
+
+  window.addEventListener('resize', () => {
+    const content = document.getElementById('kContent') || document.getElementById('karaokeContent');
+    const lyrics = document.getElementById('kLyrics');
+    const english = document.getElementById('kEnglish');
+    if (content && lyrics && english) {
+      fitKaraokeTextToViewport(content, lyrics, english);
+    }
+  });
+
+  // -------------------------------------------------------
+  // Boot
+  // -------------------------------------------------------
   document.addEventListener('DOMContentLoaded', async () => {
     try {
       initPWAInstallPrompt();
@@ -107,6 +176,9 @@
     }
   });
 
+  // -------------------------------------------------------
+  // Static bindings
+  // -------------------------------------------------------
   function bindStaticEvents() {
     document.getElementById('searchButton')?.addEventListener('click', searchWord);
 
@@ -141,10 +213,17 @@
     });
   }
 
+  // -------------------------------------------------------
+  // PWA install
+  // -------------------------------------------------------
   function initPWAInstallPrompt() {
     setTimeout(() => {
       if (!deferredPwaPrompt && !localStorage.getItem('pwa_help_shown')) {
-        showToast('For faster access, install this app from your browser menu or Add to Home Screen.', 'info', 6000);
+        showToast(
+          'For faster access, install this app from your browser menu or Add to Home Screen.',
+          'info',
+          6000
+        );
         localStorage.setItem('pwa_help_shown', 'true');
       }
     }, 3500);
@@ -181,6 +260,9 @@
     });
   }
 
+  // -------------------------------------------------------
+  // Data precompute
+  // -------------------------------------------------------
   function populateChapterDropdown() {
     const chapters = Array.from(new Set(globalGeetaData.map(item => Number(item.Chapter)))).sort((a, b) => a - b);
     chapterSelect.innerHTML = '';
@@ -220,12 +302,16 @@
     }
   }
 
+  // -------------------------------------------------------
+  // Rendering helpers
+  // -------------------------------------------------------
   function buildVerseCard(item, absoluteIndex, highlightTerm = '') {
     const hasAudio = item.AudioStart !== undefined && Number(item.AudioEnd) > Number(item.AudioStart);
 
     const highlight = text => {
       const safe = nl2br(text || '');
       if (!highlightTerm) return safe;
+
       try {
         const escaped = highlightTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const rx = new RegExp(`(${escaped})`, 'gi');
@@ -254,6 +340,9 @@
     `;
   }
 
+  // -------------------------------------------------------
+  // Chapter load
+  // -------------------------------------------------------
   function clearResults() {
     container.innerHTML = '';
     searchResults.innerHTML = '';
@@ -264,43 +353,6 @@
     stopInlineMonitor();
   }
 
-  function fitKaraokeTextToViewport(contentEl, lyricsEl, englishEl) {
-    if (!contentEl || !lyricsEl || !englishEl) return;
-  
-    // Reset to default large sizes first
-    lyricsEl.style.fontSize = '';
-    englishEl.style.fontSize = '';
-    lyricsEl.style.lineHeight = '';
-    englishEl.style.lineHeight = '';
-  
-    const contentMax = Math.max(220, window.innerHeight - 240);
-  
-    let lyricsSize = parseFloat(getComputedStyle(lyricsEl).fontSize) || 44;
-    let englishSize = parseFloat(getComputedStyle(englishEl).fontSize) || 24;
-  
-    const minLyrics = 22;
-    const minEnglish = 15;
-  
-    let guard = 0;
-    while (contentEl.scrollHeight > contentMax && guard < 18) {
-      if (lyricsSize > minLyrics) {
-        lyricsSize -= 2;
-        lyricsEl.style.fontSize = `${lyricsSize}px`;
-        lyricsEl.style.lineHeight = '1.35';
-      }
-  
-      if (contentEl.scrollHeight <= contentMax) break;
-  
-      if (englishSize > minEnglish) {
-        englishSize -= 1;
-        englishEl.style.fontSize = `${englishSize}px`;
-        englishEl.style.lineHeight = '1.55';
-      }
-  
-      guard++;
-    }
-  }
-    
   function loadChapter() {
     try {
       const selectedChapter = chapterSelect.value;
@@ -355,6 +407,9 @@
     }
   }
 
+  // -------------------------------------------------------
+  // Search
+  // -------------------------------------------------------
   function searchWord() {
     try {
       const term = searchInput.value.toLowerCase().trim();
@@ -408,6 +463,9 @@
     }
   }
 
+  // -------------------------------------------------------
+  // Inline verse playback
+  // -------------------------------------------------------
   function playVerseInline(absoluteIndex) {
     try {
       const verse = globalGeetaData[absoluteIndex];
@@ -451,6 +509,9 @@
     }
   }
 
+  // -------------------------------------------------------
+  // Subscription modal
+  // -------------------------------------------------------
   function injectSubscriptionModal() {
     const html = `
       <div id="subscriptionModal" class="app-modal-overlay">
@@ -459,7 +520,8 @@
 
           <div class="app-modal-title">📅 Daily Gita Subscription</div>
           <div class="app-modal-subtitle">
-            Create a reminder link and add it to your calendar. When the reminder opens the app, the correct reading will appear automatically.
+            Create a reminder link and add it to your calendar. When the reminder opens the app,
+            the correct reading will appear automatically.
           </div>
 
           <div class="form-group">
@@ -671,7 +733,7 @@
 
     function getUTCStartAndEnd() {
       const dateVal = document.getElementById('subDate').value;
-      const timeVal = document.getElementById('subTime').value;
+      const timeVal = document.getElementById('subTime').value || '21:15';
       const localDate = new Date(`${dateVal}T${timeVal}:00`);
 
       const formatUTC = d => d.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
@@ -732,6 +794,9 @@
     modal.classList.add('active');
   }
 
+  // -------------------------------------------------------
+  // Welcome splash
+  // -------------------------------------------------------
   function injectWelcomeScreen() {
     const html = `
       <div id="welcomeSplash" class="welcome-splash" style="display:none;">
@@ -747,6 +812,9 @@
     document.body.insertAdjacentHTML('beforeend', html);
   }
 
+  // -------------------------------------------------------
+  // Subscription routing
+  // -------------------------------------------------------
   function handleSubscriptionRouting() {
     try {
       const urlParams = new URLSearchParams(window.location.search);
@@ -842,8 +910,9 @@
     }
   }
 
-  let currentSharePayload = null;
-
+  // -------------------------------------------------------
+  // Share sheet with QR
+  // -------------------------------------------------------
   function injectShareSheet() {
     const html = `
       <div id="shareSheet" class="share-sheet">
@@ -888,25 +957,70 @@
     document.getElementById('shareSheetClose')?.addEventListener('click', closeShareSheet);
   }
 
+  function getShareQrElements() {
+    return {
+      wrap: document.querySelector('.share-qr-wrap'),
+      canvas: document.getElementById('shareQrCanvas'),
+      logo: document.getElementById('shareQrLogo'),
+      urlText: document.getElementById('shareQrUrl')
+    };
+  }
+
+  function resetShareQrSurface() {
+    const { wrap, canvas } = getShareQrElements();
+    if (!wrap || !canvas) return;
+
+    const legacy = document.getElementById('shareQrLegacy');
+    if (legacy) legacy.remove();
+
+    canvas.style.display = 'block';
+
+    const ctx = canvas.getContext('2d');
+    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
   async function renderShareQr(url) {
-    const canvas = document.getElementById('shareQrCanvas');
-    const logo = document.getElementById('shareQrLogo');
-    const urlText = document.getElementById('shareQrUrl');
-    if (!canvas || !window.QRCode) return;
+    const { wrap, canvas, logo, urlText } = getShareQrElements();
+    if (!wrap || !canvas || !url) return;
+
+    resetShareQrSurface();
 
     try {
-      await window.QRCode.toCanvas(canvas, url, {
-        width: 180,
-        margin: 1,
-        errorCorrectionLevel: 'H',
-        color: {
-          dark: '#111827',
-          light: '#ffffff'
-        }
-      });
+      // Preferred: npm qrcode browser bundle
+      if (window.QRCode && typeof window.QRCode.toCanvas === 'function') {
+        await window.QRCode.toCanvas(canvas, url, {
+          width: 180,
+          margin: 1,
+          errorCorrectionLevel: 'H',
+          color: {
+            dark: '#111827',
+            light: '#ffffff'
+          }
+        });
+      }
+      // Fallback: qrcodejs-style constructor
+      else if (typeof window.QRCode === 'function') {
+        canvas.style.display = 'none';
+
+        const legacy = document.createElement('div');
+        legacy.id = 'shareQrLegacy';
+        wrap.insertBefore(legacy, logo || null);
+
+        new window.QRCode(legacy, {
+          text: url,
+          width: 160,
+          height: 160,
+          colorDark: '#111827',
+          colorLight: '#ffffff',
+          correctLevel: window.QRCode.CorrectLevel ? window.QRCode.CorrectLevel.H : undefined
+        });
+      } else {
+        throw new Error('No compatible QR library detected on the page.');
+      }
 
       if (logo) {
         logo.src = QR_LOGO_URL;
+        logo.style.display = 'block';
       }
 
       if (urlText) {
@@ -914,16 +1028,24 @@
       }
     } catch (error) {
       console.error('QR render error:', error);
+
       if (urlText) {
         urlText.textContent = url;
       }
+
+      showToast('QR could not be generated. Link is still available to copy.', 'warning', 4500);
     }
   }
 
   function openShareSheet({ title, text, url }) {
     currentSharePayload = { title, text, url };
-    document.getElementById('sharePreview').textContent = text;
-    document.getElementById('shareSheet').classList.add('active');
+
+    const preview = document.getElementById('sharePreview');
+    const sheet = document.getElementById('shareSheet');
+    if (!preview || !sheet) return;
+
+    preview.textContent = text;
+    sheet.classList.add('active');
     renderShareQr(url);
 
     document.getElementById('shareNativeBtn').onclick = async () => {
@@ -978,6 +1100,9 @@
     currentSharePayload = null;
   }
 
+  // -------------------------------------------------------
+  // Karaoke modal
+  // -------------------------------------------------------
   function injectKaraokeModal() {
     const html = `
       <div id="karaokeModal" class="karaoke-modal">
@@ -1079,15 +1204,18 @@
     kState.mode = mode;
 
     const modal = document.getElementById('karaokeModal');
-    modal.classList.add('active');
+    if (!modal) return;
 
+    modal.classList.add('active');
     document.getElementById('kControls').style.display = mode === 'verse' ? 'none' : 'flex';
+
     playCurrentKaraoke();
   }
 
   function closeKaraoke() {
     document.getElementById('karaokeModal')?.classList.remove('active');
     kState.audio.pause();
+
     if (kState.animId) {
       cancelAnimationFrame(kState.animId);
       kState.animId = null;
@@ -1110,6 +1238,11 @@
 
       const content = document.getElementById('kContent');
       const manualControls = document.getElementById('kManualControls');
+      const kTitle = document.getElementById('kTitle');
+      const kLyrics = document.getElementById('kLyrics');
+      const kEnglish = document.getElementById('kEnglish');
+
+      if (!content || !manualControls || !kTitle || !kLyrics || !kEnglish) return;
 
       if (kState.animId) {
         cancelAnimationFrame(kState.animId);
@@ -1119,21 +1252,19 @@
       content.classList.add('fade-out');
 
       setTimeout(() => {
-        const kTitle = document.getElementById('kTitle');
-        const kLyrics = document.getElementById('kLyrics');
-        const kEnglish = document.getElementById('kEnglish');
-        
         kTitle.textContent =
           `Chapter ${verse.Chapter}, Verse ${verse.VerseNum}${verse.Topic ? ' — ' + verse.Topic : ''}`;
         kLyrics.innerHTML = nl2br(verse.OriginalText || 'Text Unavailable');
         kEnglish.innerHTML = nl2br(verse.EnglishText || '');
         content.classList.remove('fade-out');
-        
+
         requestAnimationFrame(() => {
           fitKaraokeTextToViewport(content, kLyrics, kEnglish);
         });
 
-        const hasTimestamps = verse.AudioStart !== undefined && Number(verse.AudioEnd) > Number(verse.AudioStart);
+        const hasTimestamps =
+          verse.AudioStart !== undefined && Number(verse.AudioEnd) > Number(verse.AudioStart);
+
         manualControls.style.display = hasTimestamps ? 'none' : 'flex';
 
         if (!verse.AudioFileURL) return;
