@@ -11,14 +11,13 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#f4f6f9" />
 
-  <!-- Deprecated warning fix -->
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
   <link rel="apple-touch-icon" href="gat_library/images/swami_hariharji_with_audio_symbol.png" />
   <link rel="icon" href="gat_library/images/guru_wave_favicon.ico" />
-  
+
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
   <link rel="stylesheet" type="text/css" href="gat_library/css/gat_audio_sync_style.css" />
 </head>
@@ -29,18 +28,19 @@
     <div class="sync-header">
       <a href="index.html" class="btn btn-outline-secondary btn-back-home">← Back to Reader</a>
       <h1 class="sync-title">🎧 Geeta Audio Sync Tool</h1>
+      <div class="sync-header-spacer" aria-hidden="true"></div>
     </div>
-    
+
     <div class="dashboard-grid">
       <div class="card">
-        <h3>Audio Source & Naming</h3>
+        <h3>Audio Source &amp; Naming</h3>
 
-        <div class="input-row">
+        <div class="input-row audio-source-row">
           <div class="select-container">
             <input type="text" id="searchSelect" class="searchable-select" placeholder="Search audio files..." />
 
             <div id="optionsContainer" class="options-container hidden">
-              <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/01%20-%20Introduction.mp3">0.1) Geeta Ashram Mission & Introduction</div>
+              <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/01%20-%20Introduction.mp3">0.1) Geeta Ashram Mission &amp; Introduction</div>
               <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/20%20-%20Geeta%20Mahatmyam.mp3">0.2) Geeta Mahatmyam</div>
               <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/02%20-%20Chapter%201.mp3">1) Geeta Chapter 1</div>
               <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/03%20-%20Chapter%202.mp3">2) Geeta Chapter 2</div>
@@ -68,7 +68,7 @@
           <button type="button" onclick="loadAudio()">Load Audio</button>
         </div>
 
-        <div class="input-row">
+        <div class="input-row naming-row">
           <input type="text" id="prefixInput" placeholder="Prefix (e.g. BG_)" />
           <input type="text" id="suffixInput" placeholder="Suffix (e.g. _EN)" />
         </div>
@@ -79,9 +79,9 @@
       <div class="card">
         <h3>JSON Data Management</h3>
 
-        <div class="input-row">
-          <input type="file" id="loadJsonInput" style="display:none" accept=".json" onchange="loadJsonFile(event)" />
-          <button onclick="document.getElementById('loadJsonInput').click()">Load Local JSON</button>
+        <div class="input-row json-actions-row">
+          <input type="file" id="loadJsonInput" style="display:none" accept=".json,application/json" onchange="loadJsonFile(event)" />
+          <button type="button" onclick="document.getElementById('loadJsonInput').click()">Load Local JSON</button>
 
           <select id="systemJsonSelect" onchange="loadSystemJson(this.value)">
             <option value="">📥 Load System JSON...</option>
@@ -89,9 +89,9 @@
             <option value="data/geeta_twelfth_chapter.json">Geeta Chapter 12</option>
           </select>
 
-          <button onclick="copyShareLink()" class="btn-green">🔗 Share Link</button>
-          <button onclick="copyJsonData()">Copy</button>
-          <button onclick="saveData()">Save</button>
+          <button type="button" onclick="copyShareLink()" class="btn-green">🔗 Share Link</button>
+          <button type="button" onclick="copyJsonData()">Copy</button>
+          <button type="button" onclick="saveData()">Save</button>
         </div>
 
         <textarea id="jsonDataInput" placeholder="JSON output..."></textarea>
@@ -116,7 +116,7 @@
         <input type="text" id="tableSearch" placeholder="Search rows..." />
       </div>
 
-      <div style="overflow-x:auto; padding-bottom:100px;">
+      <div class="timeline-table-wrap">
         <table id="timestampsTable">
           <thead>
             <tr>
@@ -145,6 +145,9 @@
   </div>
 
   <div id="toastRoot" class="toast-root" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- QR library -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
   <script src="gat_library/js/gat_audio_sync_script.js"></script>
 
