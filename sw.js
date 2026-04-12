@@ -1,4 +1,4 @@
-const CACHE_NAME = 'geeta-app-v7';
+const CACHE_NAME = 'geeta-app-v8';
 
 const APP_SHELL = [
   './',
