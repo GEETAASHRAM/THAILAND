@@ -471,17 +471,10 @@ button:disabled {
   align-items: stretch;
 }
 
-/* .audio-source-row {
-  grid-template-columns:
-    minmax(320px, 1.75fr)
-    minmax(220px, 1.1fr)
-    minmax(185px, 0.9fr)
-    minmax(130px, 0.7fr);
-} */
-
 .audio-source-row {
   grid-template-columns: 1fr;
 }
+
 .naming-row {
   grid-template-columns: repeat(2, minmax(220px, 1fr));
   max-width: 700px;
@@ -954,9 +947,7 @@ audio {
   box-sizing: border-box;
 }
 
-/* =========================================================
-   Elegant presentation scrolling fallback
-   ========================================================= */
+/* Elegant presentation scrolling fallback */
 .karaoke-content {
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.28) transparent;
@@ -1448,39 +1439,6 @@ audio {
 /* =========================================================
    Responsive
    ========================================================= */
-@media (min-width: 1101px) {
-  .dashboard-grid {
-    align-items: stretch;
-  }
-
-  .dashboard-grid > .card {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .dashboard-grid > .card > h3 {
-    flex: 0 0 auto;
-  }
-
-  .dashboard-grid > .card .input-row,
-  .dashboard-grid > .card #progressContainer,
-  .dashboard-grid > .card audio,
-  .dashboard-grid > .card textarea {
-    flex: 0 0 auto;
-  }
-
-  /* Let the JSON area expand nicely so both cards feel balanced */
-  .dashboard-grid > .card #jsonDataInput {
-    flex: 1 1 auto;
-    min-height: 300px;
-  }
-
-  /* Keep audio player visually lower so both cards align better */
-  .dashboard-grid > .card #audioPlayer {
-    margin-top: auto;
-  }
-}
 @media (max-width: 1100px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
