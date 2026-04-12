@@ -661,19 +661,25 @@
     };
   }
 
+  // function resetShareQrSurface() {
+  //   const { wrap, canvas } = getShareQrElements();
+  //   if (!wrap || !canvas) return;
+
+  //   const legacy = document.getElementById('shareQrLegacy');
+  //   if (legacy) legacy.remove();
+
+  //   canvas.style.display = 'block';
+
+  //   const ctx = canvas.getContext('2d');
+  //   if (ctx) {
+  //     ctx.clearRect(0, 0, canvas.width, canvas.height);
+  //   }
+  // }
   function resetShareQrSurface() {
-    const { wrap, canvas } = getShareQrElements();
-    if (!wrap || !canvas) return;
-
-    const legacy = document.getElementById('shareQrLegacy');
-    if (legacy) legacy.remove();
-
-    canvas.style.display = 'block';
-
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
+    const { canvas } = getShareQrElements();
+    if (!canvas) return;
+  
+    canvas.innerHTML = ''; // clear QR
   }
 
   async function renderShareQr(url) {
@@ -755,6 +761,11 @@
   }
   
   async function buildShareQrPngBlob() {
+
+     if (!lastRenderedQrUrl) {
+      throw new Error('QR not ready yet.');
+    }
+      
     const container = document.getElementById('shareQrCanvas');
     if (!container) throw new Error('QR container not found.');
   
@@ -767,7 +778,7 @@
       throw new Error('QR element not rendered yet.');
     }
   
-    const size = 180;
+    const size = 512;
   
     const exportCanvas = document.createElement('canvas');
     exportCanvas.width = size;
@@ -816,6 +827,8 @@
   
   async function shareQrImageFile({ title, text }) {
     try {
+      // const blob = await buildShareQrPngBlob();
+      await currentQrRenderPromise;
       const blob = await buildShareQrPngBlob();
       const file = new File([blob], 'gita-qr.png', { type: 'image/png' });
   
@@ -847,6 +860,8 @@
   
   async function copyQrImageToClipboard() {
     try {
+      // const blob = await buildShareQrPngBlob();
+      await currentQrRenderPromise;
       const blob = await buildShareQrPngBlob();
   
       if (!navigator.clipboard || typeof window.ClipboardItem === 'undefined') {
