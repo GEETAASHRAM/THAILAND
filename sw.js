@@ -10,7 +10,13 @@ const APP_SHELL = [
   './gat_library/js/gat_audio_sync_script.js',
   './gat_library/js/json_worker.js',
   './data/geeta_complete.json',
-  './data/geeta_twelfth_chapter.json'
+  './data/geeta_twelfth_chapter.json',
+  './gat_library/images/icon-192x192.png',
+  './gat_library/images/icon-512x512.png',
+  './gat_library/images/swami_hariharji_with_audio_symbol.png',
+  './gat_library/images/favicon_swamiharihar_ji_maharaj.ico',
+  './gat_library/images/guru_wave_favicon.ico',
+  './gat_library/images/swamiharihar_ji_maharaj_transparent.png'
 ];
 
 // ---------------------------------------------------------
