@@ -11,7 +11,6 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#f4f6f9" />
 
-  <!-- Deprecated warning fix -->
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -39,8 +38,8 @@
     </div>
 
     <div class="top-actions mb-3">
-      <button id="btnOpenSubModal" class="btn btn-warning shadow-sm">📅 Custom Subscription</button>
-      <a href="audio_sync.html" class="btn btn-outline-info shadow-sm">🛠️ Audio Sync Tool</a>
+      <button id="btnOpenSubModal" class="btn btn-warning shadow-sm btn-app-action">📅 Custom Subscription</button>
+      <a href="audio_sync.html" class="btn btn-outline-info shadow-sm btn-app-action">🛠️ Audio Sync Tool</a>
     </div>
 
     <div id="filterBox" class="filter-card">
@@ -84,6 +83,9 @@
   </div>
 
   <div id="toastRoot" class="toast-root" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- QR library -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
   <script src="gat_library/js/app.js"></script>
 
