@@ -31,6 +31,9 @@
   let precomputedSubOptions = { chapter: [], verse: [] };
   let deferredPwaPrompt = null;
   let currentSharePayload = null;
+  let lastRenderedQrUrl = '';
+  let currentQrRenderPromise = Promise.resolve();
+
 
   const kState = {
     playlist: [],
@@ -987,60 +990,57 @@
   }
 
   async function renderShareQr(url) {
-    const { wrap, canvas, logo, urlText } = getShareQrElements();
-    if (!wrap || !canvas || !url) return;
+  const wrap = document.querySelector('.share-qr-wrap');
+  const canvas = document.getElementById('shareQrCanvas');
+  const logo = document.getElementById('shareQrLogo');
+  const urlText = document.getElementById('shareQrUrl');
 
-    resetShareQrSurface();
+  if (!wrap || !canvas || !url) return;
 
-    try {
-      if (window.QRCode && typeof window.QRCode.toCanvas === 'function') {
-        await window.QRCode.toCanvas(canvas, url, {
-          width: 180,
-          margin: 1,
-          errorCorrectionLevel: 'H',
-          color: {
-            dark: '#111827',
-            light: '#ffffff'
-          }
-        });
-      } else if (typeof window.QRCode === 'function') {
-        canvas.style.display = 'none';
-
-        const legacy = document.createElement('div');
-        legacy.id = 'shareQrLegacy';
-        wrap.insertBefore(legacy, logo || null);
-
-        new window.QRCode(legacy, {
-          text: url,
-          width: 160,
-          height: 160,
-          colorDark: '#111827',
-          colorLight: '#ffffff',
-          correctLevel: window.QRCode.CorrectLevel ? window.QRCode.CorrectLevel.H : undefined
-        });
-      } else {
-        throw new Error('No compatible QR library detected on the page.');
-      }
-
-      if (logo) {
-        // logo.src = QR_LOGO_URL;
-        logo.src = getQrShareLogoUrl();
-        logo.style.display = 'block';
-      }
-
-      if (urlText) {
-        urlText.textContent = url;
-      }
-    } catch (error) {
-      console.error('QR render error:', error);
-
-      if (urlText) {
-        urlText.textContent = url;
-      }
-
-      showToast('QR could not be generated. Link is still available to copy.', 'warning', 4500);
-    }
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
+
+  try {
+    if (!window.QRCode || typeof window.QRCode.toCanvas !== 'function') {
+      throw new Error('QRCode.toCanvas is not available. Check the QR library script.');
+    }
+
+    // Always render directly to the visible canvas
+    await window.QRCode.toCanvas(canvas, url, {
+      width: 180,
+      margin: 1,
+      errorCorrectionLevel: 'H',
+      color: {
+        dark: '#111827',
+        light: '#ffffff'
+      }
+    });
+
+    lastRenderedQrUrl = url;
+
+    if (logo) {
+      // Use PNG for display/export overlay, not ICO
+      logo.src = 'gat_library/images/swami_hariharji_with_audio_symbol.png';
+      logo.style.display = 'block';
+    }
+
+    if (urlText) {
+      urlText.textContent = url;
+    }
+  } catch (error) {
+    console.error('QR render error:', error);
+
+    lastRenderedQrUrl = '';
+
+    if (urlText) {
+      urlText.textContent = url;
+    }
+
+    showToast('QR could not be generated. Link is still available to copy.', 'warning', 4500);
+  }
+}
   
   function getQrShareLogoUrl() {
     // Use PNG for canvas export, keep .ico only as browser favicon
@@ -1073,38 +1073,22 @@
     ctx.closePath();
   }
   
-  function isCanvasLikelyBlank(canvas) {
-    try {
-      const blank = document.createElement('canvas');
-      blank.width = canvas.width;
-      blank.height = canvas.height;
-      return canvas.toDataURL() === blank.toDataURL();
-    } catch {
-      return false;
-    }
-  }
-  
-  async function ensureQrRenderedForExport() {
-    if (!currentSharePayload?.url) {
-      throw new Error('No current share URL available for QR export.');
-    }
-  
-    const canvas = document.getElementById('shareQrCanvas');
-    if (!canvas) {
-      throw new Error('QR canvas not found.');
-    }
-  
-    if (isCanvasLikelyBlank(canvas)) {
-      await renderShareQr(currentSharePayload.url);
-    }
-  }
-  
   async function buildShareQrPngBlob() {
-    await ensureQrRenderedForExport();
-  
     const canvas = document.getElementById('shareQrCanvas');
     if (!canvas) {
       throw new Error('QR canvas not found.');
+    }
+  
+    // Wait for any pending QR rendering
+    await currentQrRenderPromise;
+  
+    // Re-render if URL changed or nothing was rendered
+    if (!currentSharePayload?.url) {
+      throw new Error('No current share URL available.');
+    }
+  
+    if (lastRenderedQrUrl !== currentSharePayload.url) {
+      await renderShareQr(currentSharePayload.url);
     }
   
     const exportCanvas = document.createElement('canvas');
@@ -1116,16 +1100,16 @@
       throw new Error('Canvas 2D context is not available.');
     }
   
-    // White background
+    // White background first
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
   
-    // Draw QR itself
+    // Draw actual QR canvas
     ctx.drawImage(canvas, 0, 0, exportCanvas.width, exportCanvas.height);
   
-    // Draw center logo as PNG
+    // Overlay PNG center logo
     try {
-      const logoImg = await loadImageForCanvas(getQrShareLogoUrl());
+      const logoImg = await loadImageForCanvas('gat_library/images/swami_hariharji_with_audio_symbol.png');
   
       const logoSize = Math.round(exportCanvas.width * 0.22);
       const x = Math.round((exportCanvas.width - logoSize) / 2);
@@ -1139,13 +1123,13 @@
   
       ctx.drawImage(logoImg, x, y, logoSize, logoSize);
     } catch (logoError) {
-      console.warn('Logo could not be embedded into shared QR image:', logoError);
+      console.warn('Logo overlay warning:', logoError);
     }
   
     return await new Promise((resolve, reject) => {
       exportCanvas.toBlob(blob => {
         if (blob) resolve(blob);
-        else reject(new Error('Failed to convert QR canvas to PNG blob.'));
+        else reject(new Error('Failed to convert QR to PNG.'));
       }, 'image/png');
     });
   }
@@ -1167,7 +1151,6 @@
         return;
       }
   
-      // fallback to download
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = 'gita-qr.png';
@@ -1212,7 +1195,8 @@
 
     preview.textContent = text;
     sheet.classList.add('active');
-    renderShareQr(url);
+    // renderShareQr(url);
+    currentQrRenderPromise = renderShareQr(url);
 
     document.getElementById('shareNativeBtn').onclick = async () => {
       if (!navigator.share) {
