@@ -11,7 +11,12 @@
   --warning: #ffc107;
   --danger: #dc3545;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-soft: 0 6px 20px rgba(0, 0, 0, 0.06);
   --radius: 16px;
+  --control-h: 42px;
+  --control-h-sm: 36px;
+  --control-font: 15px;
+  --control-font-sm: 14px;
 }
 
 *,
@@ -32,6 +37,8 @@ body {
   margin: 0;
   padding: 0;
   color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 .app-shell,
@@ -44,6 +51,12 @@ body {
   padding-bottom: 110px;
 }
 
+.page-wrap {
+  max-width: 1640px;
+  margin: 0 auto;
+  padding: 16px 16px 120px;
+}
+
 h1,
 h2,
 h3,
@@ -53,49 +66,102 @@ h4 {
 
 .app-title,
 .sync-title {
-  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-size: clamp(1.55rem, 2.5vw, 2.2rem);
   font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 0;
 }
 
+/* =========================================================
+   Header / top layout
+   ========================================================= */
 .sync-header {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.sync-title {
+  text-align: center;
+  margin: 0;
+}
+
+.sync-header-spacer {
+  width: 1px;
+  height: 1px;
 }
 
 .btn-back-home {
   width: auto;
-  min-width: 150px;
+  min-width: 148px;
   padding: 8px 14px;
+  white-space: nowrap;
 }
 
 /* =========================================================
-   #1 – Buttons too tall on mobile
-   ---------------------------------------------------------
-   Reason:
-   - Bootstrap + emoji + default line-height + min-height
-   Fix:
-   - lower padding on small screens
-   - consistent line-height
-   - remove forced large min-height
+   Generic controls
    ========================================================= */
 button,
 .btn,
 input,
 select,
 textarea {
-  font-size: 16px;
+  font-size: var(--control-font);
   line-height: 1.2;
 }
 
 button,
 .btn {
   padding: 10px 14px;
-  min-height: 42px;
+  min-height: var(--control-h);
   border-radius: 12px;
+}
+
+input,
+select,
+textarea {
+  border-radius: 10px;
+  border: 1px solid #d7dde5;
+  width: 100%;
+  min-width: 0;
+}
+
+input,
+select {
+  min-height: var(--control-h);
+  padding: 9px 12px;
+  background: #fff;
+}
+
+textarea {
+  padding: 12px;
+}
+
+button {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+button:hover {
+  background: var(--primary-dark);
+}
+
+button:disabled {
+  background: #999;
+  cursor: not-allowed;
+}
+
+.btn-green {
+  background: var(--success);
+}
+
+.btn-green:hover {
+  background: #218838;
 }
 
 .card,
@@ -157,6 +223,13 @@ button,
   flex: 1 1 220px;
 }
 
+.btn-app-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
 .action-cluster {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -167,6 +240,9 @@ button,
   margin-top: 20px;
 }
 
+/* =========================================================
+   Reader cards
+   ========================================================= */
 .verse {
   margin-bottom: 16px;
   padding: 16px;
@@ -191,12 +267,6 @@ button,
   font-weight: 700;
 }
 
-/* =========================================================
-   #2 – Speaker icon oval issue
-   ---------------------------------------------------------
-   Bootstrap button styles were making it oval on mobile.
-   Dedicated class keeps it perfectly circular.
-   ========================================================= */
 .speaker-btn {
   width: 38px;
   height: 38px;
@@ -260,18 +330,26 @@ button,
   padding: 0 2px;
 }
 
-/* ================= GRID LAYOUT ================= */
+/* =========================================================
+   Dashboard / grid
+   ========================================================= */
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 15px;
   max-width: 1600px;
   margin: 0 auto;
+  align-items: start;
 }
 
 .timeline-card {
   max-width: 1600px;
   margin: 15px auto;
+}
+
+.timeline-table-wrap {
+  overflow-x: auto;
+  padding-bottom: 100px;
 }
 
 .timeline-search-wrap {
@@ -289,28 +367,54 @@ button,
   pointer-events: none;
 }
 
-/* ================= INPUT LAYOUT ================= */
+/* =========================================================
+   Input row system
+   ========================================================= */
 .input-row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 10px;
   margin: 10px 0;
   align-items: stretch;
 }
 
-.input-row > * {
-  flex: 1 1 220px;
+.audio-source-row {
+  grid-template-columns:
+    minmax(320px, 1.75fr)
+    minmax(220px, 1.1fr)
+    minmax(185px, 0.9fr)
+    minmax(130px, 0.7fr);
 }
 
-/* ================= FORM ELEMENTS ================= */
-input,
-textarea,
-button,
-select {
-  border-radius: 10px;
-  border: 1px solid #d7dde5;
-  box-sizing: border-box;
-  width: 100%;
+.naming-row {
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  max-width: 700px;
+}
+
+.json-actions-row {
+  grid-template-columns:
+    minmax(150px, 1fr)
+    minmax(210px, 1.2fr)
+    minmax(140px, 0.95fr)
+    minmax(110px, 0.7fr)
+    minmax(110px, 0.7fr);
+}
+
+/* =========================================================
+   Audio tool controls
+   ========================================================= */
+.sync-page .input-row input,
+.sync-page .input-row select,
+.sync-page .input-row button,
+.sync-page .searchable-select {
+  min-height: var(--control-h);
+  height: auto;
+  padding: 9px 12px;
+  font-size: 14px;
+}
+
+.sync-page #prefixInput,
+.sync-page #suffixInput {
+  min-width: 0;
 }
 
 textarea#jsonDataInput {
@@ -320,43 +424,57 @@ textarea#jsonDataInput {
   resize: vertical;
 }
 
-button {
-  background: var(--primary);
-  color: #fff;
+/* =========================================================
+   File input – fixed PC overflow
+   ========================================================= */
+input[type="file"] {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: #fff;
+  padding: 6px 8px;
+}
+
+input[type="file"]::file-selector-button {
   border: none;
+  background: #eaf3ff;
+  color: #0d5ecc;
+  padding: 7px 10px;
+  border-radius: 8px;
+  margin-right: 10px;
   cursor: pointer;
-  transition: 0.2s ease;
+  font-weight: 600;
 }
 
-button:hover {
-  background: var(--primary-dark);
+input[type="file"]::-webkit-file-upload-button {
+  border: none;
+  background: #eaf3ff;
+  color: #0d5ecc;
+  padding: 7px 10px;
+  border-radius: 8px;
+  margin-right: 10px;
+  cursor: pointer;
+  font-weight: 600;
 }
 
-button:disabled {
-  background: #999;
-  cursor: not-allowed;
-}
-
-.btn-green {
-  background: var(--success);
-}
-
-/* ================= DROPDOWN ================= */
+/* =========================================================
+   Searchable dropdown – fixed mobile offset
+   ========================================================= */
 .select-container {
   position: relative;
   width: 100%;
-  flex: 2 1 420px; /* wider on desktop */
-  min-width: 320px;
+  min-width: 0;
 }
 
 .searchable-select {
   width: 100%;
-  min-height: 44px;
+  min-height: var(--control-h);
   padding: 10px 14px;
   border: 2px solid var(--primary);
   border-radius: 12px;
   background: #fff;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.14);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
 }
 
 .options-container {
@@ -364,26 +482,30 @@ button:disabled {
   top: calc(100% + 8px);
   left: 0;
   right: 0;
+  width: 100%;
+  max-width: 100%;
   background: white;
   border: 1px solid #ddd;
   max-height: 260px;
   overflow-y: auto;
-  width: 100%;
   z-index: 3000;
   border-radius: 12px;
-  box-shadow: 0 12px 28px rgba(0,0,0,0.14);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
 }
 
 .options-container div {
   padding: 10px 12px;
   cursor: pointer;
+  word-break: break-word;
 }
 
 .options-container div:hover {
   background: #f0f4f8;
 }
 
-/* ================= TABLE ================= */
+/* =========================================================
+   Table
+   ========================================================= */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -449,11 +571,10 @@ table tbody tr td textarea.lyricsInput {
   padding: 12px 16px 12px 42px;
   border-radius: 16px;
   border: 1px solid #cfe2ff;
-  background:
-    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
   box-shadow:
-    0 0 0 1px rgba(0,123,255,0.05),
-    0 10px 24px rgba(0,123,255,0.08);
+    0 0 0 1px rgba(0, 123, 255, 0.05),
+    0 10px 24px rgba(0, 123, 255, 0.08);
   outline: none;
   transition: all 0.25s ease;
 }
@@ -461,11 +582,14 @@ table tbody tr td textarea.lyricsInput {
 #tableSearch:focus {
   border-color: #66b3ff;
   box-shadow:
-    0 0 0 4px rgba(0,123,255,0.12),
-    0 10px 26px rgba(0,123,255,0.14);
+    0 0 0 4px rgba(0, 123, 255, 0.12),
+    0 10px 26px rgba(0, 123, 255, 0.14);
   background: #fff;
 }
 
+/* =========================================================
+   Progress / misc
+   ========================================================= */
 .progress-bg {
   background: #ddd;
   height: 10px;
@@ -512,7 +636,7 @@ audio {
 }
 
 /* =========================================================
-   Elegant modal system for subscription / share sheets
+   Modal system
    ========================================================= */
 .app-modal-overlay {
   position: fixed;
@@ -597,7 +721,9 @@ audio {
   gap: 10px;
 }
 
-/* ================= KARAOKE MODAL ================= */
+/* =========================================================
+   Karaoke / presentation
+   ========================================================= */
 .karaoke-modal {
   position: fixed;
   inset: 0;
@@ -623,11 +749,6 @@ audio {
   pointer-events: auto;
 }
 
-/* =========================================================
-   #3 – close and share button overlap in presentation mode
-   ---------------------------------------------------------
-   Separate fixed anchors and safe-area aware offsets
-   ========================================================= */
 .k-close-btn {
   position: absolute;
   top: max(12px, env(safe-area-inset-top));
@@ -794,7 +915,9 @@ audio {
   font-weight: 700;
 }
 
-/* ================= WELCOME SPLASH ================= */
+/* =========================================================
+   Welcome splash
+   ========================================================= */
 .welcome-splash {
   position: fixed;
   inset: 0;
@@ -850,7 +973,9 @@ audio {
   margin-top: 18px;
 }
 
-/* ================= PWA TOAST ================= */
+/* =========================================================
+   PWA toast
+   ========================================================= */
 .pwa-toast {
   position: fixed;
   bottom: calc(16px + env(safe-area-inset-bottom));
@@ -900,7 +1025,9 @@ audio {
   line-height: 1;
 }
 
-/* ================= APP TOAST ================= */
+/* =========================================================
+   App toast
+   ========================================================= */
 .toast-root {
   position: fixed;
   right: 12px;
@@ -946,7 +1073,9 @@ audio {
   font-size: 18px;
 }
 
-/* ================= SHARE SHEET ================= */
+/* =========================================================
+   Share sheet with QR
+   ========================================================= */
 .share-sheet {
   position: fixed;
   inset: 0;
@@ -963,7 +1092,7 @@ audio {
 }
 
 .share-sheet__panel {
-  width: min(100%, 560px);
+  width: min(100%, 760px);
   background: white;
   border-radius: 24px 24px 0 0;
   padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
@@ -976,6 +1105,13 @@ audio {
   font-size: 1.1rem;
 }
 
+.share-sheet__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 16px;
+  align-items: start;
+}
+
 .share-sheet__preview {
   font-size: 0.95rem;
   color: #4b5563;
@@ -983,14 +1119,71 @@ audio {
   border: 1px solid #e5e7eb;
   border-radius: 14px;
   padding: 12px;
-  max-height: 120px;
+  max-height: 180px;
   overflow: auto;
   white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.share-qr-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 12px;
+  background: #fbfdff;
+  box-shadow: var(--shadow-soft);
+}
+
+.share-qr-title {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 10px;
+}
+
+.share-qr-wrap {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  margin: 0 auto;
+  border-radius: 16px;
+  background: white;
+  display: grid;
+  place-items: center;
+  box-shadow: inset 0 0 0 1px #eef2f7;
+}
+
+.share-qr-wrap canvas {
+  width: 160px !important;
+  height: 160px !important;
+  display: block;
+}
+
+.share-qr-logo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 12px;
+  background: white;
+  padding: 5px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.14);
+}
+
+.share-qr-url {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 11px;
+  color: #64748b;
+  word-break: break-all;
 }
 
 .share-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0,1fr));
+  grid-template-columns: repeat(3, minmax(0,1fr));
   gap: 10px;
   margin-top: 14px;
 }
@@ -1005,7 +1198,9 @@ audio {
   color: #111827;
 }
 
-/* ================= FLOATING BAR ================= */
+/* =========================================================
+   Floating bar
+   ========================================================= */
 .floating-bar {
   position: fixed;
   bottom: calc(18px + env(safe-area-inset-bottom));
@@ -1060,26 +1255,49 @@ audio {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ================= RESPONSIVE ================= */
+/* =========================================================
+   Responsive
+   ========================================================= */
 @media (max-width: 1100px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
-}
 
-@media (min-width: 992px) {
-  .card:first-child .input-row {
-    display: grid;
-    grid-template-columns: minmax(340px, 1.4fr) minmax(220px, 1fr) minmax(180px, 0.9fr) 160px;
-    gap: 10px;
-    align-items: stretch;
+  .audio-source-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .audio-source-row .select-container {
+    grid-column: 1 / -1;
+  }
+
+  .json-actions-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .json-actions-row > :nth-child(2) {
+    grid-column: 1 / -1;
   }
 }
 
 @media (max-width: 768px) {
-  .input-row {
-    flex-direction: column;
-    align-items: stretch;
+  .sync-header {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .sync-title {
+    text-align: left;
+    margin-top: 2px;
+  }
+
+  .sync-header-spacer {
+    display: none;
+  }
+
+  .btn-back-home {
+    width: auto;
+    justify-self: start;
   }
 
   .action-cluster {
@@ -1088,6 +1306,10 @@ audio {
 
   .top-actions {
     flex-direction: column;
+  }
+
+  .top-actions > * {
+    flex: 1 1 auto;
   }
 
   table {
@@ -1099,16 +1321,42 @@ audio {
     max-height: calc(100vh - 220px);
     padding-top: 82px;
   }
+
+  .audio-source-row,
+  .json-actions-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .audio-source-row .select-container,
+  .audio-source-row #fileUrlInput,
+  .json-actions-row #systemJsonSelect {
+    grid-column: 1 / -1;
+  }
+
+  .share-sheet__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .share-qr-card {
+    max-width: 260px;
+    margin: 0 auto;
+  }
 }
 
 @media (max-width: 600px) {
-  /* #1 mobile button height */
   button,
   .btn {
     padding: 7px 12px !important;
-    min-height: 36px !important;
-    font-size: 14px !important;
+    min-height: var(--control-h-sm) !important;
+    font-size: var(--control-font-sm) !important;
     line-height: 1.15 !important;
+  }
+
+  input,
+  select {
+    min-height: var(--control-h-sm) !important;
+    padding: 7px 10px !important;
+    font-size: var(--control-font-sm) !important;
   }
 
   .filter-card,
@@ -1188,71 +1436,76 @@ audio {
     min-width: 36px;
     min-height: 36px;
   }
-  
-/* Compact controls in audio_sync.html */
-  .sync-page .input-row > input,
-  .sync-page .input-row > select,
-  .sync-page .input-row > button,
-  .sync-page .input-row > .btn-green,
-  /* .sync-page .input-row > .select-container, */
-  .sync-page #fileUrlInput,
-  .sync-page #fileInput,
-  .sync-page #prefixInput,
-  .sync-page #suffixInput,
-  .sync-page #systemJsonSelect,
-  .sync-page #searchSelect {
-    min-height: 36px !important;
-    height: 36px !important;
-    padding: 6px 10px !important;
-    font-size: 14px !important;
-    line-height: 1.15 !important;
-    border-radius: 10px !important;
-  }
 
-  /* Let file input breathe a bit, but not jumbo */
-  .sync-page #fileInput {
-    min-height: 36px !important;
-    height: auto !important;
-    padding-top: 5px !important;
-    padding-bottom: 5px !important;
-  }
-
-  /* Buttons row not jumbo */
-  .sync-page .input-row button {
-    min-height: 36px !important;
-    padding: 6px 10px !important;
-  }
-
-  /* keep mobile compact without making desktop tiny */
-  .sync-page .input-row button,
-  .sync-page .input-row input,
-  .sync-page .input-row select {
-    transition: all 0.2s ease;
-  }
-  
-  .sync-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
   .btn-back-home {
-    width: 100%;
-    min-height: 36px !important;
+    min-height: var(--control-h-sm) !important;
     padding: 6px 10px !important;
   }
 
-  
- .app-shell .top-actions .btn,
-  .app-shell .top-actions a.btn {
-    min-height: 36px !important;
-    padding: 7px 12px !important;
+  .sync-page .input-row input,
+  .sync-page .input-row select,
+  .sync-page .input-row button,
+  .sync-page .searchable-select {
+    min-height: var(--control-h-sm) !important;
+    padding: 6px 10px !important;
     font-size: 14px !important;
     line-height: 1.15 !important;
     border-radius: 10px !important;
+  }
+
+  .sync-page #fileInput {
+    min-height: var(--control-h-sm) !important;
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+  }
+
+  .audio-source-row,
+  .json-actions-row,
+  .naming-row {
+    grid-template-columns: 1fr;
+  }
+
+  .audio-source-row .select-container,
+  .audio-source-row #fileUrlInput,
+  .json-actions-row #systemJsonSelect {
+    grid-column: auto;
+  }
+
+  .app-shell .top-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
   }
 
   .app-shell .top-actions .btn,
   .app-shell .top-actions a.btn {
-    width: auto;
+    min-height: var(--control-h-sm) !important;
+    padding: 7px 10px !important;
+    font-size: 14px !important;
+    line-height: 1.15 !important;
+    border-radius: 10px !important;
+    width: 100%;
+    margin: 0;
+  }
+
+  .share-qr-wrap {
+    width: 170px;
+    height: 170px;
+  }
+
+  .share-qr-wrap canvas {
+    width: 150px !important;
+    height: 150px !important;
+  }
+
+  .share-qr-logo {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+@media (max-width: 420px) {
+  .app-shell .top-actions {
+    grid-template-columns: 1fr;
   }
 }
