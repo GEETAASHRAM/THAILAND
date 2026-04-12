@@ -90,44 +90,49 @@
     </div>
 
     <!-- Results -->
-    <div class="row justify-content-center mt-4">
-      <</div>
+  <div class="row justify-content-center mt-4">
+    <div class="col-xl-9 col-lg-10 col-12">
+      <div class="result-container" id="searchResults"></div>
+    </div>
+    <div class="col-xl-9 col-lg-10 col-12">
+      <div class="result-container" id="container"></div>
     </div>
   </div>
+</div>
 
-  <!-- PWA Install Toast -->
-  <div id="pwaInstallToast" class="pwa-toast" style="display:none;">
-    <p class="pwa-toast-text">
-      Install the Gita App on your Home Screen for faster access.
-    </p>
-    <button id="btnInstallPwa" class="pwa-btn-install">Install</button>
-    <button
-      id="btnClosePwaToast"
-      class="pwa-btn-close"
-      aria-label="Close"
-    >
-      ×
-    </button>
-  </div>
+<!-- PWA Install Toast -->
+<div id="pwaInstallToast" class="pwa-toast" style="display:none;">
+  <p class="pwa-toast-text">
+    Install the Gita App on your Home Screen for faster access.
+  </p>
+  <button id="btnInstallPwa" class="pwa-btn-install">Install</button>
+  <button
+    id="btnClosePwaToast"
+    class="pwa-btn-close"
+    aria-label="Close"
+  >
+    ×
+  </button>
+</div>
 
-  <!-- Toast Root -->
-  <div id="toastRoot" class="toast-root" aria-live="polite" aria-atomic="true"></div>
+<!-- Toast Root -->
+<div id="toastRoot" class="toast-root" aria-live="polite" aria-atomic="true"></div>
 
-  <!-- QR Code Library -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode/"/script>
+<!-- QR Code Library -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode/"></script>
 
-  <!-- Your App Logic -->
-  gat_library/js/app.js</script>
+<!-- Your App Logic -->
+gat_library/js/app.jsscript>
 
-  <!-- Service Worker -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(err => {
-          console.error('PWA SW Registration failed:', err);
-        });
+<!-- Service Worker -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(err => {
+        console.error('PWA SW Registration failed:', err);
       });
-    }
-  </script>
+    });
+  }
+</script>
 </body>
 </html>
