@@ -1434,6 +1434,108 @@ audio {
 }
 
 /* =========================================================
+   Share sheet polish: QR actions outside QR image
+   + preview same height as QR card
+   ========================================================= */
+
+/* Make both sides of the share sheet equal height on desktop */
+.share-sheet__layout {
+  align-items: stretch;
+}
+
+/* Left preview should stretch to same height as QR card */
+.share-sheet__preview {
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+  overflow: auto;
+  display: block;
+}
+
+/* QR card becomes a vertical flex card */
+.share-qr-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Top row: title left, icons right */
+.share-qr-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+/* Keep title neat and prevent overlap */
+.share-qr-title {
+  margin-bottom: 0;
+  text-align: left;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* QR actions now live outside QR square */
+.share-qr-actions {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Small icon buttons */
+.share-qr-mini-btn {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: rgba(255, 255, 255, 0.96);
+  color: #111827;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.10);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.share-qr-mini-btn:hover {
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+/* Keep QR centered inside its card */
+.share-qr-wrap {
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+/* URL stays pushed to bottom nicely */
+.share-qr-url {
+  margin-top: 12px;
+}
+
+/* Mobile: stacked layout still looks good */
+@media (max-width: 768px) {
+  .share-sheet__layout {
+    align-items: start;
+  }
+
+  .share-sheet__preview {
+    height: auto;
+  }
+
+  .share-qr-card {
+    height: auto;
+  }
+}
+
+/* =========================================================
    Floating bar
    ========================================================= */
 .floating-bar {
