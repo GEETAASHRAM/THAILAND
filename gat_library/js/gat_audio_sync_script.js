@@ -1,9 +1,23 @@
+// =========================================================
+// GEETA AUDIO SYNC TOOL
+// - Large JSON parsing via Worker
+// - Batched row rendering
+// - Global HTML handlers exposed safely
+// - Presentation mode
+// - Share sheet with QR
+// - Elegant busy overlay
+// - Audio error toast
+// =========================================================
+
 (function () {
   'use strict';
 
   const QR_LOGO_URL =
     'https://raw.githubusercontent.com/GEETAASHRAM/THAILAND/refs/heads/main/gat_library/images/favicon_swamiharihar_ji_maharaj.ico';
 
+  // -------------------------------------------------------
+  // Global helper for strict chunk bounds
+  // -------------------------------------------------------
   window.enforceChunkBounds = function (audioElem, start, end) {
     if (!audioElem) return;
     if (end > 0 && audioElem.currentTime >= end) {
@@ -12,16 +26,9 @@
     }
   };
 
-  window.addEventListener('resize', () => {
-    const content =
-      document.getElementById('kContent') || document.getElementById('karaokeContent');
-    const lyrics = document.getElementById('kLyrics');
-    const english = document.getElementById('kEnglish');
-    if (content && lyrics && english) {
-      fitKaraokeTextToViewport(content, lyrics, english);
-    }
-  });
-
+  // -------------------------------------------------------
+  // State
+  // -------------------------------------------------------
   let startTime = null;
   let activeVerseIndex = 0;
   let isGeetaMode = false;
@@ -54,6 +61,9 @@
   let jsonWorker = null;
   let currentSharePayload = null;
 
+  // -------------------------------------------------------
+  // Utility
+  // -------------------------------------------------------
   function safeNum(v) {
     const n = parseFloat(v);
     return Number.isFinite(n) ? n : 0;
@@ -63,7 +73,9 @@
     return String(str)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   function nl2br(str = '') {
@@ -100,29 +112,18 @@
     window.setTimeout(cleanup, timeout);
   }
 
-  function setLoading(flag, text = 'Loading large JSON... Please wait.') {
-    const loadingIndicator = document.getElementById('loadingIndicator');
-    if (loadingIndicator) {
-      loadingIndicator.textContent = text;
-      loadingIndicator.classList.toggle('hidden', !flag);
-    }
-  
-    if (flag) showBusyOverlay(text);
-    else hideBusyOverlay();
-  }
-
   function showBusyOverlay(message = 'Loading...') {
     const overlay = document.getElementById('busyOverlay');
     const text = document.getElementById('busyText');
     if (text) text.textContent = message;
     if (overlay) overlay.classList.remove('hidden');
   }
-  
+
   function hideBusyOverlay() {
     const overlay = document.getElementById('busyOverlay');
     if (overlay) overlay.classList.add('hidden');
   }
-  
+
   function idle(fn, timeout = 500) {
     if ('requestIdleCallback' in window) {
       return window.requestIdleCallback(fn, { timeout });
@@ -130,6 +131,76 @@
     return setTimeout(fn, 60);
   }
 
+  function setLoading(flag, text = 'Loading large JSON... Please wait.') {
+    const loadingIndicator = document.getElementById('loadingIndicator');
+
+    if (loadingIndicator) {
+      loadingIndicator.textContent = text;
+      loadingIndicator.classList.toggle('hidden', !flag);
+    }
+
+    if (flag) {
+      showBusyOverlay(text);
+    } else {
+      hideBusyOverlay();
+    }
+  }
+
+  function fitKaraokeTextToViewport(contentEl, lyricsEl, englishEl) {
+    if (!contentEl || !lyricsEl || !englishEl) return;
+
+    // Reset to default sizes first (large by default)
+    lyricsEl.style.fontSize = '';
+    englishEl.style.fontSize = '';
+    lyricsEl.style.lineHeight = '';
+    englishEl.style.lineHeight = '';
+
+    const contentMax = Math.max(220, window.innerHeight - 240);
+
+    let lyricsSize = parseFloat(getComputedStyle(lyricsEl).fontSize) || 44;
+    let englishSize = parseFloat(getComputedStyle(englishEl).fontSize) || 24;
+
+    const minLyrics = 22;
+    const minEnglish = 15;
+
+    let guard = 0;
+    while (contentEl.scrollHeight > contentMax && guard < 18) {
+      if (lyricsSize > minLyrics) {
+        lyricsSize -= 2;
+        lyricsEl.style.fontSize = `${lyricsSize}px`;
+        lyricsEl.style.lineHeight = '1.35';
+      }
+
+      if (contentEl.scrollHeight <= contentMax) break;
+
+      if (englishSize > minEnglish) {
+        englishSize -= 1;
+        englishEl.style.fontSize = `${englishSize}px`;
+        englishEl.style.lineHeight = '1.55';
+      }
+
+      guard++;
+    }
+
+    if (contentEl.scrollHeight > contentMax) {
+      contentEl.style.overflowY = 'auto';
+    } else {
+      contentEl.style.overflowY = 'hidden';
+    }
+  }
+
+  window.addEventListener('resize', () => {
+    const content = document.getElementById('karaokeContent') || document.getElementById('kContent');
+    const lyrics = document.getElementById('kLyrics');
+    const english = document.getElementById('kEnglish');
+    if (content && lyrics && english) {
+      fitKaraokeTextToViewport(content, lyrics, english);
+    }
+  });
+
+  // -------------------------------------------------------
+  // JSON worker
+  // -------------------------------------------------------
   function initWorker() {
     try {
       if ('Worker' in window) {
@@ -174,6 +245,9 @@
     });
   }
 
+  // -------------------------------------------------------
+  // DOM caching
+  // -------------------------------------------------------
   function cacheElements() {
     audioPlayer = document.getElementById('audioPlayer');
     tableBody = document.querySelector('#timestampsTable tbody');
@@ -200,43 +274,9 @@
     }
   }
 
-  function fitKaraokeTextToViewport(contentEl, lyricsEl, englishEl) {
-    if (!contentEl || !lyricsEl || !englishEl) return;
-  
-    // Reset to default large sizes first
-    lyricsEl.style.fontSize = '';
-    englishEl.style.fontSize = '';
-    lyricsEl.style.lineHeight = '';
-    englishEl.style.lineHeight = '';
-  
-    const contentMax = Math.max(220, window.innerHeight - 240);
-  
-    let lyricsSize = parseFloat(getComputedStyle(lyricsEl).fontSize) || 44;
-    let englishSize = parseFloat(getComputedStyle(englishEl).fontSize) || 24;
-  
-    const minLyrics = 22;
-    const minEnglish = 15;
-  
-    let guard = 0;
-    while (contentEl.scrollHeight > contentMax && guard < 18) {
-      if (lyricsSize > minLyrics) {
-        lyricsSize -= 2;
-        lyricsEl.style.fontSize = `${lyricsSize}px`;
-        lyricsEl.style.lineHeight = '1.35';
-      }
-  
-      if (contentEl.scrollHeight <= contentMax) break;
-  
-      if (englishSize > minEnglish) {
-        englishSize -= 1;
-        englishEl.style.fontSize = `${englishSize}px`;
-        englishEl.style.lineHeight = '1.55';
-      }
-  
-      guard++;
-    }
-  }
-
+  // -------------------------------------------------------
+  // Global functions exposed for inline HTML handlers
+  // -------------------------------------------------------
   async function loadAudio() {
     try {
       if ((!fileUrlInput || !fileUrlInput.value) && (!fileInput || !fileInput.files.length)) {
@@ -257,7 +297,7 @@
         updateProgress();
       };
 
-      if (fileUrlInput && fileUrlInput.value) {
+      if (fileUrlInput && fileUrlInput.value.trim()) {
         audioPlayer.src = fileUrlInput.value.trim();
         audioPlayer.load();
       } else if (fileInput && fileInput.files.length) {
@@ -297,6 +337,7 @@
     } catch (error) {
       console.error('loadSystemJson error:', error);
       showToast(`Failed to load ${filePath}.`, 'error', 5000);
+
       const select = document.getElementById('systemJsonSelect');
       if (select) select.selectedIndex = 0;
     } finally {
@@ -425,6 +466,7 @@
     }
   }
 
+  // Expose globals for inline HTML handlers
   window.loadAudio = loadAudio;
   window.loadSystemJson = loadSystemJson;
   window.loadJsonFile = loadJsonFile;
@@ -433,6 +475,9 @@
   window.copyJsonData = copyJsonData;
   window.saveData = saveData;
 
+  // -------------------------------------------------------
+  // Boot
+  // -------------------------------------------------------
   document.addEventListener('DOMContentLoaded', () => {
     try {
       cacheElements();
@@ -466,6 +511,9 @@
     }
   });
 
+  // -------------------------------------------------------
+  // Share sheet with QR
+  // -------------------------------------------------------
   function injectShareSheet() {
     const html = `
       <div id="shareSheet" class="share-sheet">
@@ -510,35 +558,97 @@
     document.getElementById('shareSheetClose')?.addEventListener('click', closeShareSheet);
   }
 
+  function getShareQrElements() {
+    return {
+      wrap: document.querySelector('.share-qr-wrap'),
+      canvas: document.getElementById('shareQrCanvas'),
+      logo: document.getElementById('shareQrLogo'),
+      urlText: document.getElementById('shareQrUrl')
+    };
+  }
+
+  function resetShareQrSurface() {
+    const { wrap, canvas } = getShareQrElements();
+    if (!wrap || !canvas) return;
+
+    const legacy = document.getElementById('shareQrLegacy');
+    if (legacy) legacy.remove();
+
+    canvas.style.display = 'block';
+
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }
+
   async function renderShareQr(url) {
-    const canvas = document.getElementById('shareQrCanvas');
-    const logo = document.getElementById('shareQrLogo');
-    const urlText = document.getElementById('shareQrUrl');
-    if (!canvas || !window.QRCode) return;
+    const { wrap, canvas, logo, urlText } = getShareQrElements();
+    if (!wrap || !canvas || !url) return;
+
+    resetShareQrSurface();
 
     try {
-      await window.QRCode.toCanvas(canvas, url, {
-        width: 180,
-        margin: 1,
-        errorCorrectionLevel: 'H',
-        color: {
-          dark: '#111827',
-          light: '#ffffff'
-        }
-      });
+      // Preferred: npm qrcode browser bundle
+      if (window.QRCode && typeof window.QRCode.toCanvas === 'function') {
+        await window.QRCode.toCanvas(canvas, url, {
+          width: 180,
+          margin: 1,
+          errorCorrectionLevel: 'H',
+          color: {
+            dark: '#111827',
+            light: '#ffffff'
+          }
+        });
+      }
+      // Fallback: qrcodejs-style constructor
+      else if (typeof window.QRCode === 'function') {
+        canvas.style.display = 'none';
 
-      if (logo) logo.src = QR_LOGO_URL;
-      if (urlText) urlText.textContent = url;
+        const legacy = document.createElement('div');
+        legacy.id = 'shareQrLegacy';
+        wrap.insertBefore(legacy, logo || null);
+
+        new window.QRCode(legacy, {
+          text: url,
+          width: 160,
+          height: 160,
+          colorDark: '#111827',
+          colorLight: '#ffffff',
+          correctLevel: window.QRCode.CorrectLevel ? window.QRCode.CorrectLevel.H : undefined
+        });
+      } else {
+        throw new Error('No compatible QR library detected on the page.');
+      }
+
+      if (logo) {
+        logo.src = QR_LOGO_URL;
+        logo.style.display = 'block';
+      }
+
+      if (urlText) {
+        urlText.textContent = url;
+      }
     } catch (error) {
       console.error('QR render error:', error);
-      if (urlText) urlText.textContent = url;
+
+      if (urlText) {
+        urlText.textContent = url;
+      }
+
+      showToast('QR could not be generated. Link is still available to copy.', 'warning', 4500);
     }
   }
 
   function openShareSheet({ title, text, url }) {
     currentSharePayload = { title, text, url };
-    document.getElementById('sharePreview').textContent = text;
-    document.getElementById('shareSheet').classList.add('active');
+
+    const preview = document.getElementById('sharePreview');
+    const sheet = document.getElementById('shareSheet');
+    if (!preview || !sheet) return;
+
+    preview.textContent = text;
+    sheet.classList.add('active');
     renderShareQr(url);
 
     document.getElementById('shareNativeBtn').onclick = async () => {
@@ -592,6 +702,9 @@
     currentSharePayload = null;
   }
 
+  // -------------------------------------------------------
+  // Presentation modal
+  // -------------------------------------------------------
   function injectPresentationModal() {
     const html = `
       <div id="karaokeModal" class="karaoke-modal">
@@ -664,6 +777,7 @@
 
   function openPresentation(startIndex) {
     if (!currentGeetaData || !currentGeetaData.length) return;
+
     presentationIndex = startIndex;
     document.getElementById('karaokeModal')?.classList.add('active');
     playPresentationVerse();
@@ -671,7 +785,9 @@
 
   function closePresentation() {
     document.getElementById('karaokeModal')?.classList.remove('active');
+
     if (audioPlayer) audioPlayer.pause();
+
     if (presentationMonitor) {
       cancelAnimationFrame(presentationMonitor);
       presentationMonitor = null;
@@ -689,6 +805,8 @@
     const kLyrics = document.getElementById('kLyrics');
     const kEnglish = document.getElementById('kEnglish');
 
+    if (!karaokeContent || !kTitle || !kLyrics || !kEnglish) return;
+
     karaokeContent.classList.add('fade-out');
 
     if (presentationMonitor) {
@@ -700,9 +818,9 @@
       kTitle.textContent = `${v.Topic || 'Geeta'} - Chapter ${v.Chapter}, Verse ${v.VerseNum}`;
       kLyrics.innerHTML = nl2br(v.OriginalText || 'No Text Available');
       kEnglish.innerHTML = nl2br(v.EnglishText || '');
-      
+
       karaokeContent.classList.remove('fade-out');
-      
+
       requestAnimationFrame(() => {
         fitKaraokeTextToViewport(karaokeContent, kLyrics, kEnglish);
       });
@@ -738,6 +856,9 @@
     }, 180);
   }
 
+  // -------------------------------------------------------
+  // Audio / controls
+  // -------------------------------------------------------
   function bindAudioEvents() {
     if (!audioPlayer) return;
 
@@ -746,10 +867,18 @@
       let msg = 'Unknown audio error.';
       if (err) {
         switch (err.code) {
-          case 1: msg = 'Playback aborted.'; break;
-          case 2: msg = 'Network issue while loading audio.'; break;
-          case 3: msg = 'Audio decoding failed.'; break;
-          case 4: msg = 'Audio file not found or unreachable.'; break;
+          case 1:
+            msg = 'Playback aborted.';
+            break;
+          case 2:
+            msg = 'Network issue while loading audio.';
+            break;
+          case 3:
+            msg = 'Audio decoding failed.';
+            break;
+          case 4:
+            msg = 'Audio file not found or unreachable.';
+            break;
         }
       }
 
@@ -927,7 +1056,12 @@
         const cur = currentGeetaData[activeVerseIndex];
         const activeChapter = cur ? cur.Chapter : currentGeetaData[0]?.Chapter;
 
-        if (cur && Number(cur.AudioEnd) > Number(cur.AudioStart) && t >= Number(cur.AudioStart) && t <= Number(cur.AudioEnd)) {
+        if (
+          cur &&
+          Number(cur.AudioEnd) > Number(cur.AudioStart) &&
+          t >= Number(cur.AudioStart) &&
+          t <= Number(cur.AudioEnd)
+        ) {
           foundIndex = activeVerseIndex;
         } else {
           for (let i = 0; i < currentGeetaData.length; i++) {
@@ -972,18 +1106,23 @@
     }
   }
 
+  // -------------------------------------------------------
+  // Renderers
+  // -------------------------------------------------------
   async function renderGeetaRowsBatched(data) {
     let idx = 0;
     const total = data.length;
     const batchSize = window.innerWidth >= 1200 ? 180 : 110;
-  
+
+    if (!tableBody) return;
+
     tableBody.innerHTML = '';
-  
+
     return new Promise(resolve => {
       const batch = () => {
         let html = '';
         const limit = Math.min(idx + batchSize, total);
-  
+
         for (; idx < limit; idx++) {
           const v = data[idx];
           const start = Number(v.AudioStart) || 0;
@@ -991,13 +1130,14 @@
           const isDone = end > start;
           const baseUrl = (v.AudioFileURL || '').split('#')[0];
           const chunkSrc = isDone ? `${baseUrl}#t=${start},${end}` : '';
-  
+
+          const searchString = `${v.VerseNum} ${v.Topic || ''} C${v.Chapter} V${v.VerseNum} ${v.OriginalText || ''} ${v.EnglishText || ''}`.toLowerCase();
           const lyricsBlock =
             `${nl2br(v.OriginalText || '')}${v.EnglishText ? '<br><br>' + nl2br(v.EnglishText) : ''}`;
-  
+
           html += `
             <tr
-              data-search-str="${escapeHtml(`${v.VerseNum} ${v.Topic || ''} C${v.Chapter} V${v.VerseNum} ${v.OriginalText || ''} ${v.EnglishText || ''}`.toLowerCase())}"
+              data-search-str="${escapeHtml(searchString)}"
               data-start="${start}"
               data-end="${end}"
             >
@@ -1012,43 +1152,55 @@
                 </div>
               </td>
               <td>
-                <button class="pres-play-btn" data-index="${idx}" style="display:${isDone ? 'inline-flex' : 'none'};">🎤 Play Presentation</button>
-                ${chunkSrc}</audio>
+                <button
+                  class="pres-play-btn"
+                  data-index="${idx}"
+                  style="display:${isDone ? 'inline-flex' : 'none'};"
+                >
+                  🎤 Play Presentation
+                </button>
+
+                ${chunkSrc}"
+                ></audio>
               </td>
             </tr>
           `;
         }
-  
+
         tableBody.insertAdjacentHTML('beforeend', html);
-  
+
         if (idx < total) {
           requestAnimationFrame(batch);
         } else {
           resolve();
         }
       };
-  
+
       requestAnimationFrame(batch);
     });
   }
 
   function renderNormalJson(data) {
+    if (!tableBody) return;
+
     let maxEndSaved = 0;
     let html = '';
-  
+
     if (data.audioUrl && audioPlayer) {
       audioPlayer.src = data.audioUrl;
       audioPlayer.load();
     }
-  
+
     (data.timestamps || []).forEach((t, i) => {
       const start = safeNum(t.start);
       const end = safeNum(t.end);
       maxEndSaved = Math.max(maxEndSaved, end);
-  
+
+      const searchString = `${t.name || generateName(i + 1)} ${t.lyrics || ''}`.toLowerCase();
+
       html += `
         <tr
-          data-search-str="${escapeHtml(`${t.name || generateName(i + 1)} ${t.lyrics || ''}`.toLowerCase())}"
+          data-search-str="${escapeHtml(searchString)}"
           data-start="${start}"
           data-end="${end}"
         >
@@ -1057,25 +1209,27 @@
           <td contenteditable class="endTime">${end}</td>
           <td>${(end - start).toFixed(2)}</td>
           <td class="name-cell">${escapeHtml(t.name || generateName(i + 1))}</td>
-          <td><textarea class="lyricsInput">${t.lyrics || ''}</textarea></td>
           <td>
-            <audio
-              controls
-              class      </td>
+            <textarea class="lyricsInput">${escapeHtml(t.lyrics || '')}</textarea>
+          </td>
+          <td>
+            ${data.audioUrl}#t=${start},${end}"
+            ></audio>
+          </td>
         </tr>
       `;
     });
-  
+
     tableBody.innerHTML = html;
-  
+
     startTime = maxEndSaved;
     activeVerseIndex = (data.timestamps || []).length;
-  
+
     const performSeek = () => {
       if (audioPlayer) audioPlayer.currentTime = maxEndSaved;
       updateProgress();
     };
-  
+
     if (audioPlayer && audioPlayer.readyState >= 1) {
       performSeek();
     } else if (audioPlayer) {
@@ -1128,6 +1282,9 @@
     }
   }
 
+  // -------------------------------------------------------
+  // Marking engine
+  // -------------------------------------------------------
   function markGeetaEnd() {
     if (!isGeetaMode || !currentGeetaData || !audioPlayer) return;
 
@@ -1244,7 +1401,8 @@
       <td class="name-cell">${escapeHtml(generateName(activeVerseIndex + 1))}</td>
       <td><textarea class="lyricsInput"></textarea></td>
       <td>
-        <audio controls class="chunk-player" style="height:35px; width:100%; display:block;" src="${audioPlayer.src}#t=${startTime},${end}" ontimeupdate="enforceChunkBounds(this, ${startTime}, ${end})"></audio>
+        ${audioPlayer.src}#t=${startTime},${end}"
+        ></audio>
       </td>
     `;
 
@@ -1258,6 +1416,9 @@
     scheduleJsonSync();
   }
 
+  // -------------------------------------------------------
+  // Manual edit handler
+  // -------------------------------------------------------
   function handleManualCellEdit(event) {
     const cell = event.target;
     if (!cell.classList.contains('startTime') && !cell.classList.contains('endTime')) return;
@@ -1313,6 +1474,9 @@
     }
   }
 
+  // -------------------------------------------------------
+  // Row focus / visuals
+  // -------------------------------------------------------
   function setFocusRow(index) {
     if (!tableBody || index < 0 || index >= tableBody.rows.length) return;
 
@@ -1367,6 +1531,9 @@
     }
   }
 
+  // -------------------------------------------------------
+  // History / autosave
+  // -------------------------------------------------------
   function buildNormalJsonObject() {
     const data = {
       audioUrl: audioPlayer ? audioPlayer.src : '',
@@ -1462,6 +1629,9 @@
 
   setInterval(autoSave, 5000);
 
+  // -------------------------------------------------------
+  // Progress
+  // -------------------------------------------------------
   function updateProgress() {
     try {
       if (!progressBar || !progressText) return;
@@ -1491,9 +1661,12 @@
     }
   }
 
+  // -------------------------------------------------------
+  // JSON sync
+  // -------------------------------------------------------
   function scheduleJsonSync() {
     clearTimeout(stringifyTimer);
-  
+
     stringifyTimer = setTimeout(() => {
       idle(async () => {
         try {
@@ -1507,6 +1680,9 @@
     }, 220);
   }
 
+  // -------------------------------------------------------
+  // Misc
+  // -------------------------------------------------------
   function clearToolState({ keepJson = false } = {}) {
     if (tableBody) tableBody.innerHTML = '';
     startTime = null;
