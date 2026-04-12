@@ -1074,6 +1074,57 @@ audio {
 }
 
 /* =========================================================
+   Busy overlay / elegant loading
+   ========================================================= */
+.busy-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 150000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(244, 246, 249, 0.42);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  padding: 20px;
+}
+
+.busy-card {
+  min-width: 180px;
+  max-width: min(90vw, 320px);
+  padding: 18px 20px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.14);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.busy-spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid rgba(0, 123, 255, 0.12);
+  border-top-color: var(--primary);
+  animation: busySpin 0.75s linear infinite;
+}
+
+.busy-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: #334155;
+  text-align: center;
+  line-height: 1.35;
+}
+
+@keyframes busySpin {
+  to { transform: rotate(360deg); }
+}
+
+/* =========================================================
    Share sheet with QR
    ========================================================= */
 .share-sheet {
