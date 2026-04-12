@@ -1068,62 +1068,61 @@
   }
   
   async function buildShareQrPngBlob() {
-    const canvas = document.getElementById('shareQrCanvas');
-    if (!canvas) {
-      throw new Error('QR canvas not found.');
+    const container = document.getElementById('shareQrCanvas');
+    if (!container) throw new Error('QR container not found.');
+  
+    // Find actual QR element (canvas OR img)
+    const qrEl =
+      container.querySelector('canvas') ||
+      container.querySelector('img');
+  
+    if (!qrEl) {
+      throw new Error('QR element not rendered yet.');
     }
   
-    // Wait for any pending QR rendering
-    await currentQrRenderPromise;
-  
-    // Re-render if URL changed or nothing was rendered
-    if (!currentSharePayload?.url) {
-      throw new Error('No current share URL available.');
-    }
-  
-    if (lastRenderedQrUrl !== currentSharePayload.url) {
-      await renderShareQr(currentSharePayload.url);
-    }
+    const size = 180;
   
     const exportCanvas = document.createElement('canvas');
-    exportCanvas.width = canvas.width || 180;
-    exportCanvas.height = canvas.height || 180;
+    exportCanvas.width = size;
+    exportCanvas.height = size;
   
     const ctx = exportCanvas.getContext('2d');
-    if (!ctx) {
-      throw new Error('Canvas 2D context is not available.');
-    }
+    if (!ctx) throw new Error('Canvas context failed.');
   
-    // White background first
+    // white background
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+    ctx.fillRect(0, 0, size, size);
   
-    // Draw actual QR canvas
-    ctx.drawImage(canvas, 0, 0, exportCanvas.width, exportCanvas.height);
+    // draw QR (handles both canvas and img)
+    ctx.drawImage(qrEl, 0, 0, size, size);
   
-    // Overlay PNG center logo
+    // 🔥 overlay logo (your existing logic but safer)
     try {
-      const logoImg = await loadImageForCanvas('gat_library/images/swami_hariharji_with_audio_symbol.png');
+      const logo = new Image();
+      logo.crossOrigin = 'anonymous';
+      logo.src = 'gat_library/images/swami_hariharji_with_audio_symbol.png';
   
-      const logoSize = Math.round(exportCanvas.width * 0.22);
-      const x = Math.round((exportCanvas.width - logoSize) / 2);
-      const y = Math.round((exportCanvas.height - logoSize) / 2);
+      await new Promise((res, rej) => {
+        logo.onload = res;
+        logo.onerror = rej;
+      });
   
-      ctx.save();
-      ctx.fillStyle = '#ffffff';
-      roundRect(ctx, x - 4, y - 4, logoSize + 8, logoSize + 8, 12);
-      ctx.fill();
-      ctx.restore();
+      const logoSize = size * 0.22;
+      const x = (size - logoSize) / 2;
+      const y = (size - logoSize) / 2;
   
-      ctx.drawImage(logoImg, x, y, logoSize, logoSize);
-    } catch (logoError) {
-      console.warn('Logo overlay warning:', logoError);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x - 4, y - 4, logoSize + 8, logoSize + 8);
+  
+      ctx.drawImage(logo, x, y, logoSize, logoSize);
+    } catch (e) {
+      console.warn('Logo overlay failed:', e);
     }
   
-    return await new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       exportCanvas.toBlob(blob => {
         if (blob) resolve(blob);
-        else reject(new Error('Failed to convert QR to PNG.'));
+        else reject(new Error('Blob generation failed.'));
       }, 'image/png');
     });
   }
