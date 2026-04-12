@@ -730,7 +730,7 @@
 
  function getQrShareLogoUrl() {
     // Use PNG for canvas export, keep .ico only as browser favicon
-    return 'gat_library/images/swami_hariharji_with_audio_symbol.png';
+    return QR_LOGO_URL;
   }
   
   function loadImageForCanvas(src) {
