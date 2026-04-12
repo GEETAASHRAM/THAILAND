@@ -25,6 +25,16 @@
     audio: new Audio()
   };
 
+  window.addEventListener('resize', () => {
+    const content =
+      document.getElementById('kContent') || document.getElementById('karaokeContent');
+    const lyrics = document.getElementById('kLyrics');
+    const english = document.getElementById('kEnglish');
+    if (content && lyrics && english) {
+      fitKaraokeTextToViewport(content, lyrics, english);
+    }
+  });
+    
   function escapeHtml(str = '') {
     return String(str)
       .replace(/&/g, '&amp;')
