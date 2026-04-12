@@ -792,7 +792,9 @@
     ctx.fillRect(0, 0, size, size);
   
     // draw QR (handles both canvas and img)
-    ctx.drawImage(qrEl, 0, 0, size, size);
+    const rect = qrEl.getBoundingClientRect();
+    ctx.drawImage(qrEl, 0, 0, rect.width, rect.height, 0, 0, size, size);
+    // ctx.drawImage(qrEl, 0, 0, size, size);
   
     // 🔥 overlay logo (your existing logic but safer)
     try {
