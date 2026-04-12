@@ -97,7 +97,6 @@
   function fitKaraokeTextToViewport(contentEl, lyricsEl, englishEl) {
     if (!contentEl || !lyricsEl || !englishEl) return;
 
-    // Reset to default sizes first (large by default)
     lyricsEl.style.fontSize = '';
     englishEl.style.fontSize = '';
     lyricsEl.style.lineHeight = '';
@@ -986,7 +985,6 @@
     resetShareQrSurface();
 
     try {
-      // Preferred: npm qrcode browser bundle
       if (window.QRCode && typeof window.QRCode.toCanvas === 'function') {
         await window.QRCode.toCanvas(canvas, url, {
           width: 180,
@@ -997,9 +995,7 @@
             light: '#ffffff'
           }
         });
-      }
-      // Fallback: qrcodejs-style constructor
-      else if (typeof window.QRCode === 'function') {
+      } else if (typeof window.QRCode === 'function') {
         canvas.style.display = 'none';
 
         const legacy = document.createElement('div');
