@@ -10,11 +10,16 @@
 
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#f4f6f9" />
+
+  <!-- Deprecated warning fix -->
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
   <link rel="apple-touch-icon" href="gat_library/images/swami_hariharji_with_audio_symbol.png" />
   <link rel="icon" href="gat_library/images/guru_wave_favicon.ico" />
-  <link rel="stylesheet" href="gat_library/css/gat_audio_sync_style.css" />
+
+  <link rel="stylesheet" type="text/css" href="gat_library/css/gat_audio_sync_style.css" />
 </head>
 
 <body class="sync-page">
@@ -28,6 +33,7 @@
         <div class="input-row">
           <div class="select-container">
             <input type="text" id="searchSelect" class="searchable-select" placeholder="Search audio files..." />
+
             <div id="optionsContainer" class="options-container hidden">
               <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/01%20-%20Introduction.mp3">0.1) Geeta Ashram Mission & Introduction</div>
               <div data-value="https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/20%20-%20Geeta%20Mahatmyam.mp3">0.2) Geeta Mahatmyam</div>
@@ -101,6 +107,7 @@
       </div>
 
       <input type="text" id="tableSearch" placeholder="Search rows..." style="width:100%; margin-bottom:15px;" />
+
       <div style="overflow-x:auto; padding-bottom:100px;">
         <table id="timestampsTable">
           <thead>
