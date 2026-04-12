@@ -1021,7 +1021,7 @@
   
       // Logo overlay (still works)
       if (logo) {
-        logo.src = 'gat_library/images/swami_hariharji_with_audio_symbol.png';
+        logo.src = QR_LOGO_URL;
         logo.style.display = 'block';
       }
   
@@ -1113,7 +1113,7 @@
     try {
       const logo = new Image();
       logo.crossOrigin = 'anonymous';
-      logo.src = 'gat_library/images/swami_hariharji_with_audio_symbol.png';
+      logo.src = QR_LOGO_URL;
   
       await new Promise((res, rej) => {
         logo.onload = res;
