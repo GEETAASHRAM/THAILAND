@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+  />
   <title>Geeta Audio Sync Tool</title>
 
   <link rel="manifest" href="manifest.json" />
@@ -37,12 +40,17 @@
 
       <!-- AUDIO PANEL -->
       <div class="card card--stretch">
-        <h3>🎵 Audio Source & Naming</h3>
+        <h3>🎵 Audio Source &amp; Naming</h3>
 
         <!-- Searchable audio -->
         <div class="input-row audio-select-row">
           <div class="select-container">
-            <input id="searchSelect" class="searchable-select" placeholder="Search audio files..." />
+            <input
+              id="searchSelect"
+              class="searchable-select"
+              placeholder="Search audio files..."
+              autocomplete="off"
+            />
             <div id="optionsContainer" class="options-container hidden"></div>
           </div>
         </div>
@@ -50,7 +58,7 @@
         <!-- URL -->
         <div class="input-row audio-url-row">
           <input type="text" id="fileUrlInput" placeholder="Paste audio URL..." />
-          <button onclick="loadAudio()">Load</button>
+          <button type="button" onclick="loadAudio()">Load</button>
         </div>
 
         <!-- File -->
@@ -72,8 +80,14 @@
         <h3>📊 JSON Data Management</h3>
 
         <div class="input-row json-actions-row">
-          <input type="file" id="loadJsonInput" style="display:none" accept=".json" onchange="loadJsonFile(event)" />
-          <button onclick="document.getElementById('loadJsonInput').click()">Load JSON</button>
+          <input
+            type="file"
+            id="loadJsonInput"
+            style="display:none"
+            accept=".json,application/json"
+            onchange="loadJsonFile(event)"
+          />
+          <button type="button" onclick="document.getElementById('loadJsonInput').click()">Load JSON</button>
 
           <select id="systemJsonSelect" onchange="loadSystemJson(this.value)">
             <option value="">📥 Load System JSON</option>
@@ -81,9 +95,9 @@
             <option value="data/geeta_twelfth_chapter.json">Chapter 12</option>
           </select>
 
-          <button onclick="copyShareLink()" class="btn-green">🔗 Share</button>
-          <button onclick="copyJsonData()">Copy</button>
-          <button onclick="saveData()">Save</button>
+          <button type="button" onclick="copyShareLink()" class="btn-green">🔗 Share</button>
+          <button type="button" onclick="copyJsonData()">Copy</button>
+          <button type="button" onclick="saveData()">Save</button>
         </div>
 
         <textarea id="jsonDataInput" placeholder="JSON output..."></textarea>
@@ -127,45 +141,34 @@
         </table>
       </div>
     </div>
-
   </div>
 
   <!-- FLOATING CONTROLS -->
   <div id="floatingControlBar" class="floating-bar">
-    <button id="floatUndoBtn" class="float-btn">↩️</button>
+    <button id="floatUndoBtn" class="float-btn" title="Undo (Ctrl+Z)">↩️</button>
     <div id="floatTimer" class="float-timer">00:00 / 00:00</div>
-    <button id="floatPlayBtn" class="float-btn play-btn">⏯️</button>
-    <button id="floatMarkBtn" class="float-btn mark-btn">📍</button>
-    <button id="floatDeleteBtn" class="float-btn delete-btn">🗑️</button>
-    <button id="floatRedoBtn" class="float-btn">↪️</button>
+    <button id="floatPlayBtn" class="float-btn play-btn" title="Play/Pause (Spacebar)">⏯️</button>
+    <button id="floatMarkBtn" class="float-btn mark-btn" title="Mark End ( ] )">📍</button>
+    <button id="floatDeleteBtn" class="float-btn delete-btn" title="Delete Last">🗑️</button>
+    <button id="floatRedoBtn" class="float-btn" title="Redo (Ctrl+Y)">↪️</button>
   </div>
 
   <!-- LOADING -->
-  <div id="busyOverlay" class="busy-overlay hidden">
+  <div id="busyOverlay" class="busy-overlay hidden" aria-live="polite" aria-busy="true">
     <div class="busy-card">
       <div class="busy-spinner"></div>
-      <div id="busyText">Loading...</div>
+      <div id="busyText" class="busy-text">Loading...</div>
     </div>
   </div>
 
   <div id="toastRoot" class="toast-root"></div>
 
-  <!-- QR (compatible with your JS) -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-
-  <!-- Your logic -->
-  <script src="gat_library/js/gat_audio_sync_script.js"></script>
-
-  <!-- Service Worker -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(err => {
+  <!-- QR -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4erviceWorker.register('sw.js').catch(err => {
           console.error('PWA SW Registration failed:', err);
         });
       });
     }
   </script>
-
 </body>
 </html>
