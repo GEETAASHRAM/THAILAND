@@ -1,59 +1,79 @@
-const CACHE_NAME = 'geeta-app-v3';
+const CACHE_NAME = 'geeta-app-v4';
 
-const ASSETS_TO_CACHE = [
+const APP_SHELL = [
+  './',
   './index.html',
-  './styles.css',
-  './app.js',
   './audio_sync.html',
+  './manifest.json',
   './gat_library/css/gat_audio_sync_style.css',
+  './gat_library/js/app.js',
   './gat_library/js/gat_audio_sync_script.js',
   './data/geeta_complete.json'
 ];
 
 self.addEventListener('install', event => {
   self.skipWaiting();
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS_TO_CACHE)));
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
+  );
 });
 
 self.addEventListener('activate', event => {
   self.clients.claim();
   event.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys.map(key => { if (key !== CACHE_NAME) return caches.delete(key); })
-    ))
+    caches.keys().then(keys =>
+      Promise.all(keys.map(key => {
+        if (key !== CACHE_NAME) return caches.delete(key);
+      }))
+    )
   );
 });
 
-// Advanced Fetch: Cache Audio, but serve Range Requests properly if possible
 self.addEventListener('fetch', event => {
   const req = event.request;
-  
-  // Audio files caching strategy (Cache First, then Network)
-  if (req.url.endsWith('.mp3')) {
-      event.respondWith(
-          caches.match(req).then(cachedRes => {
-              if (cachedRes) return cachedRes;
-              return fetch(req).then(fetchRes => {
-                  // Only cache if successful and NOT a partial response (206)
-                  if (fetchRes.status === 200) {
-                      const resClone = fetchRes.clone();
-                      caches.open(CACHE_NAME).then(cache => cache.put(req, resClone));
-                  }
-                  return fetchRes;
-              });
-          })
-      );
-      return;
+  const url = new URL(req.url);
+
+  // Never cache audio or range requests
+  const isAudio =
+    /\.(mp3|wav|m4a|aac|ogg)$/i.test(url.pathname) ||
+    req.destination === 'audio' ||
+    req.headers.has('range');
+
+  if (isAudio) {
+    event.respondWith(fetch(req));
+    return;
   }
 
-  // Standard Assets (Network First, fallback to Cache)
+  // Network-first for JSON
+  if (req.destination === 'document' || url.pathname.endsWith('.json')) {
+    event.respondWith(
+      fetch(req)
+        .then(res => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(req, copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // Stale-while-revalidate for CSS/JS/images
   event.respondWith(
-    fetch(req)
-      .then(res => {
-        return caches.open(CACHE_NAME).then(cache => {
-          cache.put(req, res.clone()); return res;
-        });
-      })
-      .catch(() => caches.match(req))
+    caches.match(req).then(cached => {
+      const networkFetch = fetch(req)
+        .then(res => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(req, copy));
+          }
+          return res;
+        })
+        .catch(() => cached);
+
+      return cached || networkFetch;
+    })
   );
 });
