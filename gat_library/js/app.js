@@ -13,7 +13,7 @@
   'use strict';
 
   const QR_LOGO_URL =
-    'https://raw.githubusercontent.com/GEETAASHRAM/THAILAND/refs/heads/main/gat_library/images/favicon_swamiharihar_ji_maharaj.ico';
+    'https://raw.githubusercontent.com/GEETAASHRAM/THAILAND/refs/heads/main/gat_library/images/swamiharihar_ji_maharaj_transparent.png';
 
   // -------------------------------------------------------
   // State
