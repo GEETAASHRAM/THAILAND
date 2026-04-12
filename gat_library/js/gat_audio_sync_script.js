@@ -607,7 +607,11 @@
 
             <div class="share-qr-card">
               <div class="share-qr-title">Scan QR to open</div>
-              <div class="share-qr-wrap">
+               <div class="share-qr-wrap">
+                <div class="share-qr-actions">
+                  <button id="shareQrImageBtn" class="share-qr-mini-btn" type="button" title="Share QR image" aria-label="Share QR image">📤</button>
+                  <button id="copyQrImageBtn" class="share-qr-mini-btn" type="button" title="Copy QR image" aria-label="Copy QR image">📋</button>
+                </div>
                 <canvas id="shareQrCanvas" width="180" height="180"></canvas>
                 <img id="shareQrLogo" class="share-qr-logo" alt="QR Logo" />
               </div>
@@ -622,8 +626,6 @@
             <button id="shareTelegramBtn">🔵 Telegram</button>
             <button id="shareEmailBtn">✉️ Email</button>
             <button id="shareCopyLinkBtn">🔗 Copy Link Only</button>
-            <button id="shareQrImageBtn">📷 Share QR Image</button>
-            <button id="copyQrImageBtn">🖼️ Copy QR Image</button>
           </div>
 
           <button id="shareSheetClose" class="share-sheet__close">Close</button>
