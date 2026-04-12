@@ -1,806 +1,1045 @@
 // =========================================================
-// 🚀 GITA APP ENGINE (PWA + SUBSCRIPTIONS + KARAOKE + SHARING)
+// GITA APP ENGINE (MOBILE-OPTIMIZED + SUBSCRIPTIONS + KARAOKE + SHARE + TOAST)
 // =========================================================
 
 const container = document.getElementById('container');
+const searchResults = document.getElementById('searchResults');
+const chapterSelect = document.getElementById('chapterSelect');
+const searchInput = document.getElementById('searchInput');
+const globalPresentationBtn = document.getElementById('globalPresentationBtn');
+
 let globalGeetaData = [];
 let currentChapterAudio = null;
-let chunkMonitorId = null; 
-let currentFirstDisplayedIndex = 0; 
-
-// Dynamic Presentation Playlist (Handles Chapter and Search results)
-let currentPlaylist = []; 
-// Background pre-computed options to prevent UI freezing
+let chunkMonitorId = null;
+let currentPlaylist = [];
 let precomputedSubOptions = { chapter: [], verse: [] };
+let deferredPwaPrompt = null;
 
-// ==========================================
-// 1. SYSTEM INITIALIZATION & DATA LOADING
-// ==========================================
+const kState = {
+  playlist: [],
+  listIndex: 0,
+  mode: 'chapter',
+  animId: null,
+  audio: new Audio()
+};
+
 document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        console.log("🚀 Initializing Main Gita Application...");
-        
-        // 1. Initialize PWA Install Prompt
-        initPWAInstallPrompt();
+  try {
+    initToast();
+    initPWAInstallPrompt();
+    injectShareSheet();
+    injectSubscriptionModal();
+    injectKaraokeModal();
+    injectWelcomeScreen();
 
-        // 2. Fetch Master JSON Data
-        const response = await fetch('data/geeta_complete.json');
-        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-        globalGeetaData = await response.json();
-        
-        // 3. Populate Chapter Dropdown
-        const chapters = Array.from(new Set(globalGeetaData.map(item => item.Chapter)));
-        chapters.sort((a, b) => parseInt(a) - parseInt(b));
+    bindStaticEvents();
 
-        const chapterSelect = document.getElementById('chapterSelect');
-        if (chapterSelect) {
-            chapters.forEach(chapter => {
-                const option = document.createElement('option');
-                option.value = chapter;
-                option.textContent = `Chapter ${chapter}`;
-                chapterSelect.appendChild(option);
-            });
-            chapterSelect.addEventListener('change', loadChapter);
-        }
+    const response = await fetch('data/geeta_complete.json', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
 
-        // 4. Background Tasks & UI Injections
-        precomputeSubscriptionOptions();
-        injectSubscriptionModal();
-        injectKaraokeModal();
-        injectWelcomeScreen();
+    globalGeetaData = await response.json();
 
-        // 5. Intelligent Routing
-        const isSubscriptionLink = handleSubscriptionRouting();
-        if (!isSubscriptionLink) {
-            loadChapter(); // Only load default if we didn't route to a specific subscription verse
-        }
+    populateChapterDropdown();
+    precomputeSubscriptionOptions();
 
-        // 6. Global Presentation Button Event (Feeds currentPlaylist into Karaoke)
-        document.getElementById('globalPresentationBtn')?.addEventListener('click', () => {
-            const mode = document.getElementById('searchResults').innerHTML !== '' ? 'search' : 'chapter';
-            openKaraoke(currentPlaylist, 0, mode);
-        });
-
-        // 7. Event Delegation for Inline Verse Play Icons
-        document.addEventListener('click', (e) => {
-            const btn = e.target.closest('.inline-play-btn');
-            if (btn) {
-                const absoluteIndex = parseInt(btn.getAttribute('data-index'));
-                playVerseInline(absoluteIndex);
-            }
-        });
-
-        // 8. Quick Subscribe Ad Banner Event
-        document.getElementById('quickSubscribeAd')?.addEventListener('click', () => {
-            openSubscriptionModalPreFilled('chapter', '12', 'daily');
-        });
-
-    } catch (error) {
-        console.error('Initialization Error:', error);
-        alert("Failed to load Gita data. Please check your internet connection.");
-    }
+    const routed = handleSubscriptionRouting();
+    if (!routed) loadChapter();
+  } catch (error) {
+    console.error('Initialization Error:', error);
+    showToast('Failed to load Gita data. Please check your internet connection.', 'error', 5000);
+  }
 });
 
-// PWA Install Toast Logic
+// ---------------------------------------------------------
+// Toast
+// ---------------------------------------------------------
+function initToast() {
+  if (!document.getElementById('toastRoot')) {
+    const root = document.createElement('div');
+    root.id = 'toastRoot';
+    root.className = 'toast-root';
+    document.body.appendChild(root);
+  }
+}
+
+function showToast(message, type = 'info', timeout = 3500) {
+  const root = document.getElementById('toastRoot');
+  if (!root) return;
+
+  const toast = document.createElement('div');
+  toast.className = `app-toast app-toast--${type}`;
+  toast.innerHTML = `
+    <div class="app-toast__body">${message}</div>
+    <button class="app-toast__close" aria-label="Close">×</button>
+  `;
+  root.appendChild(toast);
+
+  const cleanup = () => {
+    toast.remove();
+  };
+
+  toast.querySelector('.app-toast__close')?.addEventListener('click', cleanup);
+  setTimeout(cleanup, timeout);
+}
+
+// ---------------------------------------------------------
+// PWA install
+// ---------------------------------------------------------
 function initPWAInstallPrompt() {
-    let deferredPrompt;
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault(); // Prevent native browser prompt
-        deferredPrompt = e;
-        const toast = document.getElementById('pwaInstallToast');
-        // Show if not previously dismissed
-        if (toast && !localStorage.getItem('pwa_toast_dismissed')) {
-            toast.style.display = 'flex';
-        }
-    });
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPwaPrompt = e;
+    const toast = document.getElementById('pwaInstallToast');
+    if (toast && !localStorage.getItem('pwa_toast_dismissed')) {
+      toast.style.display = 'flex';
+    }
+  });
 
-    document.getElementById('btnInstallPwa')?.addEventListener('click', async () => {
-        if (deferredPrompt) {
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            if (outcome === 'accepted') {
-                document.getElementById('pwaInstallToast').style.display = 'none';
-            }
-            deferredPrompt = null;
-        }
-    });
+  document.getElementById('btnInstallPwa')?.addEventListener('click', async () => {
+    if (!deferredPwaPrompt) return;
+    deferredPwaPrompt.prompt();
+    const choice = await deferredPwaPrompt.userChoice;
+    if (choice.outcome === 'accepted') {
+      document.getElementById('pwaInstallToast').style.display = 'none';
+    }
+    deferredPwaPrompt = null;
+  });
 
-    document.getElementById('btnClosePwaToast')?.addEventListener('click', () => {
-        document.getElementById('pwaInstallToast').style.display = 'none';
-        localStorage.setItem('pwa_toast_dismissed', 'true'); // Don't annoy user again
-    });
+  document.getElementById('btnClosePwaToast')?.addEventListener('click', () => {
+    document.getElementById('pwaInstallToast').style.display = 'none';
+    localStorage.setItem('pwa_toast_dismissed', 'true');
+  });
 }
 
-// Build options array in the background for blazing fast UI
+// ---------------------------------------------------------
+// Static bindings
+// ---------------------------------------------------------
+function bindStaticEvents() {
+  document.getElementById('searchButton')?.addEventListener('click', searchWord);
+  searchInput?.addEventListener('keyup', e => {
+    if (e.key === 'Enter') searchWord();
+  });
+
+  document.getElementById('clearButton')?.addEventListener('click', clearResults);
+
+  chapterSelect?.addEventListener('change', loadChapter);
+
+  globalPresentationBtn?.addEventListener('click', () => {
+    const mode = searchResults.innerHTML.trim() ? 'search' : 'chapter';
+    openKaraoke(currentPlaylist, 0, mode);
+  });
+
+  document.addEventListener('click', e => {
+    const inline = e.target.closest('.inline-play-btn');
+    if (inline) {
+      const absoluteIndex = Number(inline.dataset.index);
+      playVerseInline(absoluteIndex);
+    }
+  });
+
+  document.getElementById('quickSubscribeAd')?.addEventListener('click', () => {
+    openSubscriptionModalPreFilled('chapter', '12', 'daily');
+  });
+
+  document.getElementById('quickSubscribeAd')?.addEventListener('keypress', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openSubscriptionModalPreFilled('chapter', '12', 'daily');
+    }
+  });
+}
+
+// ---------------------------------------------------------
+// Data helpers
+// ---------------------------------------------------------
+function populateChapterDropdown() {
+  const chapters = Array.from(new Set(globalGeetaData.map(item => item.Chapter)));
+  chapters.sort((a, b) => parseInt(a) - parseInt(b));
+
+  chapterSelect.innerHTML = '';
+  chapters.forEach(chapter => {
+    const option = document.createElement('option');
+    option.value = chapter;
+    option.textContent = `Chapter ${chapter}`;
+    chapterSelect.appendChild(option);
+  });
+}
+
 function precomputeSubscriptionOptions() {
-    setTimeout(() => {
-        try {
-            const uniqueChapters = [];
-            globalGeetaData.forEach(v => {
-                if (!uniqueChapters.find(c => c.val === v.Chapter)) {
-                    uniqueChapters.push({ val: v.Chapter, text: `Chapter ${v.Chapter}: ${v.Topic || 'Geeta'}` });
-                }
-            });
-            precomputedSubOptions.chapter = uniqueChapters;
+  setTimeout(() => {
+    try {
+      const seen = new Set();
+      const chapters = [];
 
-            globalGeetaData.forEach((v, idx) => {
-                precomputedSubOptions.verse.push({ val: idx, text: `Ch ${v.Chapter}, Verse ${v.VerseNum}: ${v.Topic || ''}` });
-            });
-            console.log("✅ Subscription dropdown data pre-computed.");
-        } catch(e) { console.error("Precompute error:", e); }
-    }, 100);
+      globalGeetaData.forEach((v, idx) => {
+        if (!seen.has(v.Chapter)) {
+          seen.add(v.Chapter);
+          chapters.push({
+            val: String(v.Chapter),
+            text: `Chapter ${v.Chapter}: ${v.Topic || 'Bhagavad Gita'}`
+          });
+        }
+
+        precomputedSubOptions.verse.push({
+          val: String(idx),
+          text: `Ch ${v.Chapter}, Verse ${v.VerseNum}: ${v.Topic || ''}`
+        });
+      });
+
+      precomputedSubOptions.chapter = chapters;
+    } catch (err) {
+      console.error('Precompute error:', err);
+    }
+  }, 0);
 }
 
-// ==========================================
-// 2. CORE READING UI (CHAPTERS & SEARCH)
-// ==========================================
-document.getElementById('clearButton')?.addEventListener('click', () => {
+function escapeHtml(str = '') {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function nl2br(str = '') {
+  return escapeHtml(str).replace(/\n/g, '<br>');
+}
+
+function buildVerseCard(item, absoluteIndex, highlightTerm = '') {
+  const hasAudio = item.AudioStart !== undefined && Number(item.AudioEnd) > Number(item.AudioStart);
+  const highlightMatch = text => {
+    const safe = nl2br(text || '');
+    if (!highlightTerm) return safe;
     try {
-        document.getElementById('container').innerHTML = '';
-        document.getElementById('searchResults').innerHTML = '';
-        document.getElementById('globalPresentationBtn').style.display = 'none';
-        if (currentChapterAudio) currentChapterAudio.pause();
-        cancelAnimationFrame(chunkMonitorId);
-        currentPlaylist = [];
-    } catch (e) { console.error(e); }
-});
+      const rx = new RegExp(`(${highlightTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      return safe.replace(rx, '<span class="highlight">$1</span>');
+    } catch {
+      return safe;
+    }
+  };
+
+  return `
+    <div class="verse">
+      <div class="verse-header">
+        <div class="verse-meta">Chapter ${item.Chapter}, Verse ${item.VerseNum}</div>
+        ${
+          hasAudio
+            ? `<button class="speaker-btn inline-play-btn" data-index="${absoluteIndex}" title="Play Verse Audio" aria-label="Play Verse Audio">🔊</button>`
+            : ''
+        }
+      </div>
+      <div class="sanskrit-lines mb-2">${highlightMatch(item.OriginalText)}</div>
+      <div class="english-lines mb-3">${highlightMatch(item.EnglishText)}</div>
+      <hr />
+      <div class="hindi-description mb-2">${highlightMatch(item.OriginalMeaning)}</div>
+      <div class="english-description">${highlightMatch(item.EnglishMeaning)}</div>
+    </div>
+  `;
+}
+
+// ---------------------------------------------------------
+// Clear + chapter load + search
+// ---------------------------------------------------------
+function clearResults() {
+  container.innerHTML = '';
+  searchResults.innerHTML = '';
+  globalPresentationBtn.style.display = 'none';
+  currentPlaylist = [];
+  stopAllAudio();
+}
+
+function stopAllAudio() {
+  if (currentChapterAudio) currentChapterAudio.pause();
+  cancelAnimationFrame(chunkMonitorId);
+}
 
 function loadChapter() {
-    try {
-        const chapterSelect = document.getElementById('chapterSelect');
-        if (!chapterSelect) return;
-        const selectedChapter = chapterSelect.value;
+  try {
+    const selectedChapter = chapterSelect.value;
+    searchResults.innerHTML = '';
+    container.innerHTML = '';
+    searchInput.value = '';
 
-        const container = document.getElementById('container');
-        container.style.display = 'block'; 
-        document.getElementById('searchResults').innerHTML = ''; 
-        container.innerHTML = ''; 
-        
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) searchInput.value = '';
+    currentPlaylist = [];
 
-        // Reset and populate Playlist for Chapter Mode
-        currentPlaylist = [];
-        const chapterData = globalGeetaData.filter((item, index) => {
-            if (item.Chapter.toString() === selectedChapter.toString()) {
-                currentPlaylist.push(index); // Push Absolute Index to playlist
-                return true;
-            }
-            return false;
-        });
+    const chapterData = globalGeetaData.filter((item, index) => {
+      if (String(item.Chapter) === String(selectedChapter)) {
+        currentPlaylist.push(index);
+        return true;
+      }
+      return false;
+    });
 
-        if (currentPlaylist.length > 0) {
-            document.getElementById('globalPresentationBtn').style.display = 'inline-block';
-        }
+    if (currentPlaylist.length > 0) {
+      globalPresentationBtn.style.display = 'inline-block';
+    } else {
+      globalPresentationBtn.style.display = 'none';
+    }
 
-        // --- CHAPTER AUDIO PLAYER ---
-        if (chapterData.length > 0 && chapterData[0].AudioFileURL) {
-            const audioContainer = document.createElement('div');
-            audioContainer.className = 'text-center mb-4 p-3 bg-light rounded shadow-sm';
-            const audioLabel = document.createElement('h5');
-            audioLabel.textContent = `🔊 Play Chapter ${selectedChapter} Audio`;
-            
-            currentChapterAudio = document.createElement('audio');
-            currentChapterAudio.id = 'mainChapterAudio';
-            currentChapterAudio.controls = true;
-            currentChapterAudio.src = chapterData[0].AudioFileURL;
-            currentChapterAudio.style.width = '100%';
-            
-            audioContainer.appendChild(audioLabel);
-            audioContainer.appendChild(currentChapterAudio);
-            container.appendChild(audioContainer);
-        }
+    if (chapterData.length > 0 && chapterData[0].AudioFileURL) {
+      const audioWrap = document.createElement('div');
+      audioWrap.className = 'card mb-3';
 
-        // --- VERSE RENDERING ---
-        chapterData.forEach((verse) => {
-            const verseElement = document.createElement('div');
-            verseElement.classList.add('verse', 'position-relative', 'p-3', 'mb-3', 'border', 'rounded', 'bg-white', 'shadow-sm'); 
+      const label = document.createElement('h5');
+      label.className = 'mb-2';
+      label.textContent = `🔊 Play Chapter ${selectedChapter} Audio`;
 
-            const hasAudio = verse.AudioStart !== undefined && verse.AudioEnd > verse.AudioStart;
-            const absoluteIndex = globalGeetaData.findIndex(v => v.Chapter === verse.Chapter && v.VerseNum === verse.VerseNum);
+      currentChapterAudio = new Audio();
+      currentChapterAudio.id = 'mainChapterAudio';
+      currentChapterAudio.controls = true;
+      currentChapterAudio.preload = 'metadata';
+      currentChapterAudio.src = chapterData[0].AudioFileURL;
 
-            // Tiny Speaker Icon on mobile (Flexbox layout prevents overlap)
-            let iconHtml = '';
-            if (hasAudio) {
-                iconHtml = `<button class="btn btn-light shadow-sm text-primary rounded-circle inline-play-btn" data-index="${absoluteIndex}" title="Play Verse Audio" style="width: 32px; height: 32px; padding: 0; display:flex; align-items:center; justify-content:center; font-size: 1rem; border: 1px solid #ddd; flex-shrink: 0;">🔊</button>`;
-            }
+      currentChapterAudio.addEventListener('error', () => {
+        showAudioErrorToast(currentChapterAudio.src);
+      });
 
-            const sanText = verse.OriginalText ? verse.OriginalText.replace(/\n/g, '<br>') : '';
-            const engText = verse.EnglishText ? verse.EnglishText.replace(/\n/g, '<br>') : '';
-            const hinDesc = verse.OriginalMeaning ? verse.OriginalMeaning.replace(/\n/g, '<br>') : '';
-            const engDesc = verse.EnglishMeaning ? verse.EnglishMeaning.replace(/\n/g, '<br>') : '';
+      audioWrap.appendChild(label);
+      audioWrap.appendChild(currentChapterAudio);
+      container.appendChild(audioWrap);
+    }
 
-            // Using padding-right to ensure text never slides under the button
-            verseElement.innerHTML += `
-                <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-                    <div class="text-info font-weight-bold m-0">Chapter ${verse.Chapter}, Verse ${verse.VerseNum}</div>
-                    ${iconHtml}
-                </div>
-                <div class="sanskrit-lines font-weight-bold text-center text-danger mb-2" style="padding-right: 10px; padding-left: 10px;">${sanText}</div>
-                <div class="english-lines text-center font-italic mb-3" style="padding-right: 10px; padding-left: 10px;">${engText}</div>
-                <hr>
-                <div class="hindi-description mb-2">${hinDesc}</div>
-                <div class="english-description text-muted">${engDesc}</div>
-            `;
-            container.appendChild(verseElement);
-        });
-    } catch (error) { console.error("Error rendering chapter:", error); }
+    const frag = document.createDocumentFragment();
+    chapterData.forEach(verse => {
+      const absoluteIndex = globalGeetaData.findIndex(v => v.Chapter === verse.Chapter && v.VerseNum === verse.VerseNum);
+      const div = document.createElement('div');
+      div.innerHTML = buildVerseCard(verse, absoluteIndex);
+      frag.appendChild(div.firstElementChild);
+    });
+
+    container.appendChild(frag);
+  } catch (error) {
+    console.error('Error rendering chapter:', error);
+    showToast('Unable to render chapter.', 'error');
+  }
 }
 
-// Search Logic
-document.getElementById('searchButton')?.addEventListener('click', searchWord);
-document.getElementById('searchInput')?.addEventListener('keyup', function (event) {
-    if (event.key === 'Enter') searchWord();
-});
+function searchWord() {
+  try {
+    const term = searchInput.value.toLowerCase().trim();
+    if (!term) return;
 
-async function searchWord() {
-    try {
-        const searchInput = document.getElementById('searchInput');
-        const searchTerm = searchInput.value.toLowerCase().trim();
-        if (!searchTerm) return;
+    searchResults.innerHTML = '';
+    container.innerHTML = '';
+    stopAllAudio();
+    currentPlaylist = [];
 
-        const searchResults = document.getElementById('searchResults');
-        searchResults.innerHTML = '';
-        document.getElementById('container').innerHTML = '';
-        
-        if (currentChapterAudio) currentChapterAudio.pause();
-        cancelAnimationFrame(chunkMonitorId);
+    let totalMatches = 0;
+    const frag = document.createDocumentFragment();
 
-        let totalMatches = 0;
-        currentPlaylist = []; // Reset and populate with matched indices ONLY
+    globalGeetaData.forEach((item, absoluteIndex) => {
+      let verseHasMatch = false;
 
-        globalGeetaData.forEach((item, absoluteIndex) => {
-            let verseHasMatch = false;
-            for (const key in item) {
-                if (item[key] && typeof item[key] === 'string') {
-                    if (item[key].toLowerCase().includes(searchTerm)) {
-                        verseHasMatch = true;
-                        break; 
-                    }
-                }
-            }
-
-            if (verseHasMatch) {
-                totalMatches++;
-                currentPlaylist.push(absoluteIndex); 
-
-                const resultElement = document.createElement('div');
-                resultElement.classList.add('verse', 'position-relative', 'p-3', 'mb-3', 'border', 'rounded', 'bg-white', 'shadow-sm');
-
-                const highlightMatch = (text) => text ? text.replace(new RegExp(`(${searchTerm})`, 'gi'), '<span class="highlight">$1</span>').replace(/\n/g, '<br>') : '';
-                const hasAudio = item.AudioStart !== undefined && item.AudioEnd > item.AudioStart;
-                
-                let iconHtml = '';
-                if (hasAudio) {
-                    iconHtml = `<button class="btn btn-light shadow-sm text-primary rounded-circle inline-play-btn" data-index="${absoluteIndex}" title="Play Verse Audio" style="width: 32px; height: 32px; padding: 0; display:flex; align-items:center; justify-content:center; font-size: 1rem; border: 1px solid #ddd; flex-shrink: 0;">🔊</button>`;
-                }
-
-                resultElement.innerHTML = `
-                    <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-                        <div class="text-info font-weight-bold m-0">Chapter ${item.Chapter}, Verse ${item.VerseNum}</div>
-                        ${iconHtml}
-                    </div>
-                    <p class="font-weight-bold text-danger">${highlightMatch(item.OriginalText)}</p>
-                    <p class="font-italic">${highlightMatch(item.EnglishText)}</p>
-                    <hr>
-                    <p>${highlightMatch(item.OriginalMeaning)}</p>
-                    <p class="text-muted">${highlightMatch(item.EnglishMeaning)}</p>
-                `;
-                searchResults.appendChild(resultElement);
-            }
-        });
-
-        const totalsElement = document.createElement('div');
-        totalsElement.classList.add('search-totals', 'alert', 'alert-info');
-        totalsElement.innerHTML = `<strong>Total matches found:</strong> ${totalMatches} verses`;
-        searchResults.insertBefore(totalsElement, searchResults.firstChild);
-
-        if (totalMatches > 0) {
-            document.getElementById('globalPresentationBtn').style.display = 'inline-block';
-        } else {
-            searchResults.innerHTML = '<p class="text-center text-danger mt-3">No results found.</p>';
-            document.getElementById('globalPresentationBtn').style.display = 'none';
+      for (const key in item) {
+        if (typeof item[key] === 'string' && item[key].toLowerCase().includes(term)) {
+          verseHasMatch = true;
+          break;
         }
-    } catch (error) { console.error('Error during search:', error); }
+      }
+
+      if (verseHasMatch) {
+        totalMatches++;
+        currentPlaylist.push(absoluteIndex);
+
+        const div = document.createElement('div');
+        div.innerHTML = buildVerseCard(item, absoluteIndex, term);
+        frag.appendChild(div.firstElementChild);
+      }
+    });
+
+    if (totalMatches > 0) {
+      const totalsElement = document.createElement('div');
+      totalsElement.className = 'alert alert-info';
+      totalsElement.innerHTML = `<strong>Total matches found:</strong> ${totalMatches} verses`;
+      searchResults.appendChild(totalsElement);
+      searchResults.appendChild(frag);
+      globalPresentationBtn.style.display = 'inline-block';
+    } else {
+      searchResults.innerHTML = `<p class="text-center text-danger mt-3">No results found.</p>`;
+      globalPresentationBtn.style.display = 'none';
+    }
+  } catch (error) {
+    console.error('Error during search:', error);
+    showToast('Search failed.', 'error');
+  }
 }
 
-// Dedicated High-Precision Inline Player Logic
+// ---------------------------------------------------------
+// Inline verse player
+// ---------------------------------------------------------
 function playVerseInline(absoluteIndex) {
-    try {
-        const verse = globalGeetaData[absoluteIndex];
-        if (!verse || !verse.AudioFileURL || verse.AudioStart === undefined) return;
+  try {
+    const verse = globalGeetaData[absoluteIndex];
+    if (!verse || !verse.AudioFileURL || verse.AudioStart === undefined) return;
 
-        if (!currentChapterAudio) currentChapterAudio = new Audio();
-        if (currentChapterAudio.src.indexOf(verse.AudioFileURL) === -1) currentChapterAudio.src = verse.AudioFileURL;
+    if (!currentChapterAudio) {
+      currentChapterAudio = new Audio();
+      currentChapterAudio.preload = 'metadata';
+      currentChapterAudio.addEventListener('error', () => showAudioErrorToast(currentChapterAudio.src));
+    }
 
-        cancelAnimationFrame(chunkMonitorId);
+    if (!currentChapterAudio.src || currentChapterAudio.src.indexOf(verse.AudioFileURL) === -1) {
+      currentChapterAudio.src = verse.AudioFileURL;
+    }
+
+    cancelAnimationFrame(chunkMonitorId);
+    currentChapterAudio.pause();
+    currentChapterAudio.currentTime = Number(verse.AudioStart) || 0;
+
+    currentChapterAudio.play().catch(err => {
+      console.warn('Playback blocked', err);
+      showToast('Tap again if your browser blocked audio autoplay.', 'warning');
+    });
+
+    const end = Number(verse.AudioEnd) || 0;
+
+    const monitor = () => {
+      if (!currentChapterAudio) return;
+      if (currentChapterAudio.currentTime >= end) {
         currentChapterAudio.pause();
-        currentChapterAudio.currentTime = verse.AudioStart;
-        currentChapterAudio.play().catch(e => console.warn("Autoplay blocked", e));
-
-        const end = verse.AudioEnd;
-        const monitor = () => {
-            if (currentChapterAudio.currentTime >= end) {
-                currentChapterAudio.pause();
-                currentChapterAudio.currentTime = verse.AudioStart; // Perfect Clipping
-            } else if (!currentChapterAudio.paused) {
-                chunkMonitorId = requestAnimationFrame(monitor);
-            }
-        };
+        currentChapterAudio.currentTime = Number(verse.AudioStart) || 0;
+      } else if (!currentChapterAudio.paused) {
         chunkMonitorId = requestAnimationFrame(monitor);
-    } catch(e) { console.error("Inline play error:", e); }
+      }
+    };
+
+    chunkMonitorId = requestAnimationFrame(monitor);
+  } catch (err) {
+    console.error('Inline play error:', err);
+    showToast('Unable to play verse audio.', 'error');
+  }
 }
 
+// ---------------------------------------------------------
+// Subscription modal
+// ---------------------------------------------------------
+function injectSubscriptionModal() {
+  const modalHTML = `
+    <div id="subModal" class="karaoke-modal" style="z-index:105000;">
+      <div class="karaoke-content bg-light text-dark p-4 rounded text-left" style="max-width:560px; width:95%; border-radius:18px;">
+        <h3 class="text-primary mb-3">📅 Setup Daily Reading</h3>
 
-// ==========================================
-// 3. ADVANCED SUBSCRIPTION MODAL (SMART DEFAULTS)
-// ==========================================
+        <div class="form-group">
+          <label class="font-weight-bold">Subscribe to:</label>
+          <select id="subType" class="form-control border-primary">
+            <option value="chapter">One Chapter at a time</option>
+            <option value="verse">One Verse at a time</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="font-weight-bold mb-1">Starting Point:</label>
+          <input type="text" id="subFilter" class="form-control mb-2" placeholder="🔍 Search chapter or verse..." />
+          <div id="subFilterFeedback" class="small text-muted mb-1"></div>
+          <div id="subLoading" class="loading-inline hidden">⏳ Processing options...</div>
+          <select id="subStart" class="form-control" size="5" style="overflow-y:auto;"></select>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-6 form-group">
+            <label class="font-weight-bold">Start Date:</label>
+            <input type="date" id="subDate" class="form-control" />
+          </div>
+          <div class="col-sm-6 form-group">
+            <label class="font-weight-bold">Notification Time:</label>
+            <input type="time" id="subTime" class="form-control" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="font-weight-bold">Frequency:</label>
+          <select id="subFreq" class="form-control">
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+
+        <div class="d-flex flex-column mt-3" style="gap:10px;">
+          <button id="btnGoogleCal" class="btn btn-primary">➕ Add to Google Calendar</button>
+          <button id="btnAppleCal" class="btn btn-dark">🍎 Add to Apple / Outlook (.ics)</button>
+          <button id="btnCopySubLink" class="btn btn-info">🔗 Copy Subscription Link</button>
+          <button id="btnCloseSub" class="btn btn-outline-secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+  const subModal = document.getElementById('subModal');
+  const subType = document.getElementById('subType');
+  const subStart = document.getElementById('subStart');
+  const subFilter = document.getElementById('subFilter');
+  const subFilterFeedback = document.getElementById('subFilterFeedback');
+  const subLoading = document.getElementById('subLoading');
+
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  document.getElementById('subDate').value = tomorrow.toISOString().split('T')[0];
+
+  document.getElementById('btnOpenSubModal')?.addEventListener('click', () => {
+    openSubscriptionModalPreFilled('chapter', '1', 'daily');
+  });
+
+  document.getElementById('btnCloseSub')?.addEventListener('click', () => {
+    subModal.classList.remove('active');
+  });
+
+  subModal.addEventListener('click', e => {
+    if (e.target === subModal) subModal.classList.remove('active');
+  });
+
+  subType.addEventListener('change', () => {
+    subFilter.value = '';
+    openSubscriptionModalPreFilled(subType.value, '', document.getElementById('subFreq').value);
+  });
+
+  subFilter.addEventListener('input', e => {
+    const term = e.target.value.toLowerCase().trim();
+    const source = subType.value === 'chapter' ? precomputedSubOptions.chapter : precomputedSubOptions.verse;
+
+    subStart.innerHTML = '';
+    let count = 0;
+
+    const frag = document.createDocumentFragment();
+    source.forEach(opt => {
+      if (!term || opt.text.toLowerCase().includes(term)) {
+        const option = document.createElement('option');
+        option.value = opt.val;
+        option.textContent = opt.text;
+        frag.appendChild(option);
+        count++;
+      }
+    });
+
+    subStart.appendChild(frag);
+    subFilterFeedback.textContent = term ? `Showing ${count} matching options` : '';
+  });
+
+  document.getElementById('btnCopySubLink')?.addEventListener('click', async () => {
+    if (!subStart.value) {
+      showToast('Please select a starting point.', 'warning');
+      return;
+    }
+
+    const appUrl = generateAppUrl();
+    const message = `📖 My Bhagavad Gita reading link\n\nOpen today’s reading here:\n${appUrl}\n\nShared from Geeta App`;
+
+    try {
+      await navigator.clipboard.writeText(message);
+      showToast('Subscription link copied with message.', 'success');
+    } catch {
+      showToast('Failed to copy subscription link.', 'error');
+    }
+  });
+
+  document.getElementById('btnGoogleCal')?.addEventListener('click', () => {
+    if (!subStart.value) {
+      showToast('Please select a starting point.', 'warning');
+      return;
+    }
+
+    const appUrl = generateAppUrl();
+    const freq = document.getElementById('subFreq').value.toUpperCase();
+    const { dtStart, dtEnd } = getUTCStartAndEnd();
+
+    const details = `Tap the link to open today's reading:\n${appUrl}`;
+    const gCalUrl =
+      `https://calendar.google.com/calendar/render?action=TEMPLATE` +
+      `&text=${encodeURIComponent('📖 Gita Reading')}` +
+      `&dates=${dtStart}/${dtEnd}` +
+      `&details=${encodeURIComponent(details)}` +
+      `&recur=${encodeURIComponent(`RRULE:FREQ=${freq}`)}`;
+
+    window.open(gCalUrl, '_blank');
+    subModal.classList.remove('active');
+  });
+
+  document.getElementById('btnAppleCal')?.addEventListener('click', () => {
+    if (!subStart.value) {
+      showToast('Please select a starting point.', 'warning');
+      return;
+    }
+
+    const type = subType.value;
+    const appUrl = generateAppUrl();
+    const freq = document.getElementById('subFreq').value.toUpperCase();
+    const { dtStart } = getUTCStartAndEnd();
+
+    const icsData = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//GitaApp//EN',
+      'CALSCALE:GREGORIAN',
+      'BEGIN:VEVENT',
+      'SUMMARY:📖 Gita Reading',
+      `DTSTART:${dtStart}`,
+      `RRULE:FREQ=${freq}`,
+      `DESCRIPTION:Tap to open today's reading:\\n${appUrl}`,
+      `URL:${appUrl}`,
+      'STATUS:CONFIRMED',
+      'BEGIN:VALARM',
+      'TRIGGER:-PT0M',
+      'ACTION:DISPLAY',
+      'DESCRIPTION:Reminder',
+      'END:VALARM',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].join('\n');
+
+    const blob = new Blob([icsData], { type: 'text/calendar;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Gita_Reminder_${type}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    subModal.classList.remove('active');
+    showToast('Calendar file downloaded.', 'success');
+  });
+
+  function generateAppUrl() {
+    const type = subType.value;
+    const startVal = subStart.value;
+    const freq = document.getElementById('subFreq').value;
+    const startDate = document.getElementById('subDate').value;
+    const subId = `sub_${Date.now()}`;
+
+    return `${window.location.origin}${window.location.pathname}?subId=${subId}&type=${encodeURIComponent(type)}&start=${encodeURIComponent(startVal)}&freq=${encodeURIComponent(freq)}&date=${encodeURIComponent(startDate)}`;
+  }
+
+  function getUTCStartAndEnd() {
+    const dateVal = document.getElementById('subDate').value;
+    const timeVal = document.getElementById('subTime').value;
+    const localDate = new Date(`${dateVal}T${timeVal}:00`);
+
+    const formatUTC = d => d.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+    const dtStart = formatUTC(localDate);
+    const dtEnd = formatUTC(new Date(localDate.getTime() + 15 * 60000));
+
+    return { dtStart, dtEnd };
+  }
+}
 
 function openSubscriptionModalPreFilled(type, startValue, freq) {
-    const subModal = document.getElementById('subModal');
-    document.getElementById('subType').value = type;
-    
-    // Show loading to yield thread
-    document.getElementById('subLoading').style.display = 'block';
-    document.getElementById('subStart').style.display = 'none';
-    
-    setTimeout(() => {
-        const subStart = document.getElementById('subStart');
-        subStart.innerHTML = '';
-        const dataToRender = type === 'chapter' ? precomputedSubOptions.chapter : precomputedSubOptions.verse;
-        
-        const frag = document.createDocumentFragment();
-        dataToRender.forEach(opt => {
-            const el = document.createElement('option');
-            el.value = opt.val; el.textContent = opt.text;
-            frag.appendChild(el);
-        });
-        subStart.appendChild(frag);
+  const subModal = document.getElementById('subModal');
+  const subType = document.getElementById('subType');
+  const subStart = document.getElementById('subStart');
+  const subLoading = document.getElementById('subLoading');
 
-        subStart.value = startValue; 
-        document.getElementById('subLoading').style.display = 'none';
-        subStart.style.display = 'block';
-    }, 10);
+  subType.value = type;
+  subLoading.classList.remove('hidden');
+  subStart.style.display = 'none';
 
-    document.getElementById('subFreq').value = freq;
+  setTimeout(() => {
+    const list = type === 'chapter' ? precomputedSubOptions.chapter : precomputedSubOptions.verse;
+    subStart.innerHTML = '';
 
-    // Calculate exactly 21:15 GMT+7 (Bangkok Time) translated to User's Local Time
-    const targetUTC = new Date();
-    targetUTC.setUTCHours(14, 15, 0, 0); // 14:15 UTC is 21:15 BKK
-    const localH = targetUTC.getHours().toString().padStart(2, '0');
-    const localM = targetUTC.getMinutes().toString().padStart(2, '0');
-    document.getElementById('subTime').value = `${localH}:${localM}`;
-    
-    subModal.classList.add('active');
+    const frag = document.createDocumentFragment();
+    list.forEach(opt => {
+      const option = document.createElement('option');
+      option.value = opt.val;
+      option.textContent = opt.text;
+      frag.appendChild(option);
+    });
+
+    subStart.appendChild(frag);
+    if (startValue !== undefined && startValue !== null && startValue !== '') {
+      subStart.value = String(startValue);
+    }
+
+    subLoading.classList.add('hidden');
+    subStart.style.display = 'block';
+  }, 0);
+
+  document.getElementById('subFreq').value = freq;
+
+  const targetUTC = new Date();
+  targetUTC.setUTCHours(14, 15, 0, 0); // 21:15 Bangkok = 14:15 UTC
+  const localH = String(targetUTC.getHours()).padStart(2, '0');
+  const localM = String(targetUTC.getMinutes()).padStart(2, '0');
+  document.getElementById('subTime').value = `${localH}:${localM}`;
+
+  subModal.classList.add('active');
 }
 
-function injectSubscriptionModal() {
-    try {
-        const modalHTML = `
-        <div id="subModal" class="karaoke-modal" style="z-index: 105000;">
-            <div class="karaoke-content bg-light text-dark p-4 rounded text-left" style="max-width:550px; width: 95%;">
-                <h3 class="text-primary mb-3">📅 Setup Daily Reading</h3>
-                
-                <div class="form-group">
-                    <label class="font-weight-bold">Subscribe to:</label>
-                    <select id="subType" class="form-control border-primary">
-                        <option value="chapter">One Chapter at a time</option>
-                        <option value="verse">One Verse at a time</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label class="font-weight-bold mb-1">Starting Point:</label>
-                    <input type="text" id="subFilter" class="form-control mb-1" placeholder="🔍 Search chapter or verse...">
-                    <div id="subFilterFeedback" class="filter-feedback text-muted"></div>
-                    
-                    <div id="subLoading" class="loading-spinner">⏳ Processing options...</div>
-                    <select id="subStart" class="form-control" size="4" style="overflow-y: auto;"></select>
-                </div>
-
-                <div class="row">
-                    <div class="col-sm-6 form-group">
-                        <label class="font-weight-bold">Start Date:</label>
-                        <input type="date" id="subDate" class="form-control">
-                    </div>
-                    <div class="col-sm-6 form-group">
-                        <label class="font-weight-bold">Notification Time:</label>
-                        <input type="time" id="subTime" class="form-control">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="font-weight-bold">Frequency:</label>
-                    <select id="subFreq" class="form-control">
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                    </select>
-                </div>
-
-                <div class="d-flex flex-column gap-2 mt-4">
-                    <button id="btnGoogleCal" class="btn btn-primary shadow-sm">➕ Add to Google Calendar</button>
-                    <button id="btnAppleCal" class="btn btn-dark shadow-sm">🍎 Add to Apple / Outlook (.ics)</button>
-                    <button id="btnCloseSub" class="btn btn-outline-secondary mt-2">Cancel</button>
-                </div>
-            </div>
-        </div>`;
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-
-        const subModal = document.getElementById('subModal');
-        const subType = document.getElementById('subType');
-        const subStart = document.getElementById('subStart');
-        const subFilter = document.getElementById('subFilter');
-        const subFilterFeedback = document.getElementById('subFilterFeedback');
-        const subLoading = document.getElementById('subLoading');
-        
-        const tmrw = new Date(); tmrw.setDate(tmrw.getDate() + 1);
-        document.getElementById('subDate').value = tmrw.toISOString().split('T')[0];
-
-        // Standard Open Button
-        document.getElementById('btnOpenSubModal')?.addEventListener('click', () => {
-            openSubscriptionModalPreFilled('chapter', '1', 'daily'); // Default to Ch 1
-        });
-        
-        document.getElementById('btnCloseSub')?.addEventListener('click', () => subModal.classList.remove('active'));
-
-        subType?.addEventListener('change', () => {
-            subFilter.value = '';
-            openSubscriptionModalPreFilled(subType.value, '', document.getElementById('subFreq').value);
-        });
-
-        // Fast In-Memory Filtering
-        subFilter?.addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            subStart.innerHTML = '';
-            const dataToSearch = subType.value === 'chapter' ? precomputedSubOptions.chapter : precomputedSubOptions.verse;
-            
-            let matchCount = 0;
-            dataToSearch.forEach(opt => {
-                if (opt.text.toLowerCase().includes(term)) {
-                    subStart.innerHTML += `<option value="${opt.val}">${opt.text}</option>`;
-                    matchCount++;
-                }
-            });
-
-            subFilterFeedback.textContent = term ? `Showing ${matchCount} matching options` : ``;
-            subFilterFeedback.classList.add('active');
-            setTimeout(() => subFilterFeedback.classList.remove('active'), 300);
-        });
-
-        function generateAppUrl() {
-            const type = subType.value;
-            const startVal = subStart.value;
-            const freq = document.getElementById('subFreq').value;
-            const startDate = document.getElementById('subDate').value;
-            const subId = 'sub_' + Date.now();
-            return window.location.origin + window.location.pathname + `?subId=${subId}&type=${type}&start=${startVal}&freq=${freq}&date=${startDate}`;
-        }
-
-        function getUTCStartAndEnd() {
-            const dateVal = document.getElementById('subDate').value;
-            const timeVal = document.getElementById('subTime').value;
-            const localDate = new Date(`${dateVal}T${timeVal}:00`);
-            
-            const formatUTC = (d) => d.toISOString().replace(/-|:|\.\d+/g, '');
-            const dtStart = formatUTC(localDate);
-            const dtEnd = formatUTC(new Date(localDate.getTime() + 15 * 60000)); // 15 mins later
-            return { dtStart, dtEnd };
-        }
-
-        // GOOGLE CALENDAR LINK
-        document.getElementById('btnGoogleCal')?.addEventListener('click', () => {
-            if(!subStart.value) { alert("Please select a starting point"); return; }
-            const appUrl = generateAppUrl();
-            const freq = document.getElementById('subFreq').value.toUpperCase();
-            const { dtStart, dtEnd } = getUTCStartAndEnd();
-            
-            const gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=📖+Gita+Reading&dates=${dtStart}/${dtEnd}&details=Tap+the+link+to+open+today's+reading:%0A${encodeURIComponent(appUrl)}&recur=RRULE:FREQ=${freq}`;
-            
-            window.open(gCalUrl, '_blank');
-            subModal.classList.remove('active');
-        });
-
-        // APPLE / OUTLOOK ICS DOWNLOAD
-        document.getElementById('btnAppleCal')?.addEventListener('click', () => {
-            if(!subStart.value) { alert("Please select a starting point"); return; }
-            const type = subType.value;
-            const appUrl = generateAppUrl();
-            const freq = document.getElementById('subFreq').value.toUpperCase();
-            const { dtStart } = getUTCStartAndEnd();
-            
-            const icsData = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//GitaApp//EN\nCALSCALE:GREGORIAN\nBEGIN:VEVENT\nSUMMARY:📖 Gita Reading\nDTSTART:${dtStart}\nRRULE:FREQ=${freq}\nDESCRIPTION:Tap to open today's reading:\\n${appUrl}\nURL:${appUrl}\nSTATUS:CONFIRMED\nBEGIN:VALARM\nTRIGGER:-PT0M\nACTION:DISPLAY\nDESCRIPTION:Reminder\nEND:VALARM\nEND:VEVENT\nEND:VCALENDAR`;
-
-            const blob = new Blob([icsData], { type: 'text/calendar;charset=utf-8' });
-            const link = document.createElement('a');
-            link.href = window.URL.createObjectURL(blob);
-            link.download = `Gita_Reminder_${type}.ics`;
-            document.body.appendChild(link);
-            link.click(); document.body.removeChild(link);
-
-            subModal.classList.remove('active');
-            alert("✅ Downloaded! Open the file to add it to your native Calendar.");
-        });
-    } catch (e) { console.error("Error injecting Subscription Modal:", e); }
-}
-
-// ==========================================
-// 4. AUTOPLAY BYPASS & ROUTING
-// ==========================================
+// ---------------------------------------------------------
+// Welcome + routing
+// ---------------------------------------------------------
 function injectWelcomeScreen() {
-    const splashHTML = `
+  const splashHTML = `
     <div id="welcomeSplash" class="welcome-splash" style="display:none;">
-        <div class="welcome-card">
-            <div id="streakBadge" class="streak-badge" style="display:none;">🔥 1 Day Streak</div>
-            <h2>Welcome Back!</h2>
-            <p class="text-light mt-2 mb-4">Your daily Srimad Bhagavad Gita reading is ready.</p>
-            <button id="btnBeginReading" class="btn-begin">▶️ Begin Reading</button>
-        </div>
-    </div>`;
-    document.body.insertAdjacentHTML('beforeend', splashHTML);
+      <div class="welcome-card">
+        <div id="streakBadge" class="streak-badge" style="display:none;">🔥 1 Day Streak</div>
+        <h2>Welcome Back!</h2>
+        <p class="text-light mt-2 mb-4">Your daily Srimad Bhagavad Gita reading is ready.</p>
+        <button id="btnBeginReading" class="btn-begin">▶️ Begin Reading</button>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', splashHTML);
 }
 
 function handleSubscriptionRouting() {
-    try {
-        const urlParams = newSearchParams(window.location.search);
-        const subId = urlParams.get('subId');
-        
-        if (!subId) return false; 
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const subId = urlParams.get('subId');
+    if (!subId) return false;
 
-        // Update Reading Streak
-        let streak = parseInt(localStorage.getItem('gita_streak')) || 0;
-        let lastRead = localStorage.getItem('gita_last_read');
-        const todayStr = new Date().toISOString().split('T')[0];
+    let streak = parseInt(localStorage.getItem('gita_streak') || '0', 10);
+    const lastRead = localStorage.getItem('gita_last_read');
+    const todayStr = new Date().toISOString().split('T')[0];
 
-        if (lastRead !== todayStr) {
-            streak++;
-            localStorage.setItem('gita_streak', streak);
-            localStorage.setItem('gita_last_read', todayStr);
-        }
-        
-        const badge = document.getElementById('streakBadge');
-        if (streak > 1 && badge) {
-            badge.textContent = `🔥 ${streak} Day Streak`;
-            badge.style.display = 'inline-block';
-        }
-
-        const type = urlParams.get('type');
-        const initialStart = parseInt(urlParams.get('start'));
-        const startDateStr = urlParams.get('date');
-        const freq = urlParams.get('freq');
-
-        const startDate = new Date(startDateStr);
-        const today = new Date();
-        const diffTime = Math.max(0, today - startDate); 
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        
-        let progressionSteps = 0;
-        if (freq === 'daily') progressionSteps = diffDays;
-        if (freq === 'weekly') progressionSteps = Math.floor(diffDays / 7);
-        if (freq === 'monthly') {
-            progressionSteps = (today.getFullYear() - startDate.getFullYear()) * 12 + (today.getMonth() - startDate.getMonth());
-            if (progressionSteps < 0) progressionSteps = 0;
-        }
-
-        let targetIndex = 0;
-        let pList = []; // Temporary playlist for routing
-
-        if (type === 'verse') {
-            targetIndex = initialStart + progressionSteps;
-            if (targetIndex >= globalGeetaData.length) {
-                alert("🙏 You have completed all verses in your subscription! Link Expired.");
-                return true;
-            }
-            pList.push(targetIndex); 
-
-        } else if (type === 'chapter') {
-            const chapters = Array.from(new Set(globalGeetaData.map(i => parseInt(i.Chapter))));
-            const startChapIndex = chapters.indexOf(initialStart);
-            const targetChapIndex = startChapIndex + progressionSteps;
-            
-            if (targetChapIndex >= chapters.length) {
-                alert("🙏 You have completed all chapters! Link Expired.");
-                return true;
-            }
-            const targetChapter = chapters[targetChapIndex];
-            
-            // Build playlist for the entire chapter
-            globalGeetaData.forEach((v, i) => {
-                if (parseInt(v.Chapter) === targetChapter) pList.push(i);
-            });
-        }
-
-        // Show Welcome Splash (Bypasses Browser Autoplay Policy)
-        const splash = document.getElementById('welcomeSplash');
-        splash.style.display = 'flex';
-        
-        document.getElementById('btnBeginReading').addEventListener('click', () => {
-            splash.classList.add('fade-out');
-            setTimeout(() => splash.style.display = 'none', 500);
-            
-            // Interaction achieved! Audio is now allowed to play.
-            openKaraoke(pList, 0, type); // Passes 'chapter' or 'verse'
-        });
-
-        console.log(`Successfully routed to Subscription: ${type}`);
-        return true;
-    } catch (e) {
-        console.error("Routing error:", e);
-        return false;
+    if (lastRead !== todayStr) {
+      streak++;
+      localStorage.setItem('gita_streak', String(streak));
+      localStorage.setItem('gita_last_read', todayStr);
     }
+
+    const badge = document.getElementById('streakBadge');
+    if (streak > 1 && badge) {
+      badge.textContent = `🔥 ${streak} Day Streak`;
+      badge.style.display = 'inline-block';
+    }
+
+    const type = urlParams.get('type');
+    const initialStart = parseInt(urlParams.get('start') || '0', 10);
+    const startDateStr = urlParams.get('date');
+    const freq = urlParams.get('freq');
+
+    if (!type || !startDateStr || Number.isNaN(initialStart)) return false;
+
+    const startDate = new Date(startDateStr);
+    const today = new Date();
+    const diffTime = Math.max(0, today - startDate);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    let progressionSteps = 0;
+    if (freq === 'daily') progressionSteps = diffDays;
+    else if (freq === 'weekly') progressionSteps = Math.floor(diffDays / 7);
+    else if (freq === 'monthly') {
+      progressionSteps =
+        (today.getFullYear() - startDate.getFullYear()) * 12 +
+        (today.getMonth() - startDate.getMonth());
+      if (progressionSteps < 0) progressionSteps = 0;
+    }
+
+    let pList = [];
+
+    if (type === 'verse') {
+      const targetIndex = initialStart + progressionSteps;
+      if (targetIndex >= globalGeetaData.length) {
+        showToast('You have completed all verses in this subscription.', 'success', 5000);
+        return true;
+      }
+      pList = [targetIndex];
+    } else if (type === 'chapter') {
+      const chapters = Array.from(new Set(globalGeetaData.map(i => parseInt(i.Chapter, 10))));
+      const startChapIndex = chapters.indexOf(initialStart);
+      const targetChapIndex = startChapIndex + progressionSteps;
+
+      if (targetChapIndex >= chapters.length) {
+        showToast('You have completed all chapters in this subscription.', 'success', 5000);
+        return true;
+      }
+
+      const targetChapter = chapters[targetChapIndex];
+      globalGeetaData.forEach((v, i) => {
+        if (parseInt(v.Chapter, 10) === targetChapter) pList.push(i);
+      });
+    }
+
+    const splash = document.getElementById('welcomeSplash');
+    splash.style.display = 'flex';
+
+    const beginBtn = document.getElementById('btnBeginReading');
+    beginBtn.onclick = () => {
+      splash.classList.add('fade-out');
+      setTimeout(() => {
+        splash.style.display = 'none';
+      }, 400);
+
+      openKaraoke(pList, 0, type);
+    };
+
+    return true;
+  } catch (err) {
+    console.error('Routing error:', err);
+    showToast('Failed to open subscription reading.', 'error');
+    return false;
+  }
 }
 
-// ==========================================
-// 5. ADVANCED PLAYLIST KARAOKE MODAL
-// ==========================================
-let kState = { 
-    playlist: [], 
-    listIndex: 0, 
-    mode: 'chapter', 
-    animId: null, 
-    audio: new Audio() 
-};
-
+// ---------------------------------------------------------
+// Karaoke modal + share
+// ---------------------------------------------------------
 function injectKaraokeModal() {
-    try {
-        const modalHTML = `
-        <div id="karaokeModal" class="karaoke-modal">
-            <button id="kCloseBtn" class="k-close-btn">×</button>
-            <button id="kShareBtn" class="k-share-btn">🔗 Share Verse</button>
+  const modalHTML = `
+    <div id="karaokeModal" class="karaoke-modal">
+      <button id="kCloseBtn" class="k-close-btn" aria-label="Close">×</button>
+      <button id="kShareBtn" class="k-share-btn">🔗 Share</button>
 
-            <div id="kContent" class="karaoke-content">
-                <div id="kTitle" class="karaoke-title"></div>
-                <div id="kLyrics" class="karaoke-lyrics"></div>
-                <div id="kEnglish" class="karaoke-english"></div>
-                
-                <div id="kManualControls" class="k-manual-container" style="display:none;">
-                    <button id="kRewind" class="k-icon-btn" title="Rewind 5s">⏪</button>
-                    <button id="kPlayPause" class="k-icon-btn" title="Play/Pause">⏯️</button>
-                    <button id="kForward" class="k-icon-btn" title="Forward 5s">⏩</button>
-                </div>
-            </div>
-            
-            <div class="karaoke-controls" id="kControls">
-                <button id="kPrevBtn" class="k-btn">⏮️ Prev Verse</button>
-                <button id="kNextBtn" class="k-btn">Next Verse ⏭️</button>
-            </div>
-        </div>`;
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
+      <div id="kContent" class="karaoke-content">
+        <div id="kTitle" class="karaoke-title"></div>
+        <div id="kLyrics" class="karaoke-lyrics"></div>
+        <div id="kEnglish" class="karaoke-english"></div>
 
-        // Events
-        document.getElementById('kCloseBtn')?.addEventListener('click', closeKaraoke);
-        document.getElementById('kPrevBtn')?.addEventListener('click', () => traverseKaraoke(-1));
-        document.getElementById('kNextBtn')?.addEventListener('click', () => traverseKaraoke(1));
+        <div id="kManualControls" class="k-manual-container" style="display:none;">
+          <button id="kRewind" class="k-icon-btn" title="Rewind 5s">⏪</button>
+          <button id="kPlayPause" class="k-icon-btn" title="Play/Pause">⏯️</button>
+          <button id="kForward" class="k-icon-btn" title="Forward 5s">⏩</button>
+        </div>
+      </div>
 
-        document.getElementById('kRewind')?.addEventListener('click', () => { if(kState.audio) kState.audio.currentTime -= 5; });
-        document.getElementById('kForward')?.addEventListener('click', () => { if(kState.audio) kState.audio.currentTime += 5; });
-        document.getElementById('kPlayPause')?.addEventListener('click', () => {
-            if(kState.audio) kState.audio.paused ? kState.audio.play() : kState.audio.pause();
-        });
+      <div class="karaoke-controls" id="kControls">
+        <button id="kPrevBtn" class="k-btn">⏮️ Prev Verse</button>
+        <button id="kNextBtn" class="k-btn">Next Verse ⏭️</button>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
 
-        // Share Feature Logic
-        document.getElementById('kShareBtn')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const v = globalGeetaData[kState.playlist[kState.listIndex]];
-            const text = `Bhagavad Gita - Chapter ${v.Chapter}, Verse ${v.VerseNum}\n\n${v.OriginalText}\n\n${v.EnglishText}\n\nRead on Gita App!`;
-            
-            if (navigator.share) {
-                navigator.share({ title: 'Bhagavad Gita', text: text, url: window.location.origin + window.location.pathname });
-            } else {
-                navigator.clipboard.writeText(text);
-                alert("Verse copied to clipboard! You can paste it anywhere.");
-            }
-        });
-    } catch (e) { console.error("Error injecting Karaoke Modal:", e); }
+  document.getElementById('kCloseBtn')?.addEventListener('click', closeKaraoke);
+  document.getElementById('karaokeModal')?.addEventListener('click', e => {
+    if (e.target.id === 'karaokeModal') closeKaraoke();
+  });
+  document.getElementById('kPrevBtn')?.addEventListener('click', () => traverseKaraoke(-1));
+  document.getElementById('kNextBtn')?.addEventListener('click', () => traverseKaraoke(1));
+  document.getElementById('kRewind')?.addEventListener('click', () => {
+    kState.audio.currentTime = Math.max(0, kState.audio.currentTime - 5);
+  });
+  document.getElementById('kForward')?.addEventListener('click', () => {
+    kState.audio.currentTime += 5;
+  });
+  document.getElementById('kPlayPause')?.addEventListener('click', () => {
+    if (kState.audio.paused) {
+      kState.audio.play().catch(() => showToast('Playback blocked. Tap again.', 'warning'));
+    } else {
+      kState.audio.pause();
+    }
+  });
+
+  kState.audio.preload = 'metadata';
+  kState.audio.addEventListener('error', () => showAudioErrorToast(kState.audio.src));
+
+  document.getElementById('kShareBtn')?.addEventListener('click', e => {
+    e.stopPropagation();
+    const verse = globalGeetaData[kState.playlist[kState.listIndex]];
+    if (!verse) return;
+
+    const shareUrl = `${window.location.origin}${window.location.pathname}`;
+    const message =
+      `📖 Bhagavad Gita — Chapter ${verse.Chapter}, Verse ${verse.VerseNum}\n\n` +
+      `${verse.OriginalText || ''}\n\n` +
+      `${verse.EnglishText || ''}\n\n` +
+      `Read and listen on Geeta App:\n${shareUrl}`;
+
+    openShareSheet({
+      title: `Bhagavad Gita - Chapter ${verse.Chapter}, Verse ${verse.VerseNum}`,
+      text: message,
+      url: shareUrl
+    });
+  });
 }
 
 function openKaraoke(playlistArr, startListIndex = 0, mode = 'chapter') {
-    try {
-        if (!playlistArr || playlistArr.length === 0) {
-            alert("No verses available to present.");
-            return;
-        }
+  if (!playlistArr || playlistArr.length === 0) {
+    showToast('No verses available for presentation.', 'warning');
+    return;
+  }
 
-        kState.playlist = playlistArr;
-        kState.listIndex = startListIndex;
-        kState.mode = mode; // 'chapter', 'verse', or 'search'
-        
-        if (currentChapterAudio) currentChapterAudio.pause();
-        cancelAnimationFrame(chunkMonitorId);
+  stopAllAudio();
 
-        document.getElementById('karaokeModal').classList.add('active');
-        document.getElementById('kControls').style.display = mode === 'verse' ? 'none' : 'flex';
-        
-        playCurrentKaraoke();
-    } catch (e) { console.error("Error opening Karaoke:", e); }
+  kState.playlist = playlistArr;
+  kState.listIndex = startListIndex;
+  kState.mode = mode;
+
+  const modal = document.getElementById('karaokeModal');
+  modal.classList.add('active');
+
+  document.getElementById('kControls').style.display = mode === 'verse' ? 'none' : 'flex';
+  playCurrentKaraoke();
 }
 
 function closeKaraoke() {
-    try {
-        document.getElementById('karaokeModal').classList.remove('active');
-        kState.audio.pause();
-        cancelAnimationFrame(kState.animId);
-    } catch (e) { console.error("Error closing Karaoke:", e); }
+  document.getElementById('karaokeModal')?.classList.remove('active');
+  kState.audio.pause();
+  cancelAnimationFrame(kState.animId);
 }
 
 function traverseKaraoke(direction) {
-    try {
-        const nextListIdx = kState.listIndex + direction;
-        if (nextListIdx >= 0 && nextListIdx < kState.playlist.length) {
-            kState.listIndex = nextListIdx;
-            playCurrentKaraoke();
-        }
-    } catch(e) { console.error(e); }
+  const nextIndex = kState.listIndex + direction;
+  if (nextIndex >= 0 && nextIndex < kState.playlist.length) {
+    kState.listIndex = nextIndex;
+    playCurrentKaraoke();
+  }
 }
 
 function playCurrentKaraoke() {
-    try {
-        const absoluteIndex = kState.playlist[kState.listIndex];
-        const v = globalGeetaData[absoluteIndex];
-        
-        const kContent = document.getElementById('kContent');
-        const manualControls = document.getElementById('kManualControls');
-        
-        kContent.classList.add('fade-out');
-        cancelAnimationFrame(kState.animId);
+  try {
+    const absoluteIndex = kState.playlist[kState.listIndex];
+    const verse = globalGeetaData[absoluteIndex];
+    if (!verse) return;
 
-        setTimeout(() => {
-            document.getElementById('kTitle').textContent = `Chapter ${v.Chapter}, Verse ${v.VerseNum} ${v.Topic ? ' - ' + v.Topic : ''}`;
-            document.getElementById('kLyrics').innerHTML = v.OriginalText ? v.OriginalText.replace(/\n/g, '<br>') : 'Text Unavailable';
-            document.getElementById('kEnglish').innerHTML = v.EnglishText ? v.EnglishText.replace(/\n/g, '<br>') : '';
-            kContent.classList.remove('fade-out');
+    const content = document.getElementById('kContent');
+    const manualControls = document.getElementById('kManualControls');
 
-            const hasTimestamps = v.AudioStart !== undefined && v.AudioEnd > v.AudioStart;
-            manualControls.style.display = hasTimestamps ? 'none' : 'flex';
+    cancelAnimationFrame(kState.animId);
+    content.classList.add('fade-out');
 
-            if (v.AudioFileURL) {
-                let fileChanged = false;
-                if (kState.audio.src.indexOf(v.AudioFileURL) === -1) {
-                    kState.audio.src = v.AudioFileURL;
-                    fileChanged = true;
-                }
+    setTimeout(() => {
+      document.getElementById('kTitle').textContent =
+        `Chapter ${verse.Chapter}, Verse ${verse.VerseNum}${verse.Topic ? ' — ' + verse.Topic : ''}`;
+      document.getElementById('kLyrics').innerHTML = nl2br(verse.OriginalText || 'Text Unavailable');
+      document.getElementById('kEnglish').innerHTML = nl2br(verse.EnglishText || '');
+      content.classList.remove('fade-out');
 
-                if (hasTimestamps) {
-                    const timeDiff = Math.abs(kState.audio.currentTime - v.AudioStart);
-                    const isContiguous = !fileChanged && !kState.audio.paused && timeDiff < 0.4;
+      const hasTimestamps = verse.AudioStart !== undefined && Number(verse.AudioEnd) > Number(verse.AudioStart);
+      manualControls.style.display = hasTimestamps ? 'none' : 'flex';
 
-                    if (!isContiguous) {
-                        kState.audio.currentTime = v.AudioStart;
-                        kState.audio.play().catch(e => console.warn("Autoplay blocked by browser"));
-                    }
-                    
-                    function monitorAudio() {
-                        if (kState.audio.currentTime >= v.AudioEnd) {
-                            if (kState.mode === 'verse') {
-                                // Loop single verse
-                                kState.audio.currentTime = v.AudioStart;
-                                kState.animId = requestAnimationFrame(monitorAudio);
-                            } else {
-                                // Auto advance through PLAYLIST
-                                if (kState.listIndex < kState.playlist.length - 1) {
-                                    kState.listIndex++;
-                                    playCurrentKaraoke(); 
-                                } else {
-                                    kState.audio.pause(); // Reached end of playlist
-                                }
-                            }
-                        } else {
-                            kState.animId = requestAnimationFrame(monitorAudio);
-                        }
-                    }
-                    kState.animId = requestAnimationFrame(monitorAudio);
-                    
-                } else {
-                    // Search Mode: Silences chapter audio if missing timestamps
-                    if (kState.mode !== 'search') {
-                        kState.audio.play().catch(e => console.warn("Autoplay blocked"));
-                    } else {
-                        kState.audio.pause();
-                    }
-                }
+      if (!verse.AudioFileURL) return;
+
+      let fileChanged = false;
+      if (!kState.audio.src || kState.audio.src.indexOf(verse.AudioFileURL) === -1) {
+        kState.audio.src = verse.AudioFileURL;
+        fileChanged = true;
+      }
+
+      if (hasTimestamps) {
+        const start = Number(verse.AudioStart) || 0;
+        const end = Number(verse.AudioEnd) || 0;
+
+        const timeDiff = Math.abs((kState.audio.currentTime || 0) - start);
+        const isContiguous = !fileChanged && !kState.audio.paused && timeDiff < 0.35;
+
+        if (!isContiguous) {
+          kState.audio.currentTime = start;
+          kState.audio.play().catch(() => showToast('Tap play if autoplay is blocked.', 'warning'));
+        }
+
+        const monitor = () => {
+          if (kState.audio.currentTime >= end) {
+            if (kState.mode === 'verse') {
+              kState.audio.currentTime = start;
+              kState.animId = requestAnimationFrame(monitor);
+            } else if (kState.listIndex < kState.playlist.length - 1) {
+              kState.listIndex++;
+              playCurrentKaraoke();
+            } else {
+              kState.audio.pause();
             }
-        }, 300); 
-    } catch (e) {
-        console.error("Error playing Karaoke:", e);
+          } else if (!kState.audio.paused) {
+            kState.animId = requestAnimationFrame(monitor);
+          }
+        };
+
+        kState.animId = requestAnimationFrame(monitor);
+      } else {
+        if (kState.mode !== 'search') {
+          kState.audio.play().catch(() => showToast('Tap play if autoplay is blocked.', 'warning'));
+        } else {
+          kState.audio.pause();
+        }
+      }
+    }, 180);
+  } catch (err) {
+    console.error('Error playing karaoke:', err);
+    showToast('Unable to open presentation.', 'error');
+  }
+}
+
+// ---------------------------------------------------------
+// Share sheet
+// ---------------------------------------------------------
+function injectShareSheet() {
+  const html = `
+    <div id="shareSheet" class="share-sheet">
+      <div class="share-sheet__panel">
+        <div class="share-sheet__title">Share</div>
+        <div id="sharePreview" class="share-sheet__preview"></div>
+
+        <div class="share-grid">
+          <button id="shareNativeBtn">📲 Share</button>
+          <button id="shareCopyBtn">📋 Copy Message</button>
+          <button id="shareWhatsappBtn">🟢 WhatsApp</button>
+          <button id="shareTelegramBtn">🔵 Telegram</button>
+          <button id="shareEmailBtn">✉️ Email</button>
+          <button id="shareCopyLinkBtn">🔗 Copy Link Only</button>
+        </div>
+
+        <button id="shareSheetClose" class="share-sheet__close">Close</button>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  const sheet = document.getElementById('shareSheet');
+  sheet.addEventListener('click', e => {
+    if (e.target === sheet) closeShareSheet();
+  });
+
+  document.getElementById('shareSheetClose')?.addEventListener('click', closeShareSheet);
+}
+
+let currentSharePayload = null;
+
+function openShareSheet({ title, text, url }) {
+  currentSharePayload = { title, text, url };
+  document.getElementById('sharePreview').textContent = text;
+  document.getElementById('shareSheet').classList.add('active');
+
+  document.getElementById('shareNativeBtn').onclick = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text, url });
+        closeShareSheet();
+      } catch {}
+    } else {
+      showToast('Native share is not available on this device.', 'warning');
     }
+  };
+
+  document.getElementById('shareCopyBtn').onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('Message copied.', 'success');
+      closeShareSheet();
+    } catch {
+      showToast('Failed to copy message.', 'error');
+    }
+  };
+
+  document.getElementById('shareCopyLinkBtn').onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast('Link copied.', 'success');
+      closeShareSheet();
+    } catch {
+      showToast('Failed to copy link.', 'error');
+    }
+  };
+
+  document.getElementById('shareWhatsappBtn').onclick = () => {
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  document.getElementById('shareTelegramBtn').onclick = () => {
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  document.getElementById('shareEmailBtn').onclick = () => {
+    window.location.href = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(text)}`;
+  };
+}
+
+function closeShareSheet() {
+  document.getElementById('shareSheet')?.classList.remove('active');
+}
+
+// ---------------------------------------------------------
+// Audio error handling
+// ---------------------------------------------------------
+function showAudioErrorToast(src = '') {
+  const shortUrl = src ? `<div style="font-size:12px;opacity:.85;margin-top:4px;word-break:break-all;">${src}</div>` : '';
+  showToast(`Audio could not be loaded. Please check your connection or try again.${shortUrl}`, 'error', 6000);
 }
