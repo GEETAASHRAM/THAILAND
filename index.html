@@ -1,79 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Srimad Bhagavad Gita</title>
-    
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#f4f6f9">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="gat_library/images/swami_hariharji_with_audio_symbol.png"> 
-    <link rel="icon" href="gat_library/images/favicon_swamiharihar_ji_maharaj.ico">
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+  />
+  <title>Srimad Bhagavad Gita</title>
 
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="gat_library/css/gat_audio_sync_style.css"> 
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#f4f6f9" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="apple-touch-icon" href="gat_library/images/swami_hariharji_with_audio_symbol.png" />
+  <link rel="icon" href="gat_library/images/favicon_swamiharihar_ji_maharaj.ico" />
+
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="gat_library/css/gat_audio_sync_style.css" />
 </head>
-<body>
-    <div class="container mt-4">
-        
-        <div id="quickSubscribeAd" class="alert alert-info text-center shadow-sm cursor-pointer mx-auto" style="cursor: pointer; max-width: 600px; border-radius: 15px; border: 1px solid #b8daff;">
-            <h5 class="m-0 text-dark">✨ <strong>Recommended:</strong> Subscribe to Daily Chapter 12 Reading at 21:15 📅</h5>
-        </div>
-
-        <div class="d-flex justify-content-between mb-3">
-            <button id="btnOpenSubModal" class="btn btn-warning btn-sm shadow-sm">📅 Custom Subscription</button>
-            <a href="audio_sync.html" class="btn btn-outline-info btn-sm shadow-sm">🛠️ Audio Sync Tool</a>
-        </div>
-            
-        <div id="filterBox" class="row justify-content-center">
-            <div class="col-md-6">
-                <h1 class="text-center mb-4">Srimad Bhagavad Gita</h1>
-                
-                <div class="form-group">
-                    <label for="chapterSelect" class="font-weight-bold">Select Chapter:</label>
-                    <select id="chapterSelect" class="form-control"></select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="searchInput" class="font-weight-bold">Search Word:</label>
-                    <input type="text" id="searchInput" class="form-control" placeholder="Search word...">
-                </div>
-                
-                <div class="d-flex flex-wrap justify-content-center mt-3 mb-2">
-                    <button id="searchButton" class="btn btn-primary shadow-sm mx-1 mb-2 px-4">Search</button>
-                    <button id="clearButton" class="btn btn-danger shadow-sm mx-1 mb-2">Clear Results</button>
-                    <button id="globalPresentationBtn" class="btn btn-info shadow-sm mx-1 mb-2" style="display:none;">🎤 Presentation Mode</button>
-                </div>
-            </div>
-        </div>
-        
-        <div class="row justify-content-center mt-4">
-            <div class="col-md-8">
-                <div class="result-container" id="searchResults"></div>
-            </div>
-            <div class="col-md-8">
-                <div class="result-container" id="container"></div>
-            </div>
-        </div>
+<body class="app-shell">
+  <div class="container app-container py-3 py-md-4">
+    <div
+      id="quickSubscribeAd"
+      class="quick-banner mx-auto mb-3"
+      role="button"
+      tabindex="0"
+      aria-label="Recommended subscription"
+    >
+      <div class="quick-banner__icon">✨</div>
+      <div class="quick-banner__content">
+        <div class="quick-banner__title">Recommended Subscription</div>
+        <div class="quick-banner__text">Daily Chapter 12 reading at 21:15</div>
+      </div>
     </div>
 
-    <div id="pwaInstallToast" class="pwa-toast" style="display: none;">
-        <p class="pwa-toast-text">Install the Gita App on your Home Screen for offline access!</p>
-        <button id="btnInstallPwa" class="pwa-btn-install">Install</button>
-        <button id="btnClosePwaToast" class="pwa-btn-close">×</button>
+    <div class="top-actions mb-3">
+      <button id="btnOpenSubModal" class="btn btn-warning shadow-sm">📅 Custom Subscription</button>
+      <a href="audio_sync.html" class="btn btn-outline-info shadow-sm">🛠️ Audio Sync Tool</a>
     </div>
-    
-    <script src="gat_library/js/app.js"></script>
 
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('sw.js').catch(err => console.error('PWA SW Registration failed:', err));
+    <div id="filterBox" class="filter-card">
+      <div class="row justify-content-center">
+        <div class="col-lg-7 col-md-9 col-12">
+          <h1 class="text-center mb-4 app-title">Srimad Bhagavad Gita</h1>
+
+          <div class="form-group">
+            <label for="chapterSelect" class="font-weight-bold">Select Chapter</label>
+            <select id="chapterSelect" class="form-control"></select>
+          </div>
+
+          <div class="form-group">
+            <label for="searchInput" class="font-weight-bold">Search Word</label>
+            <input type="text" id="searchInput" class="form-control" placeholder="Search word..." />
+          </div>
+
+          <div class="action-cluster mt-3">
+            <button id="searchButton" class="btn btn-primary shadow-sm">Search</button>
+            <button id="clearButton" class="btn btn-danger shadow-sm">Clear Results</button>
+            <button id="globalPresentationBtn" class="btn btn-info shadow-sm" style="display:none;">🎤 Presentation Mode</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row justify-content-center mt-4">
+      <div class="col-xl-9 col-lg-10 col-12">
+        <div class="result-container" id="searchResults"></div>
+      </div>
+      <div class="col-xl-9 col-lg-10 col-12">
+        <div class="result-container" id="container"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="pwaInstallToast" class="pwa-toast" style="display:none;">
+    <p class="pwa-toast-text">Install the Gita App on your Home Screen for faster access.</p>
+    <button id="btnInstallPwa" class="pwa-btn-install">Install</button>
+    <button id="btnClosePwaToast" class="pwa-btn-close" aria-label="Close">×</button>
+  </div>
+
+  <div id="toastRoot" class="toast-root" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="gat_library/js/app.js"></script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(err => {
+          console.error('PWA SW Registration failed:', err);
         });
-      }
-    </script>
+      });
+    }
+  </script>
 </body>
 </html>
