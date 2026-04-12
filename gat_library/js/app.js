@@ -943,8 +943,6 @@
             <button id="shareTelegramBtn">🔵 Telegram</button>
             <button id="shareEmailBtn">✉️ Email</button>
             <button id="shareCopyLinkBtn">🔗 Copy Link Only</button>
-            <button id="shareQrImageBtn">📷 Share QR Image</button>
-            <button id="copyQrImageBtn">🖼️ Copy QR Image</button>
           </div>
 
           <button id="shareSheetClose" class="share-sheet__close">Close</button>
