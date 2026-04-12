@@ -144,6 +144,13 @@
     <button id="floatRedoBtn" class="float-btn" title="Redo (Ctrl+Y)">↪️</button>
   </div>
 
+  <div id="busyOverlay" class="busy-overlay hidden" aria-live="polite" aria-busy="true">
+    <div class="busy-card">
+      <div class="busy-spinner" aria-hidden="true"></div>
+      <div id="busyText" class="busy-text">Loading...</div>
+    </div>
+  </div>
+  
   <div id="toastRoot" class="toast-root" aria-live="polite" aria-atomic="true"></div>
 
   <!-- QR library -->
