@@ -19,6 +19,7 @@ const APP_SHELL = [
   './gat_library/images/swamiharihar_ji_maharaj_transparent.png'
 ];
 
+
 // ---------------------------------------------------------
 // Install
 // ---------------------------------------------------------
@@ -26,9 +27,11 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)).catch(error => {
-      console.warn('SW install cache warning:', error);
-    })
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(APP_SHELL))
+      .catch(error => {
+        console.warn('SW install cache warning:', error);
+      })
   );
 });
 
@@ -59,11 +62,8 @@ self.addEventListener('fetch', event => {
   // Skip non-GET requests
   if (req.method !== 'GET') return;
 
-  // =======================================================
-  // FIX: prevent chrome-extension / unsupported scheme cache errors
-  // =======================================================
+  // Ignore unsupported / non-http schemes
   if (!req.url.startsWith('http')) {
-    event.respondWith(fetch(req));
     return;
   }
 
@@ -95,7 +95,10 @@ self.addEventListener('fetch', event => {
           }
           return res;
         })
-        .catch(() => caches.match(req))
+        .catch(async () => {
+          const cached = await caches.match(req);
+          return cached || caches.match('./index.html');
+        })
     );
     return;
   }
