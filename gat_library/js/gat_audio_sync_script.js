@@ -92,9 +92,32 @@
 
   function setLoading(flag, text = 'Loading large JSON... Please wait.') {
     const loadingIndicator = document.getElementById('loadingIndicator');
-    if (!loadingIndicator) return;
-    loadingIndicator.textContent = text;
-    loadingIndicator.classList.toggle('hidden', !flag);
+    if (loadingIndicator) {
+      loadingIndicator.textContent = text;
+      loadingIndicator.classList.toggle('hidden', !flag);
+    }
+  
+    if (flag) showBusyOverlay(text);
+    else hideBusyOverlay();
+  }
+
+  function showBusyOverlay(message = 'Loading...') {
+    const overlay = document.getElementById('busyOverlay');
+    const text = document.getElementById('busyText');
+    if (text) text.textContent = message;
+    if (overlay) overlay.classList.remove('hidden');
+  }
+  
+  function hideBusyOverlay() {
+    const overlay = document.getElementById('busyOverlay');
+    if (overlay) overlay.classList.add('hidden');
+  }
+  
+  function idle(fn, timeout = 500) {
+    if ('requestIdleCallback' in window) {
+      return window.requestIdleCallback(fn, { timeout });
+    }
+    return setTimeout(fn, 60);
   }
 
   function initWorker() {
@@ -900,100 +923,108 @@
 
   async function renderGeetaRowsBatched(data) {
     let idx = 0;
-
+    const total = data.length;
+    const batchSize = window.innerWidth >= 1200 ? 180 : 110;
+  
+    tableBody.innerHTML = '';
+  
     return new Promise(resolve => {
       const batch = () => {
-        const fragment = document.createDocumentFragment();
-
-        for (let i = 0; i < 120 && idx < data.length; i++, idx++) {
+        let html = '';
+        const limit = Math.min(idx + batchSize, total);
+  
+        for (; idx < limit; idx++) {
           const v = data[idx];
-          const isDone = Number(v.AudioEnd) > Number(v.AudioStart);
+          const start = Number(v.AudioStart) || 0;
+          const end = Number(v.AudioEnd) || 0;
+          const isDone = end > start;
           const baseUrl = (v.AudioFileURL || '').split('#')[0];
-          const chunkSrc = isDone ? `${baseUrl}#t=${Number(v.AudioStart) || 0},${Number(v.AudioEnd) || 0}` : '';
-
-          const row = document.createElement('tr');
-          row.dataset.searchStr = `${v.VerseNum} ${v.Topic || ''} C${v.Chapter} V${v.VerseNum} ${v.OriginalText || ''} ${v.EnglishText || ''}`.toLowerCase();
-          row.dataset.start = Number(v.AudioStart) || 0;
-          row.dataset.end = Number(v.AudioEnd) || 0;
-
+          const chunkSrc = isDone ? `${baseUrl}#t=${start},${end}` : '';
+  
           const lyricsBlock =
             `${nl2br(v.OriginalText || '')}${v.EnglishText ? '<br><br>' + nl2br(v.EnglishText) : ''}`;
-
-          row.innerHTML = `
-            <td>${v.VerseNum}</td>
-            <td contenteditable class="startTime">${Number(v.AudioStart) || 0}</td>
-            <td contenteditable class="endTime">${Number(v.AudioEnd) || 0}</td>
-            <td>${Number(v.ReadTimeInSeconds) || 0}</td>
-            <td class="name-cell">${escapeHtml(generateName(v.VerseNum, v))}</td>
-            <td>
-              <div class="lyrics-text" style="max-height:100px; overflow-y:auto; background:#f9f9f9; padding:10px; border:1px solid #ccc; border-radius:8px;">
-                ${lyricsBlock}
-              </div>
-            </td>
-            <td>
-              <button class="pres-play-btn" data-index="${idx}" style="display:${isDone ? 'inline-flex' : 'none'};">🎤 Play Presentation</button>
-              <audio class="chunk-player" controls style="height:35px; width:100%; display:${isDone ? 'block' : 'none'};" src="${chunkSrc}" ontimeupdate="enforceChunkBounds(this, ${Number(v.AudioStart) || 0}, ${Number(v.AudioEnd) || 0})"></audio>
-            </td>
+  
+          html += `
+            <tr
+              data-search-str="${escapeHtml(`${v.VerseNum} ${v.Topic || ''} C${v.Chapter} V${v.VerseNum} ${v.OriginalText || ''} ${v.EnglishText || ''}`.toLowerCase())}"
+              data-start="${start}"
+              data-end="${end}"
+            >
+              <td>${v.VerseNum}</td>
+              <td contenteditable class="startTime">${start}</td>
+              <td contenteditable class="endTime">${end}</td>
+              <td>${Number(v.ReadTimeInSeconds) || 0}</td>
+              <td class="name-cell">${escapeHtml(generateName(v.VerseNum, v))}</td>
+              <td>
+                <div class="lyrics-text" style="max-height:100px; overflow-y:auto; background:#f9f9f9; padding:10px; border:1px solid #ccc; border-radius:8px;">
+                  ${lyricsBlock}
+                </div>
+              </td>
+              <td>
+                <button class="pres-play-btn" data-index="${idx}" style="display:${isDone ? 'inline-flex' : 'none'};">🎤 Play Presentation</button>
+                ${chunkSrc}</audio>
+              </td>
+            </tr>
           `;
-
-          fragment.appendChild(row);
         }
-
-        tableBody.appendChild(fragment);
-
-        if (idx < data.length) {
+  
+        tableBody.insertAdjacentHTML('beforeend', html);
+  
+        if (idx < total) {
           requestAnimationFrame(batch);
         } else {
           resolve();
         }
       };
-
-      batch();
+  
+      requestAnimationFrame(batch);
     });
   }
 
   function renderNormalJson(data) {
     let maxEndSaved = 0;
-    const fragment = document.createDocumentFragment();
-
+    let html = '';
+  
     if (data.audioUrl && audioPlayer) {
       audioPlayer.src = data.audioUrl;
       audioPlayer.load();
     }
-
+  
     (data.timestamps || []).forEach((t, i) => {
-      maxEndSaved = Math.max(maxEndSaved, safeNum(t.end));
-
-      const row = document.createElement('tr');
-      row.dataset.searchStr = `${t.name || generateName(i + 1)} ${t.lyrics || ''}`.toLowerCase();
-      row.dataset.start = safeNum(t.start);
-      row.dataset.end = safeNum(t.end);
-
-      row.innerHTML = `
-        <td>${i + 1}</td>
-        <td contenteditable class="startTime">${safeNum(t.start)}</td>
-        <td contenteditable class="endTime">${safeNum(t.end)}</td>
-        <td>${(safeNum(t.end) - safeNum(t.start)).toFixed(2)}</td>
-        <td class="name-cell">${escapeHtml(t.name || generateName(i + 1))}</td>
-        <td><textarea class="lyricsInput">${t.lyrics || ''}</textarea></td>
-        <td>
-          <audio controls class="chunk-player" style="height:35px; width:100%; display:block;" src="${data.audioUrl}#t=${safeNum(t.start)},${safeNum(t.end)}" ontimeupdate="enforceChunkBounds(this, ${safeNum(t.start)}, ${safeNum(t.end)})"></audio>
-        </td>
+      const start = safeNum(t.start);
+      const end = safeNum(t.end);
+      maxEndSaved = Math.max(maxEndSaved, end);
+  
+      html += `
+        <tr
+          data-search-str="${escapeHtml(`${t.name || generateName(i + 1)} ${t.lyrics || ''}`.toLowerCase())}"
+          data-start="${start}"
+          data-end="${end}"
+        >
+          <td>${i + 1}</td>
+          <td contenteditable class="startTime">${start}</td>
+          <td contenteditable class="endTime">${end}</td>
+          <td>${(end - start).toFixed(2)}</td>
+          <td class="name-cell">${escapeHtml(t.name || generateName(i + 1))}</td>
+          <td><textarea class="lyricsInput">${t.lyrics || ''}</textarea></td>
+          <td>
+            <audio
+              controls
+              class      </td>
+        </tr>
       `;
-
-      fragment.appendChild(row);
     });
-
-    tableBody.appendChild(fragment);
-
+  
+    tableBody.innerHTML = html;
+  
     startTime = maxEndSaved;
     activeVerseIndex = (data.timestamps || []).length;
-
+  
     const performSeek = () => {
       if (audioPlayer) audioPlayer.currentTime = maxEndSaved;
       updateProgress();
     };
-
+  
     if (audioPlayer && audioPlayer.readyState >= 1) {
       performSeek();
     } else if (audioPlayer) {
@@ -1411,16 +1442,18 @@
 
   function scheduleJsonSync() {
     clearTimeout(stringifyTimer);
-
-    stringifyTimer = setTimeout(async () => {
-      try {
-        const payload = isGeetaMode ? currentGeetaData : buildNormalJsonObject();
-        const text = await workerRequest('stringify', payload);
-        if (jsonInput) jsonInput.value = text;
-      } catch (error) {
-        console.error('scheduleJsonSync error:', error);
-      }
-    }, 250);
+  
+    stringifyTimer = setTimeout(() => {
+      idle(async () => {
+        try {
+          const payload = isGeetaMode ? currentGeetaData : buildNormalJsonObject();
+          const text = await workerRequest('stringify', payload);
+          if (jsonInput) jsonInput.value = text;
+        } catch (error) {
+          console.error('scheduleJsonSync error:', error);
+        }
+      });
+    }, 220);
   }
 
   function clearToolState({ keepJson = false } = {}) {
