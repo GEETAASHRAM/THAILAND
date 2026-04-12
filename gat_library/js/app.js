@@ -153,6 +153,13 @@
   // PWA install
   // -------------------------------------------------------
   function initPWAInstallPrompt() {
+    setTimeout(() => {
+      if (!deferredPwaPrompt && !localStorage.getItem('pwa_help_shown')) {
+        showToast('For faster access, install this app from your browser menu or Add to Home Screen.', 'info', 6000);
+        localStorage.setItem('pwa_help_shown', 'true');
+      }
+    }, 3500);
+        
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
       deferredPwaPrompt = e;
@@ -967,12 +974,21 @@
     document.getElementById('kPrevBtn')?.addEventListener('click', () => traverseKaraoke(-1));
     document.getElementById('kNextBtn')?.addEventListener('click', () => traverseKaraoke(1));
 
-    document.getElementById('kRewind')?.addEventListener('click', () => {
+    document.getElementById('kRewind')?.addEventListener('click', e => {
+      const btn = e.currentTarget;
+      btn.classList.add('clicked');
+      setTimeout(() => btn.classList.remove('clicked'), 180);
       kState.audio.currentTime = Math.max(0, kState.audio.currentTime - 5);
+      btn.blur();
     });
 
-    document.getElementById('kForward')?.addEventListener('click', () => {
+    document.getElementById('kForward')?.addEventListener('click', e => {
+      const btn = e.currentTarget;
+      btn.classList.add('clicked');
+      setTimeout(() => btn.classList.remove('clicked'), 180);
+    
       kState.audio.currentTime += 5;
+      btn.blur();
     });
 
     document.getElementById('kPlayPause')?.addEventListener('click', () => {
