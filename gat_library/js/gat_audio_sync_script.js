@@ -16,6 +16,92 @@
     'https://raw.githubusercontent.com/GEETAASHRAM/THAILAND/refs/heads/main/gat_library/images/favicon_swamiharihar_ji_maharaj.ico';
 
   // -------------------------------------------------------
+  // Built-in audio options for searchable dropdown
+  // -------------------------------------------------------
+  const AUDIO_OPTIONS = [
+    {
+      text: '0.1) Geeta Ashram Mission & Introduction',
+      value: 'https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/01%20-%20Introduction.mp3'
+    },
+    {
+      text: '0.2) Geeta Mahatmyam',
+      value: 'https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/20%20-%20Geeta%20Mahatmyam.mp3'
+    },
+    {
+      text: '1) Geeta Chapter 1',
+      value: 'https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/02%20-%20Chapter%201.mp3'
+    },
+    {
+      text: '2) Geeta Chapter 2',
+      value: 'https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/03%20-%20Chapter%202.mp3'
+    },
+    {
+      text: '3) Geeta Chapter 3',
+      value: 'https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/04%20-%20Chapter%203.mp3'
+    },
+    {
+      text: '4) Geeta Chapter 4',
+      value: 'https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/05%20-%20Chapter%204.mp3'
+    },
+    {
+      text: '5) Geeta Chapter 5',
+      value: 'https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/06%20-%20Chapter%205.mp3'
+    },
+    {
+      text: '6) Geeta Chapter 6',
+      value: 'https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/07%20-%20Chapter%206.mp3'
+    },
+    {
+      text: '7) Geeta Chapter 7',
+      value: 'https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/08%20-%20Chapter%207.mp3'
+    },
+    {
+      text: '8) Geeta Chapter 8',
+      value: 'https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/09%20-%20Chapter%208.mp3'
+    },
+    {
+      text: '9) Geeta Chapter 9',
+      value: 'https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/10%20-%20Chapter%209.mp3'
+    },
+    {
+      text: '10) Geeta Chapter 10',
+      value: 'https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/11%20-%20Chapter%2010.mp3'
+    },
+    {
+      text: '11) Geeta Chapter 11',
+      value: 'https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/12%20-%20Chapter%2011.mp3'
+    },
+    {
+      text: '12) Geeta Chapter 12',
+      value: 'https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/13%20-%20Chapter%2012.mp3'
+    },
+    {
+      text: '13) Geeta Chapter 13',
+      value: 'https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/14%20-%20Chapter%2013.mp3'
+    },
+    {
+      text: '14) Geeta Chapter 14',
+      value: 'https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/15%20-%20Chapter%2014.mp3'
+    },
+    {
+      text: '15) Geeta Chapter 15',
+      value: 'https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/16%20-%20Chapter%2015.mp3'
+    },
+    {
+      text: '16) Geeta Chapter 16',
+      value: 'https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/17%20-%20Chapter%2016.mp3'
+    },
+    {
+      text: '17) Geeta Chapter 17',
+      value: 'https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/18%20-%20Chapter%2017.mp3'
+    },
+    {
+      text: '18) Geeta Chapter 18',
+      value: 'https://github.com/GEETAASHRAM/THAILAND/raw/refs/heads/main/audio_files/19%20-%20Chapter%2018.mp3'
+    }
+  ];
+
+  // -------------------------------------------------------
   // Global helper for strict chunk bounds
   // -------------------------------------------------------
   window.enforceChunkBounds = function (audioElem, start, end) {
@@ -139,17 +225,13 @@
       loadingIndicator.classList.toggle('hidden', !flag);
     }
 
-    if (flag) {
-      showBusyOverlay(text);
-    } else {
-      hideBusyOverlay();
-    }
+    if (flag) showBusyOverlay(text);
+    else hideBusyOverlay();
   }
 
   function fitKaraokeTextToViewport(contentEl, lyricsEl, englishEl) {
     if (!contentEl || !lyricsEl || !englishEl) return;
 
-    // Reset to default sizes first (large by default)
     lyricsEl.style.fontSize = '';
     englishEl.style.fontSize = '';
     lyricsEl.style.lineHeight = '';
@@ -466,7 +548,6 @@
     }
   }
 
-  // Expose globals for inline HTML handlers
   window.loadAudio = loadAudio;
   window.loadSystemJson = loadSystemJson;
   window.loadJsonFile = loadJsonFile;
@@ -486,6 +567,7 @@
       injectPresentationModal();
       bindAudioEvents();
       bindControls();
+      populateAudioOptions();
       bindDropdownSearch();
 
       const params = new URLSearchParams(window.location.search);
@@ -589,7 +671,6 @@
     resetShareQrSurface();
 
     try {
-      // Preferred: npm qrcode browser bundle
       if (window.QRCode && typeof window.QRCode.toCanvas === 'function') {
         await window.QRCode.toCanvas(canvas, url, {
           width: 180,
@@ -600,9 +681,7 @@
             light: '#ffffff'
           }
         });
-      }
-      // Fallback: qrcodejs-style constructor
-      else if (typeof window.QRCode === 'function') {
+      } else if (typeof window.QRCode === 'function') {
         canvas.style.display = 'none';
 
         const legacy = document.createElement('div');
@@ -987,16 +1066,25 @@
     });
   }
 
+  function populateAudioOptions() {
+    const optionsContainer = document.getElementById('optionsContainer');
+    if (!optionsContainer) return;
+
+    optionsContainer.innerHTML = AUDIO_OPTIONS.map(
+      item => `<div data-value="${escapeHtml(item.value)}">${escapeHtml(item.text)}</div>`
+    ).join('');
+  }
+
   function bindDropdownSearch() {
     const searchSelect = document.getElementById('searchSelect');
     const optionsContainer = document.getElementById('optionsContainer');
     if (!searchSelect || !optionsContainer) return;
 
-    const options = optionsContainer.getElementsByTagName('div');
+    const getOptions = () => optionsContainer.getElementsByTagName('div');
 
     searchSelect.addEventListener('focus', () => {
       optionsContainer.classList.remove('hidden');
-      [...options].forEach(o => {
+      [...getOptions()].forEach(o => {
         o.style.display = '';
       });
     });
@@ -1005,7 +1093,7 @@
       const filter = searchSelect.value.toLowerCase();
       let visible = false;
 
-      [...options].forEach(o => {
+      [...getOptions()].forEach(o => {
         if (o.textContent.toLowerCase().includes(filter)) {
           o.style.display = '';
           visible = true;
@@ -1018,11 +1106,14 @@
     });
 
     optionsContainer.addEventListener('click', e => {
-      const value = e.target.getAttribute('data-value');
+      const target = e.target.closest('[data-value]');
+      if (!target) return;
+
+      const value = target.getAttribute('data-value');
       if (!value) return;
 
       fileUrlInput.value = value;
-      searchSelect.value = e.target.textContent;
+      searchSelect.value = target.textContent;
       optionsContainer.classList.add('hidden');
       loadAudio();
     });
@@ -1160,7 +1251,12 @@
                   🎤 Play Presentation
                 </button>
 
-                ${chunkSrc}"
+                <audio
+                  class="chunk-player"
+                  controls
+                  style="height:35px; width:100%; display:${isDone ? 'block' : 'none'};"
+                  src="${chunkSrc}"
+                  ontimeupdate="enforceChunkBounds(this, ${start}, ${end})"
                 ></audio>
               </td>
             </tr>
@@ -1213,7 +1309,12 @@
             <textarea class="lyricsInput">${escapeHtml(t.lyrics || '')}</textarea>
           </td>
           <td>
-            ${data.audioUrl}#t=${start},${end}"
+            <audio
+              controls
+              class="chunk-player"
+              style="height:35px; width:100%; display:block;"
+              src="${data.audioUrl}#t=${start},${end}"
+              ontimeupdate="enforceChunkBounds(this, ${start}, ${end})"
             ></audio>
           </td>
         </tr>
@@ -1401,7 +1502,12 @@
       <td class="name-cell">${escapeHtml(generateName(activeVerseIndex + 1))}</td>
       <td><textarea class="lyricsInput"></textarea></td>
       <td>
-        ${audioPlayer.src}#t=${startTime},${end}"
+        <audio
+          controls
+          class="chunk-player"
+          style="height:35px; width:100%; display:block;"
+          src="${audioPlayer.src}#t=${startTime},${end}"
+          ontimeupdate="enforceChunkBounds(this, ${startTime}, ${end})"
         ></audio>
       </td>
     `;
