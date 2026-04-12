@@ -458,6 +458,18 @@ input[type="file"]::-webkit-file-upload-button {
   font-weight: 600;
 }
 
+/* Stronger desktop safety for file input inside audio source row */
+.sync-page #fileInput {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.audio-source-row > * {
+  min-width: 0;
+}
+
 /* =========================================================
    Searchable dropdown – fixed mobile offset
    ========================================================= */
@@ -1309,6 +1321,39 @@ audio {
 /* =========================================================
    Responsive
    ========================================================= */
+@media (min-width: 1101px) {
+  .dashboard-grid {
+    align-items: stretch;
+  }
+
+  .dashboard-grid > .card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dashboard-grid > .card > h3 {
+    flex: 0 0 auto;
+  }
+
+  .dashboard-grid > .card .input-row,
+  .dashboard-grid > .card #progressContainer,
+  .dashboard-grid > .card audio,
+  .dashboard-grid > .card textarea {
+    flex: 0 0 auto;
+  }
+
+  /* Let the JSON area expand nicely so both cards feel balanced */
+  .dashboard-grid > .card #jsonDataInput {
+    flex: 1 1 auto;
+    min-height: 300px;
+  }
+
+  /* Keep audio player visually lower so both cards align better */
+  .dashboard-grid > .card #audioPlayer {
+    margin-top: auto;
+  }
+}
 @media (max-width: 1100px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
