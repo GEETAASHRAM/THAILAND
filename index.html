@@ -18,11 +18,17 @@
   <link rel="apple-touch-icon" href="gat_library/images/swami_hariharji_with_audio_symbol.png" />
   <link rel="icon" href="gat_library/images/favicon_swamiharihar_ji_maharaj.ico" />
 
+  <!-- Bootstrap -->
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+
+  <!-- Your styles -->
   <link rel="stylesheet" href="gat_library/css/gat_audio_sync_style.css" />
 </head>
+
 <body class="app-shell">
   <div class="container app-container py-3 py-md-4">
+    
+    <!-- Quick Subscribe Banner -->
     <div
       id="quickSubscribeAd"
       class="quick-banner mx-auto mb-3"
@@ -37,11 +43,17 @@
       </div>
     </div>
 
+    <!-- Top Actions -->
     <div class="top-actions mb-3">
-      <button id="btnOpenSubModal" class="btn btn-warning shadow-sm btn-app-action">📅 Custom Subscription</button>
-      <a href="audio_sync.html" class="btn btn-outline-info shadow-sm btn-app-action">🛠️ Audio Sync Tool</a>
+      <button id="btnOpenSubModal" class="btn btn-warning shadow-sm btn-app-action">
+        📅 Custom Subscription
+      </button>
+      <a href="audio_sync.html" class="btn btn-outline-info shadow-sm btn-app-action">
+        🛠️ Audio Sync Tool
+      </a>
     </div>
 
+    <!-- Filter Box -->
     <div id="filterBox" class="filter-card">
       <div class="row justify-content-center">
         <div class="col-lg-7 col-md-9 col-12">
@@ -54,18 +66,30 @@
 
           <div class="form-group">
             <label for="searchInput" class="font-weight-bold">Search Word</label>
-            <input type="text" id="searchInput" class="form-control" placeholder="Search word..." />
+            <input
+              type="text"
+              id="searchInput"
+              class="form-control"
+              placeholder="Search word..."
+            />
           </div>
 
           <div class="action-cluster mt-3">
             <button id="searchButton" class="btn btn-primary shadow-sm">Search</button>
             <button id="clearButton" class="btn btn-danger shadow-sm">Clear Results</button>
-            <button id="globalPresentationBtn" class="btn btn-info shadow-sm" style="display:none;">🎤 Presentation Mode</button>
+            <button
+              id="globalPresentationBtn"
+              class="btn btn-info shadow-sm"
+              style="display:none;"
+            >
+              🎤 Presentation Mode
+            </button>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- Results -->
     <div class="row justify-content-center mt-4">
       <div class="col-xl-9 col-lg-10 col-12">
         <div class="result-container" id="searchResults"></div>
@@ -76,19 +100,31 @@
     </div>
   </div>
 
+  <!-- PWA Install Toast -->
   <div id="pwaInstallToast" class="pwa-toast" style="display:none;">
-    <p class="pwa-toast-text">Install the Gita App on your Home Screen for faster access.</p>
+    <p class="pwa-toast-text">
+      Install the Gita App on your Home Screen for faster access.
+    </p>
     <button id="btnInstallPwa" class="pwa-btn-install">Install</button>
-    <button id="btnClosePwaToast" class="pwa-btn-close" aria-label="Close">×</button>
+    <button
+      id="btnClosePwaToast"
+      class="pwa-btn-close"
+      aria-label="Close"
+    >
+      ×
+    </button>
   </div>
 
+  <!-- Toast Root -->
   <div id="toastRoot" class="toast-root" aria-live="polite" aria-atomic="true"></div>
 
-  <!-- QR library -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  
+  <!-- QR Code Library (UPDATED VERSION) -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/lib/browser.min.js"></script>
+
+  <!-- Your App Logic -->
   <script src="gat_library/js/app.js"></script>
 
+  <!-- Service Worker -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -98,5 +134,6 @@
       });
     }
   </script>
+
 </body>
 </html>
