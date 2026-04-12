@@ -369,6 +369,28 @@ button:disabled {
   .dashboard-grid > .card #audioPlayer {
     margin-top: auto;
   }
+  
+
+  .json-actions-row {
+    grid-template-columns:
+      minmax(125px, 0.95fr)
+      minmax(180px, 1.35fr)
+      minmax(100px, 0.8fr)
+      minmax(90px, 0.65fr)
+      minmax(90px, 0.65fr);
+    gap: 8px;
+  }
+
+  .json-actions-row > * {
+    min-width: 0;
+  }
+
+  .json-actions-row button,
+  .json-actions-row select {
+    width: 100%;
+    white-space: nowrap;
+  }
+
 }
 
 /* =========================================================
