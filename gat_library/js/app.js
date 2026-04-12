@@ -934,7 +934,7 @@
             </div>
           
             <div class="share-qr-wrap">
-              <canvas id="shareQrCanvas" width="180" height="180"></canvas>
+              <div id="shareQrCanvas" width="180" height="180"></div>
               <img id="shareQrLogo" class="share-qr-logo" alt="QR Logo" />
             </div>
           
@@ -990,57 +990,51 @@
   }
 
   async function renderShareQr(url) {
-  const wrap = document.querySelector('.share-qr-wrap');
-  const canvas = document.getElementById('shareQrCanvas');
-  const logo = document.getElementById('shareQrLogo');
-  const urlText = document.getElementById('shareQrUrl');
-
-  if (!wrap || !canvas || !url) return;
-
-  const ctx = canvas.getContext('2d');
-  if (ctx) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }
-
-  try {
-    if (!window.QRCode || typeof window.QRCode.toCanvas !== 'function') {
-      throw new Error('QRCode.toCanvas is not available. Check the QR library script.');
-    }
-
-    // Always render directly to the visible canvas
-    await window.QRCode.toCanvas(canvas, url, {
-      width: 180,
-      margin: 1,
-      errorCorrectionLevel: 'H',
-      color: {
-        dark: '#111827',
-        light: '#ffffff'
+    const wrap = document.querySelector('.share-qr-wrap');
+    const canvas = document.getElementById('shareQrCanvas');
+    const logo = document.getElementById('shareQrLogo');
+    const urlText = document.getElementById('shareQrUrl');
+  
+    if (!wrap || !canvas || !url) return;
+  
+    try {
+      // Remove old QR (important)
+      canvas.innerHTML = '';
+  
+      // Generate QR inside canvas container
+      new QRCode(canvas, {
+        text: url,
+        width: 180,
+        height: 180,
+        colorDark: "#111827",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+      });
+  
+      lastRenderedQrUrl = url;
+  
+      // Logo overlay (still works)
+      if (logo) {
+        logo.src = 'gat_library/images/swami_hariharji_with_audio_symbol.png';
+        logo.style.display = 'block';
       }
-    });
-
-    lastRenderedQrUrl = url;
-
-    if (logo) {
-      // Use PNG for display/export overlay, not ICO
-      logo.src = 'gat_library/images/swami_hariharji_with_audio_symbol.png';
-      logo.style.display = 'block';
+  
+      if (urlText) {
+        urlText.textContent = url;
+      }
+  
+    } catch (error) {
+      console.error('QR render error:', error);
+  
+      lastRenderedQrUrl = '';
+  
+      if (urlText) {
+        urlText.textContent = url;
+      }
+  
+      showToast('QR could not be generated. Link is still available to copy.', 'warning', 4500);
     }
-
-    if (urlText) {
-      urlText.textContent = url;
-    }
-  } catch (error) {
-    console.error('QR render error:', error);
-
-    lastRenderedQrUrl = '';
-
-    if (urlText) {
-      urlText.textContent = url;
-    }
-
-    showToast('QR could not be generated. Link is still available to copy.', 'warning', 4500);
   }
-}
   
   function getQrShareLogoUrl() {
     // Use PNG for canvas export, keep .ico only as browser favicon
