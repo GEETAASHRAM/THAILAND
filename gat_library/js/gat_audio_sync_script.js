@@ -1,19 +1,9 @@
-// =========================================================
-// GEETA AUDIO SYNC TOOL
-// - Large JSON parsing via Worker
-// - Batched row rendering
-// - Global HTML handlers exposed safely
-// - Presentation mode
-// - Audio error toast
-// - Share link with custom message
-// =========================================================
-
 (function () {
   'use strict';
 
-  // -------------------------------------------------------
-  // Global helper for strict chunk bounds
-  // -------------------------------------------------------
+  const QR_LOGO_URL =
+    'https://raw.githubusercontent.com/GEETAASHRAM/THAILAND/refs/heads/main/gat_library/images/favicon_swamiharihar_ji_maharaj.ico';
+
   window.enforceChunkBounds = function (audioElem, start, end) {
     if (!audioElem) return;
     if (end > 0 && audioElem.currentTime >= end) {
@@ -22,9 +12,6 @@
     }
   };
 
-  // -------------------------------------------------------
-  // State
-  // -------------------------------------------------------
   let startTime = null;
   let activeVerseIndex = 0;
   let isGeetaMode = false;
@@ -54,13 +41,9 @@
 
   let currentGeetaData = null;
   let currentSystemFile = null;
-
-  // Worker for large JSON parse/stringify
   let jsonWorker = null;
+  let currentSharePayload = null;
 
-  // -------------------------------------------------------
-  // Utility
-  // -------------------------------------------------------
   function safeNum(v) {
     const n = parseFloat(v);
     return Number.isFinite(n) ? n : 0;
@@ -114,9 +97,6 @@
     loadingIndicator.classList.toggle('hidden', !flag);
   }
 
-  // -------------------------------------------------------
-  // JSON worker
-  // -------------------------------------------------------
   function initWorker() {
     try {
       if ('Worker' in window) {
@@ -161,9 +141,6 @@
     });
   }
 
-  // -------------------------------------------------------
-  // DOM caching
-  // -------------------------------------------------------
   function cacheElements() {
     audioPlayer = document.getElementById('audioPlayer');
     tableBody = document.querySelector('#timestampsTable tbody');
@@ -190,9 +167,6 @@
     }
   }
 
-  // -------------------------------------------------------
-  // Global functions exposed for inline HTML handlers
-  // -------------------------------------------------------
   async function loadAudio() {
     try {
       if ((!fileUrlInput || !fileUrlInput.value) && (!fileInput || !fileInput.files.length)) {
@@ -337,21 +311,11 @@
         `Open this JSON directly here:\n${shareUrl}\n\n` +
         `Shared from Geeta App`;
 
-      if (navigator.share) {
-        try {
-          await navigator.share({
-            title: 'Bhagavad Gita Audio Sync Tool',
-            text: message,
-            url: shareUrl
-          });
-          return;
-        } catch (error) {
-          console.warn('Native share canceled/failed:', error);
-        }
-      }
-
-      await navigator.clipboard.writeText(message);
-      showToast('Share message copied.', 'success');
+      openShareSheet({
+        title: 'Bhagavad Gita Audio Sync Tool',
+        text: message,
+        url: shareUrl
+      });
     } catch (error) {
       console.error('copyShareLink error:', error);
       showToast('Failed to create share message.', 'error');
@@ -391,7 +355,6 @@
     }
   }
 
-  // Expose globals to fix ReferenceErrors from HTML and old console issues
   window.loadAudio = loadAudio;
   window.loadSystemJson = loadSystemJson;
   window.loadJsonFile = loadJsonFile;
@@ -400,13 +363,11 @@
   window.copyJsonData = copyJsonData;
   window.saveData = saveData;
 
-  // -------------------------------------------------------
-  // DOMContentLoaded init
-  // -------------------------------------------------------
   document.addEventListener('DOMContentLoaded', () => {
     try {
       cacheElements();
       initWorker();
+      injectShareSheet();
       injectPresentationModal();
       bindAudioEvents();
       bindControls();
@@ -435,9 +396,132 @@
     }
   });
 
-  // -------------------------------------------------------
-  // Presentation modal
-  // -------------------------------------------------------
+  function injectShareSheet() {
+    const html = `
+      <div id="shareSheet" class="share-sheet">
+        <div class="share-sheet__panel">
+          <div class="share-sheet__title">Share</div>
+
+          <div class="share-sheet__layout">
+            <div id="sharePreview" class="share-sheet__preview"></div>
+
+            <div class="share-qr-card">
+              <div class="share-qr-title">Scan QR to open</div>
+              <div class="share-qr-wrap">
+                <canvas id="shareQrCanvas" width="180" height="180"></canvas>
+                <img id="shareQrLogo" class="share-qr-logo" alt="QR Logo" />
+              </div>
+              <div id="shareQrUrl" class="share-qr-url"></div>
+            </div>
+          </div>
+
+          <div class="share-grid">
+            <button id="shareNativeBtn">📲 Share</button>
+            <button id="shareCopyBtn">📋 Copy Message</button>
+            <button id="shareWhatsappBtn">🟢 WhatsApp</button>
+            <button id="shareTelegramBtn">🔵 Telegram</button>
+            <button id="shareEmailBtn">✉️ Email</button>
+            <button id="shareCopyLinkBtn">🔗 Copy Link Only</button>
+          </div>
+
+          <button id="shareSheetClose" class="share-sheet__close">Close</button>
+        </div>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    const sheet = document.getElementById('shareSheet');
+
+    sheet.addEventListener('click', e => {
+      if (e.target === sheet) closeShareSheet();
+    });
+
+    document.getElementById('shareSheetClose')?.addEventListener('click', closeShareSheet);
+  }
+
+  async function renderShareQr(url) {
+    const canvas = document.getElementById('shareQrCanvas');
+    const logo = document.getElementById('shareQrLogo');
+    const urlText = document.getElementById('shareQrUrl');
+    if (!canvas || !window.QRCode) return;
+
+    try {
+      await window.QRCode.toCanvas(canvas, url, {
+        width: 180,
+        margin: 1,
+        errorCorrectionLevel: 'H',
+        color: {
+          dark: '#111827',
+          light: '#ffffff'
+        }
+      });
+
+      if (logo) logo.src = QR_LOGO_URL;
+      if (urlText) urlText.textContent = url;
+    } catch (error) {
+      console.error('QR render error:', error);
+      if (urlText) urlText.textContent = url;
+    }
+  }
+
+  function openShareSheet({ title, text, url }) {
+    currentSharePayload = { title, text, url };
+    document.getElementById('sharePreview').textContent = text;
+    document.getElementById('shareSheet').classList.add('active');
+    renderShareQr(url);
+
+    document.getElementById('shareNativeBtn').onclick = async () => {
+      if (!navigator.share) {
+        showToast('Native share is not available on this device.', 'warning');
+        return;
+      }
+
+      try {
+        await navigator.share({ title, text, url });
+      } catch (error) {
+        console.warn('Native share canceled or failed:', error);
+      }
+    };
+
+    document.getElementById('shareCopyBtn').onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('Message copied.', 'success');
+      } catch (error) {
+        console.error('Copy message error:', error);
+        showToast('Failed to copy message.', 'error');
+      }
+    };
+
+    document.getElementById('shareCopyLinkBtn').onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(url);
+        showToast('Link copied.', 'success');
+      } catch (error) {
+        console.error('Copy link error:', error);
+        showToast('Failed to copy link.', 'error');
+      }
+    };
+
+    document.getElementById('shareWhatsappBtn').onclick = () => {
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    };
+
+    document.getElementById('shareTelegramBtn').onclick = () => {
+      window.open(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`, '_blank');
+    };
+
+    document.getElementById('shareEmailBtn').onclick = () => {
+      window.location.href = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(text)}`;
+    };
+  }
+
+  function closeShareSheet() {
+    document.getElementById('shareSheet')?.classList.remove('active');
+    currentSharePayload = null;
+  }
+
   function injectPresentationModal() {
     const html = `
       <div id="karaokeModal" class="karaoke-modal">
@@ -483,13 +567,16 @@
       playPresentationVerse();
     });
 
-    document.getElementById('kShareBtn')?.addEventListener('click', async e => {
+    document.getElementById('kShareBtn')?.addEventListener('click', e => {
       e.stopPropagation();
 
       const v = currentGeetaData?.[presentationIndex];
       if (!v) return;
 
-      const shareUrl = `${window.location.origin}${window.location.pathname}${currentSystemFile ? `?file=${encodeURIComponent(currentSystemFile)}` : ''}`;
+      const shareUrl =
+        `${window.location.origin}${window.location.pathname}` +
+        `${currentSystemFile ? `?file=${encodeURIComponent(currentSystemFile)}` : ''}`;
+
       const message =
         `🎧 Bhagavad Gita Sync Presentation\n\n` +
         `Chapter ${v.Chapter}, Verse ${v.VerseNum}\n\n` +
@@ -497,26 +584,11 @@
         `${v.EnglishText || ''}\n\n` +
         `Open here:\n${shareUrl}`;
 
-      try {
-        if (navigator.share) {
-          await navigator.share({
-            title: `Bhagavad Gita - Chapter ${v.Chapter}, Verse ${v.VerseNum}`,
-            text: message,
-            url: shareUrl
-          });
-          return;
-        }
-      } catch (error) {
-        console.warn('Native share canceled/failed:', error);
-      }
-
-      try {
-        await navigator.clipboard.writeText(message);
-        showToast('Presentation share message copied.', 'success');
-      } catch (error) {
-        console.error('Presentation share error:', error);
-        showToast('Failed to share presentation link.', 'error');
-      }
+      openShareSheet({
+        title: `Bhagavad Gita - Chapter ${v.Chapter}, Verse ${v.VerseNum}`,
+        text: message,
+        url: shareUrl
+      });
     });
   }
 
@@ -592,9 +664,6 @@
     }, 180);
   }
 
-  // -------------------------------------------------------
-  // Audio / controls
-  // -------------------------------------------------------
   function bindAudioEvents() {
     if (!audioPlayer) return;
 
@@ -829,9 +898,6 @@
     }
   }
 
-  // -------------------------------------------------------
-  // Renderers
-  // -------------------------------------------------------
   async function renderGeetaRowsBatched(data) {
     let idx = 0;
 
@@ -980,9 +1046,6 @@
     }
   }
 
-  // -------------------------------------------------------
-  // Marking engine
-  // -------------------------------------------------------
   function markGeetaEnd() {
     if (!isGeetaMode || !currentGeetaData || !audioPlayer) return;
 
@@ -1113,9 +1176,6 @@
     scheduleJsonSync();
   }
 
-  // -------------------------------------------------------
-  // Manual edit handler
-  // -------------------------------------------------------
   function handleManualCellEdit(event) {
     const cell = event.target;
     if (!cell.classList.contains('startTime') && !cell.classList.contains('endTime')) return;
@@ -1171,9 +1231,6 @@
     }
   }
 
-  // -------------------------------------------------------
-  // Row focus / visuals
-  // -------------------------------------------------------
   function setFocusRow(index) {
     if (!tableBody || index < 0 || index >= tableBody.rows.length) return;
 
@@ -1228,9 +1285,6 @@
     }
   }
 
-  // -------------------------------------------------------
-  // History / autosave
-  // -------------------------------------------------------
   function buildNormalJsonObject() {
     const data = {
       audioUrl: audioPlayer ? audioPlayer.src : '',
@@ -1317,7 +1371,6 @@
     try {
       const saved = localStorage.getItem('geeta_progress');
       if (saved) {
-        // Important: call local function directly (also exposed globally)
         loadJsonData(saved);
       }
     } catch (error) {
@@ -1327,9 +1380,6 @@
 
   setInterval(autoSave, 5000);
 
-  // -------------------------------------------------------
-  // Progress
-  // -------------------------------------------------------
   function updateProgress() {
     try {
       if (!progressBar || !progressText) return;
@@ -1359,9 +1409,6 @@
     }
   }
 
-  // -------------------------------------------------------
-  // JSON sync
-  // -------------------------------------------------------
   function scheduleJsonSync() {
     clearTimeout(stringifyTimer);
 
@@ -1376,9 +1423,6 @@
     }, 250);
   }
 
-  // -------------------------------------------------------
-  // Misc
-  // -------------------------------------------------------
   function clearToolState({ keepJson = false } = {}) {
     if (tableBody) tableBody.innerHTML = '';
     startTime = null;
