@@ -619,7 +619,7 @@
               </div>
             
               <div class="share-qr-wrap">
-                <canvas id="shareQrCanvas" width="180" height="180"></canvas>
+                <div id="shareQrCanvas" width="180" height="180"></div>
                 <img id="shareQrLogo" class="share-qr-logo" alt="QR Logo" />
               </div>
             
@@ -684,31 +684,24 @@
   
     if (!wrap || !canvas || !url) return;
   
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
-  
     try {
-      if (!window.QRCode || typeof window.QRCode.toCanvas !== 'function') {
-        throw new Error('QRCode.toCanvas is not available. Check the QR library script.');
-      }
+      // Remove old QR (important)
+      canvas.innerHTML = '';
   
-      // Always render directly to the visible canvas
-      await window.QRCode.toCanvas(canvas, url, {
+      // Generate QR inside canvas container
+      new QRCode(canvas, {
+        text: url,
         width: 180,
-        margin: 1,
-        errorCorrectionLevel: 'H',
-        color: {
-          dark: '#111827',
-          light: '#ffffff'
-        }
+        height: 180,
+        colorDark: "#111827",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
       });
   
       lastRenderedQrUrl = url;
   
+      // Logo overlay (still works)
       if (logo) {
-        // Use PNG for display/export overlay, not ICO
         logo.src = 'gat_library/images/swami_hariharji_with_audio_symbol.png';
         logo.style.display = 'block';
       }
@@ -716,6 +709,7 @@
       if (urlText) {
         urlText.textContent = url;
       }
+  
     } catch (error) {
       console.error('QR render error:', error);
   
