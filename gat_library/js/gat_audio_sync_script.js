@@ -606,15 +606,19 @@
             <div id="sharePreview" class="share-sheet__preview"></div>
 
             <div class="share-qr-card">
-              <div class="share-qr-title">Scan QR to open</div>
-               <div class="share-qr-wrap">
+              <div class="share-qr-card__top">
+                <div class="share-qr-title">Scan QR to open</div>
                 <div class="share-qr-actions">
                   <button id="shareQrImageBtn" class="share-qr-mini-btn" type="button" title="Share QR image" aria-label="Share QR image">📤</button>
                   <button id="copyQrImageBtn" class="share-qr-mini-btn" type="button" title="Copy QR image" aria-label="Copy QR image">📋</button>
                 </div>
+              </div>
+            
+              <div class="share-qr-wrap">
                 <canvas id="shareQrCanvas" width="180" height="180"></canvas>
                 <img id="shareQrLogo" class="share-qr-logo" alt="QR Logo" />
               </div>
+            
               <div id="shareQrUrl" class="share-qr-url"></div>
             </div>
           </div>
