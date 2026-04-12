@@ -857,6 +857,36 @@ audio {
   box-sizing: border-box;
 }
 
+/* =========================================================
+   Elegant presentation scrolling fallback
+   ========================================================= */
+.karaoke-content {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.28) transparent;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.karaoke-content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.karaoke-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.karaoke-content::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.22);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.karaoke-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.34);
+  background-clip: padding-box;
+}
+
 .k-btn {
   background: rgba(255, 255, 255, 0.10);
   border: 1px solid rgba(255, 255, 255, 0.18);
