@@ -705,7 +705,8 @@
       }
 
       if (logo) {
-        logo.src = QR_LOGO_URL;
+        // logo.src = QR_LOGO_URL;
+        logo.src = getQrShareLogoUrl();
         logo.style.display = 'block';
       }
 
@@ -723,151 +724,166 @@
     }
   }
 
-  async function loadImageForCanvas(src) {
-  return new Promise((resolve, reject) => {
-    if (!src) {
-      reject(new Error('No image source provided.'));
-      return;
-    }
-
-    const img = new Image();
-
-    // Important for cross-origin image use inside canvas
-    img.crossOrigin = 'anonymous';
-
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
-    img.src = src;
-  });
-}
-
-async function buildShareQrPngBlob() {
-  const canvas = document.getElementById('shareQrCanvas');
-  const logo = document.getElementById('shareQrLogo');
-
-  if (!canvas) {
-    throw new Error('QR canvas not found.');
+ function getQrShareLogoUrl() {
+    // Use PNG for canvas export, keep .ico only as browser favicon
+    return 'gat_library/images/swami_hariharji_with_audio_symbol.png';
   }
-
-  // Ensure QR has been rendered first
-  const srcCanvas = canvas;
-
-  const exportCanvas = document.createElement('canvas');
-  exportCanvas.width = srcCanvas.width || 180;
-  exportCanvas.height = srcCanvas.height || 180;
-
-  const ctx = exportCanvas.getContext('2d');
-  if (!ctx) {
-    throw new Error('Canvas 2D context is not available.');
+  
+  function loadImageForCanvas(src) {
+    return new Promise((resolve, reject) => {
+      if (!src) {
+        reject(new Error('No image source provided.'));
+        return;
+      }
+  
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+      img.src = src;
+    });
   }
-
-  // White background
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-
-  // Draw main QR canvas
-  ctx.drawImage(srcCanvas, 0, 0, exportCanvas.width, exportCanvas.height);
-
-  // Draw centered logo if available and visible
-  if (logo && logo.src && logo.style.display !== 'none') {
+  
+  function roundRect(ctx, x, y, width, height, radius) {
+    const r = Math.min(radius, width / 2, height / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + width, y, x + width, y + height, r);
+    ctx.arcTo(x + width, y + height, x, y + height, r);
+    ctx.arcTo(x, y + height, x, y, r);
+    ctx.arcTo(x, y, x + width, y, r);
+    ctx.closePath();
+  }
+  
+  function isCanvasLikelyBlank(canvas) {
     try {
-      const logoImg = await loadImageForCanvas(logo.src);
-
+      const blank = document.createElement('canvas');
+      blank.width = canvas.width;
+      blank.height = canvas.height;
+      return canvas.toDataURL() === blank.toDataURL();
+    } catch {
+      return false;
+    }
+  }
+  
+  async function ensureQrRenderedForExport() {
+    if (!currentSharePayload?.url) {
+      throw new Error('No current share URL available for QR export.');
+    }
+  
+    const canvas = document.getElementById('shareQrCanvas');
+    if (!canvas) {
+      throw new Error('QR canvas not found.');
+    }
+  
+    if (isCanvasLikelyBlank(canvas)) {
+      await renderShareQr(currentSharePayload.url);
+    }
+  }
+  
+  async function buildShareQrPngBlob() {
+    await ensureQrRenderedForExport();
+  
+    const canvas = document.getElementById('shareQrCanvas');
+    if (!canvas) {
+      throw new Error('QR canvas not found.');
+    }
+  
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = canvas.width || 180;
+    exportCanvas.height = canvas.height || 180;
+  
+    const ctx = exportCanvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Canvas 2D context is not available.');
+    }
+  
+    // White background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+  
+    // Draw QR itself
+    ctx.drawImage(canvas, 0, 0, exportCanvas.width, exportCanvas.height);
+  
+    // Draw center logo as PNG
+    try {
+      const logoImg = await loadImageForCanvas(getQrShareLogoUrl());
+  
       const logoSize = Math.round(exportCanvas.width * 0.22);
       const x = Math.round((exportCanvas.width - logoSize) / 2);
       const y = Math.round((exportCanvas.height - logoSize) / 2);
-      const radius = 12;
-
-      // White rounded background behind logo
+  
       ctx.save();
       ctx.fillStyle = '#ffffff';
-      roundRect(ctx, x - 4, y - 4, logoSize + 8, logoSize + 8, radius);
+      roundRect(ctx, x - 4, y - 4, logoSize + 8, logoSize + 8, 12);
       ctx.fill();
       ctx.restore();
-
+  
       ctx.drawImage(logoImg, x, y, logoSize, logoSize);
     } catch (logoError) {
-      console.warn('Logo could not be embedded in exported QR image:', logoError);
-      // QR still shares fine even without logo
+      console.warn('Logo could not be embedded into shared QR image:', logoError);
+    }
+  
+    return await new Promise((resolve, reject) => {
+      exportCanvas.toBlob(blob => {
+        if (blob) resolve(blob);
+        else reject(new Error('Failed to convert QR canvas to PNG blob.'));
+      }, 'image/png');
+    });
+  }
+  
+  async function shareQrImageFile({ title, text }) {
+    try {
+      const blob = await buildShareQrPngBlob();
+      const file = new File([blob], 'gita-qr.png', { type: 'image/png' });
+  
+      const data = {
+        title: title || 'Gita QR',
+        text: text || '',
+        files: [file]
+      };
+  
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share(data);
+        showToast('QR image shared.', 'success');
+        return;
+      }
+  
+      // fallback to download
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'gita-qr.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+  
+      showToast('QR image downloaded (file sharing not supported on this browser).', 'info', 5000);
+    } catch (error) {
+      console.error('shareQrImageFile error:', error);
+      showToast('Unable to share QR image.', 'error');
     }
   }
-
-  const blob = await new Promise((resolve, reject) => {
-    exportCanvas.toBlob(blobResult => {
-      if (blobResult) resolve(blobResult);
-      else reject(new Error('Failed to convert QR canvas to PNG blob.'));
-    }, 'image/png');
-  });
-
-  return blob;
-}
-
-function roundRect(ctx, x, y, width, height, radius) {
-  const r = Math.min(radius, width / 2, height / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + width, y, x + width, y + height, r);
-  ctx.arcTo(x + width, y + height, x, y + height, r);
-  ctx.arcTo(x, y + height, x, y, r);
-  ctx.arcTo(x, y, x + width, y, r);
-  ctx.closePath();
-}
-
-async function shareQrImageFile({ title, text, url }) {
-  try {
-    const blob = await buildShareQrPngBlob();
-    const file = new File([blob], 'gita-qr.png', { type: 'image/png' });
-
-    const shareData = {
-      title: title || 'Share QR',
-      text: text || '',
-      files: [file]
-    };
-
-    // Some browsers support files + text, some are stricter, so validate first
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share(shareData);
-      showToast('QR image shared.', 'success');
-      return true;
+  
+  async function copyQrImageToClipboard() {
+    try {
+      const blob = await buildShareQrPngBlob();
+  
+      if (!navigator.clipboard || typeof window.ClipboardItem === 'undefined') {
+        throw new Error('Clipboard image writing is not supported.');
+      }
+  
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'image/png': blob
+        })
+      ]);
+  
+      showToast('QR image copied to clipboard.', 'success');
+    } catch (error) {
+      console.error('copyQrImageToClipboard error:', error);
+      showToast('Unable to copy QR image.', 'warning', 4500);
     }
-
-    // Fallback: download the PNG if file sharing is unavailable
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'gita-qr.png';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-
-    showToast('QR image downloaded (file share not supported on this browser).', 'info', 5000);
-    return false;
-  } catch (error) {
-    console.error('shareQrImageFile error:', error);
-    showToast('Unable to share QR image.', 'error');
-    return false;
   }
-}
-
-async function copyQrImageToClipboard() {
-  try {
-    const blob = await buildShareQrPngBlob();
-
-    if (!navigator.clipboard || typeof window.ClipboardItem === 'undefined') {
-      throw new Error('Clipboard image writing is not supported in this browser.');
-    }
-
-    await navigator.clipboard.write([
-      new ClipboardItem({
-        'image/png': blob
-      })
-    ]);
-
-    showToast('QR image copied to clipboard.', 'success');
-  } catch (error) {
-    console.error('copyQrImageToClipboard error:', error);
-    showToast('Unable to copy QR image.', 'warning', 4500);
-  }
-}
 
   function openShareSheet({ title, text, url }) {
     currentSharePayload = { title, text, url };
