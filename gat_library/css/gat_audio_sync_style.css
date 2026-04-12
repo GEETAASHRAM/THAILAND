@@ -57,12 +57,27 @@ h4 {
   font-weight: 700;
 }
 
+.sync-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.btn-back-home {
+  width: auto;
+  min-width: 150px;
+  padding: 8px 14px;
+}
+
 /* =========================================================
-   FIX #1 – Buttons too tall on mobile
+   #1 – Buttons too tall on mobile
    ---------------------------------------------------------
    Reason:
    - Bootstrap + emoji + default line-height + min-height
-   Fix:
+   :
    - lower padding on small screens
    - consistent line-height
    - remove forced large min-height
@@ -177,7 +192,7 @@ button,
 }
 
 /* =========================================================
-   FIX #2 – Speaker icon oval issue
+   #2 – Speaker icon oval issue
    ---------------------------------------------------------
    Bootstrap button styles were making it oval on mobile.
    Dedicated class keeps it perfectly circular.
@@ -257,6 +272,21 @@ button,
 .timeline-card {
   max-width: 1600px;
   margin: 15px auto;
+}
+
+.timeline-search-wrap {
+  position: relative;
+  margin-bottom: 15px;
+}
+
+.timeline-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  opacity: 0.65;
+  pointer-events: none;
 }
 
 /* ================= INPUT LAYOUT ================= */
@@ -411,6 +441,29 @@ table tbody tr td textarea.lyricsInput {
   background: #f9f9f9;
   border: 1px solid #ccc;
   resize: vertical;
+}
+
+#tableSearch {
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 16px 12px 42px;
+  border-radius: 16px;
+  border: 1px solid #cfe2ff;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow:
+    0 0 0 1px rgba(0,123,255,0.05),
+    0 10px 24px rgba(0,123,255,0.08);
+  outline: none;
+  transition: all 0.25s ease;
+}
+
+#tableSearch:focus {
+  border-color: #66b3ff;
+  box-shadow:
+    0 0 0 4px rgba(0,123,255,0.12),
+    0 10px 26px rgba(0,123,255,0.14);
+  background: #fff;
 }
 
 .progress-bg {
@@ -571,7 +624,7 @@ audio {
 }
 
 /* =========================================================
-   FIX #3 – close and share button overlap in presentation mode
+   #3 – close and share button overlap in presentation mode
    ---------------------------------------------------------
    Separate fixed anchors and safe-area aware offsets
    ========================================================= */
@@ -692,18 +745,31 @@ audio {
 }
 
 .k-icon-btn {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
   color: white;
   border-radius: 999px;
   width: 54px;
   height: 54px;
-  min-width: 54px;
-  min-height: 54px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
+  transition: transform 0.12s ease, background 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.k-icon-btn:active {
+  transform: scale(0.94);
+  background: rgba(255,255,255,0.28);
+}
+
+.k-icon-btn:focus,
+.k-icon-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 0 rgba(255,255,255,0);
+}
+
+.k-icon-btn.clicked {
+  transform: scale(0.94);
+  background: rgba(255,255,255,0.30);
+  box-shadow: 0 0 0 6px rgba(255,255,255,0.06);
 }
 
 .k-close-hint {
@@ -1036,7 +1102,7 @@ audio {
 }
 
 @media (max-width: 600px) {
-  /* FIX #1 mobile button height */
+  /* #1 mobile button height */
   button,
   .btn {
     padding: 7px 12px !important;
@@ -1121,5 +1187,70 @@ audio {
     height: 36px;
     min-width: 36px;
     min-height: 36px;
+  }
+  
+/* Compact controls in audio_sync.html */
+  .sync-page .input-row > input,
+  .sync-page .input-row > select,
+  .sync-page .input-row > button,
+  .sync-page .input-row > .btn-green,
+  .sync-page .input-row > .select-container,
+  .sync-page #fileUrlInput,
+  .sync-page #fileInput,
+  .sync-page #prefixInput,
+  .sync-page #suffixInput,
+  .sync-page #systemJsonSelect,
+  .sync-page #searchSelect {
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 6px 10px !important;
+    font-size: 14px !important;
+    line-height: 1.15 !important;
+    border-radius: 10px !important;
+  }
+
+  /* Let file input breathe a bit, but not jumbo */
+  .sync-page #fileInput {
+    padding-top: 5px !important;
+    padding-bottom: 5px !important;
+  }
+
+  /* Buttons row not jumbo */
+  .sync-page .input-row button {
+    min-height: 36px !important;
+    padding: 6px 10px !important;
+  }
+
+  /* keep mobile compact without making desktop tiny */
+  .sync-page .input-row button,
+  .sync-page .input-row input,
+  .sync-page .input-row select {
+    transition: all 0.2s ease;
+  }
+  
+  .sync-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .btn-back-home {
+    width: 100%;
+    min-height: 36px !important;
+    padding: 6px 10px !important;
+  }
+
+  
+ .app-shell .top-actions .btn,
+  .app-shell .top-actions a.btn {
+    min-height: 36px !important;
+    padding: 7px 12px !important;
+    font-size: 14px !important;
+    line-height: 1.15 !important;
+    border-radius: 10px !important;
+  }
+
+  .app-shell .top-actions .btn,
+  .app-shell .top-actions a.btn {
+    width: auto;
   }
 }
