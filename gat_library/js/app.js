@@ -254,6 +254,43 @@
     stopInlineMonitor();
   }
 
+  function fitKaraokeTextToViewport(contentEl, lyricsEl, englishEl) {
+    if (!contentEl || !lyricsEl || !englishEl) return;
+  
+    // Reset to default large sizes first
+    lyricsEl.style.fontSize = '';
+    englishEl.style.fontSize = '';
+    lyricsEl.style.lineHeight = '';
+    englishEl.style.lineHeight = '';
+  
+    const contentMax = Math.max(220, window.innerHeight - 240);
+  
+    let lyricsSize = parseFloat(getComputedStyle(lyricsEl).fontSize) || 44;
+    let englishSize = parseFloat(getComputedStyle(englishEl).fontSize) || 24;
+  
+    const minLyrics = 22;
+    const minEnglish = 15;
+  
+    let guard = 0;
+    while (contentEl.scrollHeight > contentMax && guard < 18) {
+      if (lyricsSize > minLyrics) {
+        lyricsSize -= 2;
+        lyricsEl.style.fontSize = `${lyricsSize}px`;
+        lyricsEl.style.lineHeight = '1.35';
+      }
+  
+      if (contentEl.scrollHeight <= contentMax) break;
+  
+      if (englishSize > minEnglish) {
+        englishSize -= 1;
+        englishEl.style.fontSize = `${englishSize}px`;
+        englishEl.style.lineHeight = '1.55';
+      }
+  
+      guard++;
+    }
+  }
+    
   function loadChapter() {
     try {
       const selectedChapter = chapterSelect.value;
@@ -1072,11 +1109,19 @@
       content.classList.add('fade-out');
 
       setTimeout(() => {
-        document.getElementById('kTitle').textContent =
+        const kTitle = document.getElementById('kTitle');
+        const kLyrics = document.getElementById('kLyrics');
+        const kEnglish = document.getElementById('kEnglish');
+        
+        kTitle.textContent =
           `Chapter ${verse.Chapter}, Verse ${verse.VerseNum}${verse.Topic ? ' — ' + verse.Topic : ''}`;
-        document.getElementById('kLyrics').innerHTML = nl2br(verse.OriginalText || 'Text Unavailable');
-        document.getElementById('kEnglish').innerHTML = nl2br(verse.EnglishText || '');
+        kLyrics.innerHTML = nl2br(verse.OriginalText || 'Text Unavailable');
+        kEnglish.innerHTML = nl2br(verse.EnglishText || '');
         content.classList.remove('fade-out');
+        
+        requestAnimationFrame(() => {
+          fitKaraokeTextToViewport(content, kLyrics, kEnglish);
+        });
 
         const hasTimestamps = verse.AudioStart !== undefined && Number(verse.AudioEnd) > Number(verse.AudioStart);
         manualControls.style.display = hasTimestamps ? 'none' : 'flex';
