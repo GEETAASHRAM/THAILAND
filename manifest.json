@@ -1,11 +1,11 @@
 {
-  "id": "/index.html",
+  "id": "./index.html",
   "name": "Srimad Bhagavad Gita",
   "short_name": "Gita App",
   "description": "Read, listen, and sync the Srimad Bhagavad Gita.",
 
-  "start_url": "/index.html?source=pwa",
-  "scope": "/",
+  "start_url": "./index.html?source=pwa",
+  "scope": "./",
 
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui", "browser"],
