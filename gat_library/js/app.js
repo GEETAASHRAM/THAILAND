@@ -24,7 +24,7 @@
   const IOS_SHORTCUT_NAME = 'Open Gita Subscription';
   const IOS_SHORTCUT_ICLOUD_IMPORT_URL = '';
   const ANDROID_AUTOMATION_VENDOR = 'generic';
-  const APPS_SCRIPT_BASE_URL = ''; // e.g. https://script.google.com/macros/s/XXXX/exec
+  const APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbwfgkFEk2bPrtbqIZHOgecpptZ-upByh8SKS5nfQ-zPrBC8MipAM_TqiUXSN_aAmHOe/exec'; 
   const PUSH_PUBLIC_VAPID_KEY = ''; // Optional. If you later move push provider elsewhere.
   const BACKEND_TIMEOUT_MS = 15000;
   const APP_VERSION = '2026.04.18-b';
