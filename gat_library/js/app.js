@@ -12,8 +12,7 @@
 (function () {
   'use strict';
 
-  const QR_LOGO_URL =
-    'https://raw.githubusercontent.com/GEETAASHRAM/THAILAND/refs/heads/main/gat_library/images/swamiharihar_ji_maharaj_transparent.png';
+  const QR_LOGO_URL = './gat_library/images/swamiharihar_ji_maharaj_transparent.png';
 
   // -------------------------------------------------------
   // State
@@ -820,18 +819,83 @@
   function injectWelcomeScreen() {
     const html = `
       <div id="welcomeSplash" class="welcome-splash" style="display:none;">
-        <div class="welcome-card">
+        <div class="welcome-orb orb-1"></div>
+        <div class="welcome-orb orb-2"></div>
+  
+        <div class="welcome-card spiritual-card">
           <div id="streakBadge" class="streak-badge" style="display:none;">🔥 1 Day Streak</div>
-          <h2>Welcome Back!</h2>
-          <p class="text-light mt-2 mb-4">Your daily Srimad Bhagavad Gita reading is ready.</p>
-          <button id="btnBeginReading" class="btn-begin">▶️ Begin Reading</button>
+  
+          <div class="welcome-mantra">ॐ तत् सत्</div>
+  
+          <h2 class="welcome-title">
+            🌼 Welcome Back to the Gita
+          </h2>
+  
+          <p id="welcomeMessage" class="welcome-message">
+            Today’s reading awaits you — not as routine, but as remembrance.
+          </p>
+  
+          <p id="welcomeSubMessage" class="welcome-submessage">
+            Return gently, listen deeply, and let the wisdom unfold within.
+          </p>
+  
+          <div class="welcome-divider">🕉️</div>
+  
+          <button id="btnBeginReading" class="btn-begin">
+            📿 Begin Today’s Reading
+          </button>
         </div>
       </div>
     `;
-
     document.body.insertAdjacentHTML('beforeend', html);
   }
 
+  function getSpiritualWelcomeMessage(streak = 0, routeMode = 'progressive', type = 'chapter') {
+    const messages = [
+      {
+        title: '🕉️ The teaching returns when the heart is ready.',
+        sub: 'Pause, breathe, and enter this reading as a sacred conversation.'
+      },
+      {
+        title: 'Each return to the Gita is a return to inner clarity.',
+        sub: 'Let today’s words become strength, devotion, and calm action.'
+      },
+      {
+        title: 'Wisdom ripens through daily remembrance.',
+        sub: 'Read slowly. Listen inwardly. Carry one truth into the rest of your day.'
+      },
+      {
+        title: 'The verse is not only to be read — it is to be lived.',
+        sub: 'May this moment become guidance, steadiness, and grace.'
+      }
+    ];
+  
+    const index = Math.floor(Date.now() / (1000 * 60 * 60 * 24)) % messages.length;
+    const selected = messages[index];
+  
+    let streakLine = '';
+    if (streak >= 7) {
+      streakLine = '🔥 Your steady return is itself a form of devotion.';
+    } else if (streak >= 3) {
+      streakLine = 'A beautiful rhythm is forming through your daily practice.';
+    } else {
+      streakLine = 'Every sincere beginning is blessed.';
+    }
+  
+    let modeLine = '';
+    if (routeMode === 'fixed') {
+      modeLine = type === 'chapter'
+        ? 'This sacred chapter remains here for you each time you return.'
+        : 'This chosen verse remains here for contemplation each time you return.';
+    } else {
+      modeLine = 'Today’s reading continues your journey one step further.';
+    }
+  
+    return {
+      title: selected.title,
+      sub: `${selected.sub} ${streakLine} ${modeLine}`
+    };
+  }
   // -------------------------------------------------------
   // Subscription routing
   // -------------------------------------------------------
@@ -885,6 +949,13 @@
       } else {
         progressionSteps = 0; // fixed mode stays pinned
       }
+
+      const welcomeMessageEl = document.getElementById('welcomeMessage');
+      const welcomeSubMessageEl = document.getElementById('welcomeSubMessage');
+      
+      const spiritualCopy = getSpiritualWelcomeMessage(streak, routeMode, type);
+      if (welcomeMessageEl) welcomeMessageEl.textContent = spiritualCopy.title;
+      if (welcomeSubMessageEl) welcomeSubMessageEl.textContent = spiritualCopy.sub;
 
       let routePlaylist = [];
 
@@ -1021,29 +1092,45 @@
 
   async function renderShareQr(url) {
     const wrap = document.querySelector('.share-qr-wrap');
-    const canvas = document.getElementById('shareQrCanvas');
+    const canvasHost = document.getElementById('shareQrCanvas');
     const logo = document.getElementById('shareQrLogo');
     const urlText = document.getElementById('shareQrUrl');
   
-    if (!wrap || !canvas || !url) return;
+    if (!wrap || !canvasHost || !url) return;
   
     try {
-      // Remove old QR (important)
-      canvas.innerHTML = '';
+      canvasHost.innerHTML = '';
   
-      // Generate QR inside canvas container
-      new QRCode(canvas, {
-        text: url,
-        width: 180,
-        height: 180,
-        colorDark: "#111827",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.H
+      // Create an actual canvas explicitly for consistency across platforms
+      const qrCanvas = document.createElement('canvas');
+      qrCanvas.width = 180;
+      qrCanvas.height = 180;
+      qrCanvas.setAttribute('aria-label', 'QR code');
+      canvasHost.appendChild(qrCanvas);
+  
+      await new Promise((resolve, reject) => {
+        try {
+          QRCode.toCanvas(
+            qrCanvas,
+            url,
+            {
+              width: 180,
+              margin: 2,
+              color: {
+                dark: '#111827',
+                light: '#ffffff'
+              },
+              errorCorrectionLevel: 'H'
+            },
+            (err) => (err ? reject(err) : resolve())
+          );
+        } catch (e) {
+          reject(e);
+        }
       });
   
       lastRenderedQrUrl = url;
   
-      // Logo overlay (still works)
       if (logo) {
         logo.src = QR_LOGO_URL;
         logo.style.display = 'block';
@@ -1052,16 +1139,10 @@
       if (urlText) {
         urlText.textContent = url;
       }
-  
     } catch (error) {
       console.error('QR render error:', error);
-  
       lastRenderedQrUrl = '';
-  
-      if (urlText) {
-        urlText.textContent = url;
-      }
-  
+      if (urlText) urlText.textContent = url;
       showToast('QR could not be generated. Link is still available to copy.', 'warning', 4500);
     }
   }
@@ -1098,25 +1179,17 @@
   }
   
   async function buildShareQrPngBlob() {
-
     if (!lastRenderedQrUrl) {
       throw new Error('QR not ready yet.');
     }
-      
+  
     const container = document.getElementById('shareQrCanvas');
     if (!container) throw new Error('QR container not found.');
   
-    // Find actual QR element (canvas OR img)
-    const qrEl =
-      container.querySelector('canvas') ||
-      container.querySelector('img');
-  
-    if (!qrEl) {
-      throw new Error('QR element not rendered yet.');
-    }
+    const qrEl = container.querySelector('canvas') || container.querySelector('img');
+    if (!qrEl) throw new Error('QR element not rendered yet.');
   
     const size = 512;
-  
     const exportCanvas = document.createElement('canvas');
     exportCanvas.width = size;
     exportCanvas.height = size;
@@ -1124,39 +1197,36 @@
     const ctx = exportCanvas.getContext('2d');
     if (!ctx) throw new Error('Canvas context failed.');
   
-    // white background
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, size, size);
   
-    // draw QR (handles both canvas and img)
-    const rect = qrEl.getBoundingClientRect();
-    ctx.drawImage(qrEl, 0, 0, rect.width, rect.height, 0, 0, size, size);
-    // ctx.drawImage(qrEl, 0, 0, size, size);
+    // Use intrinsic dimensions (iOS-safe), not getBoundingClientRect
+    const srcWidth =
+      qrEl instanceof HTMLCanvasElement
+        ? qrEl.width
+        : (qrEl.naturalWidth || 180);
   
-    // 🔥 overlay logo (your existing logic but safer)
+    const srcHeight =
+      qrEl instanceof HTMLCanvasElement
+        ? qrEl.height
+        : (qrEl.naturalHeight || 180);
+  
+    ctx.drawImage(qrEl, 0, 0, srcWidth, srcHeight, 0, 0, size, size);
+  
+    // Overlay smaller translucent logo
     try {
-      const logo = new Image();
-      logo.crossOrigin = 'anonymous';
-      logo.src = QR_LOGO_URL;
-  
-      await new Promise((res, rej) => {
-        logo.onload = res;
-        logo.onerror = rej;
-      });
-  
+      const logo = await loadImageForCanvas(QR_LOGO_URL);
       const logoSize = size * 0.15;
       const x = (size - logoSize) / 2;
       const y = (size - logoSize) / 2;
-      
-      // soft backing, not a harsh block
+  
       ctx.save();
       ctx.globalAlpha = 0.92;
       ctx.fillStyle = '#ffffff';
       roundRect(ctx, x - 8, y - 8, logoSize + 16, logoSize + 16, 18);
       ctx.fill();
       ctx.restore();
-      
-      // semi-transparent logo so scanners still see pattern edges
+  
       ctx.save();
       ctx.globalAlpha = 0.72;
       ctx.drawImage(logo, x, y, logoSize, logoSize);
@@ -1239,7 +1309,8 @@
     preview.textContent = text;
     sheet.classList.add('active');
     // renderShareQr(url);
-    currentQrRenderPromise = renderShareQr(url);
+    // currentQrRenderPromise = renderShareQr(url);
+    currentQrRenderPromise = Promise.resolve().then(() => renderShareQr(url)).then(() => new Promise(resolve => requestAnimationFrame(() => resolve())));
 
     document.getElementById('shareNativeBtn').onclick = async () => {
       if (!navigator.share) {
