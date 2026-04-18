@@ -1,5 +1,4 @@
-const CACHE_NAME = 'geeta-app-v12';
-
+const CACHE_NAME = 'geeta-app-v13';
 const APP_SHELL = [
   './',
   './index.html',
@@ -16,7 +15,19 @@ const APP_SHELL = [
   './gat_library/images/swami_hariharji_with_audio_symbol.png',
   './gat_library/images/favicon_swamiharihar_ji_maharaj.ico',
   './gat_library/images/guru_wave_favicon.ico',
-  './gat_library/images/swamiharihar_ji_maharaj_transparent.png'
+  './gat_library/images/swamiharihar_ji_maharaj_transparent.png',
+  './gat_library/images/icon-192x192-maskable.png',
+  './gat_library/images/icon-512x512-maskable.png',
+  './gat_library/images/apple-splash-640x1136.png',
+  './gat_library/images/apple-splash-750x1334.png',
+  './gat_library/images/apple-splash-828x1792.png',
+  './gat_library/images/apple-splash-1170x2532.png',
+  './gat_library/images/apple-splash-1284x2778.png',
+  './gat_library/images/apple-splash-1536x2048.png',
+  './gat_library/images/apple-splash-1668x2388.png',
+  './gat_library/images/apple-splash-2048x2732.png',
+  './gat_library/images/screenshot-home.png',
+  './gat_library/images/screenshot-reader.png'
 ];
 
 
