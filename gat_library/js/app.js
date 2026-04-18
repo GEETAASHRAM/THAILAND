@@ -209,7 +209,7 @@
     document.getElementById('quickSubscribeAd')?.addEventListener('keypress', e => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        openSubscriptionModalPreFilled('chapter', '12', 'daily');
+        openSubscriptionModalPreFilled('chapter', '12', 'daily', 'fixed');
       }
     });
   }
@@ -1100,34 +1100,49 @@
   
     try {
       canvasHost.innerHTML = '';
+      lastRenderedQrUrl = '';
   
-      // Create an actual canvas explicitly for consistency across platforms
-      const qrCanvas = document.createElement('canvas');
-      qrCanvas.width = 180;
-      qrCanvas.height = 180;
-      qrCanvas.setAttribute('aria-label', 'QR code');
-      canvasHost.appendChild(qrCanvas);
+      if (logo) {
+        logo.style.display = 'none';
+        logo.src = '';
+      }
   
-      await new Promise((resolve, reject) => {
-        try {
+      if (typeof QRCode !== 'undefined' && typeof QRCode.toCanvas === 'function') {
+        const qrCanvas = document.createElement('canvas');
+        qrCanvas.width = 180;
+        qrCanvas.height = 180;
+        canvasHost.appendChild(qrCanvas);
+  
+        await new Promise((resolve, reject) => {
           QRCode.toCanvas(
             qrCanvas,
             url,
             {
               width: 180,
               margin: 2,
-              color: {
-                dark: '#111827',
-                light: '#ffffff'
-              },
+              color: { dark: '#111827', light: '#ffffff' },
               errorCorrectionLevel: 'H'
             },
-            (err) => (err ? reject(err) : resolve())
+            err => (err ? reject(err) : resolve())
           );
-        } catch (e) {
-          reject(e);
-        }
-      });
+        });
+      } else {
+        new QRCode(canvasHost, {
+          text: url,
+          width: 180,
+          height: 180,
+          colorDark: '#111827',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.H
+        });
+  
+        await new Promise(resolve => requestAnimationFrame(resolve));
+      }
+  
+      const renderedQrEl = canvasHost.querySelector('canvas, img');
+      if (!renderedQrEl) {
+        throw new Error('QR element was not rendered by the QR library.');
+      }
   
       lastRenderedQrUrl = url;
   
@@ -1189,6 +1204,14 @@
     const qrEl = container.querySelector('canvas') || container.querySelector('img');
     if (!qrEl) throw new Error('QR element not rendered yet.');
   
+    // If it's an image, make sure it has loaded
+    if (qrEl.tagName === 'IMG' && !qrEl.complete) {
+      await new Promise((resolve, reject) => {
+        qrEl.onload = () => resolve();
+        qrEl.onerror = () => reject(new Error('Rendered QR image failed to load.'));
+      });
+    }
+  
     const size = 512;
     const exportCanvas = document.createElement('canvas');
     exportCanvas.width = size;
@@ -1197,10 +1220,11 @@
     const ctx = exportCanvas.getContext('2d');
     if (!ctx) throw new Error('Canvas context failed.');
   
+    // white background
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, size, size);
   
-    // Use intrinsic dimensions (iOS-safe), not getBoundingClientRect
+    // Use intrinsic dimensions instead of bounding rect
     const srcWidth =
       qrEl instanceof HTMLCanvasElement
         ? qrEl.width
