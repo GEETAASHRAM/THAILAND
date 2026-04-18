@@ -204,7 +204,7 @@
     });
 
     document.getElementById('quickSubscribeAd')?.addEventListener('click', () => {
-      openSubscriptionModalPreFilled('chapter', '12', 'daily');
+      openSubscriptionModalPreFilled('chapter', '12', 'daily', 'fixed');
     });
 
     document.getElementById('quickSubscribeAd')?.addEventListener('keypress', e => {
@@ -561,8 +561,16 @@
               <option value="weekly">Weekly</option>
               <option value="monthly">Monthly</option>
             </select>
+            <label class="field-label" for="subRouteMode">How should this subscription behave?</label>
+            <select id="subRouteMode">
+              <option value="progressive">Move forward over time</option>
+              <option value="fixed">Always open the same chapter / verse</option>
+            </select>
+            <span class="field-help">
+              Progressive advances based on date. Fixed always opens the same selected chapter or verse.
+            </span>
           </div>
-
+      
           <div class="modal-actions-stack mt-3">
             <button id="btnGoogleCal" class="btn btn-primary">➕ Add to Google Calendar</button>
             <button id="btnAppleCal" class="btn btn-dark">🍎 Add to Apple / Outlook (.ics)</button>
@@ -728,9 +736,16 @@
       const startVal = document.getElementById('subStart').value;
       const freq = document.getElementById('subFreq').value;
       const startDate = document.getElementById('subDate').value;
+      const routeMode = document.getElementById('subRouteMode').value || 'progressive';
       const subId = `sub_${Date.now()}`;
-
-      return `${window.location.origin}${window.location.pathname}?subId=${encodeURIComponent(subId)}&type=${encodeURIComponent(type)}&start=${encodeURIComponent(startVal)}&freq=${encodeURIComponent(freq)}&date=${encodeURIComponent(startDate)}`;
+    
+      return `${window.location.origin}${window.location.pathname}` +
+        `?subId=${encodeURIComponent(subId)}` +
+        `&type=${encodeURIComponent(type)}` +
+        `&start=${encodeURIComponent(startVal)}` +
+        `&freq=${encodeURIComponent(freq)}` +
+        `&date=${encodeURIComponent(startDate)}` +
+        `&routeMode=${encodeURIComponent(routeMode)}`;
     }
 
     function getUTCStartAndEnd() {
@@ -746,7 +761,7 @@
     }
   }
 
-  function openSubscriptionModalPreFilled(type, startValue, freq) {
+  function openSubscriptionModalPreFilled(type, startValue, freq, routeMode = 'progressive') {
     const modal = document.getElementById('subscriptionModal');
     const subType = document.getElementById('subType');
     const subStart = document.getElementById('subStart');
@@ -786,6 +801,9 @@
     }, 0);
 
     document.getElementById('subFreq').value = freq;
+    
+    const routeModeEl = document.getElementById('subRouteMode');
+    if (routeModeEl) routeModeEl.value = routeMode;
 
     const targetUTC = new Date();
     targetUTC.setUTCHours(14, 15, 0, 0);
@@ -844,22 +862,28 @@
       const initialStart = parseInt(urlParams.get('start') || '0', 10);
       const startDateStr = urlParams.get('date');
       const freq = urlParams.get('freq');
-
+      const routeMode = urlParams.get('routeMode') || 'progressive';
+      
       if (!type || !startDateStr || Number.isNaN(initialStart)) return false;
-
-      const startDate = new Date(startDateStr);
+      
+      const startDate = new Date(startDateStr + 'T00:00:00');
       const today = new Date();
       const diffTime = Math.max(0, today - startDate);
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
+      
       let progressionSteps = 0;
-      if (freq === 'daily') progressionSteps = diffDays;
-      else if (freq === 'weekly') progressionSteps = Math.floor(diffDays / 7);
-      else if (freq === 'monthly') {
-        progressionSteps =
-          (today.getFullYear() - startDate.getFullYear()) * 12 +
-          (today.getMonth() - startDate.getMonth());
-        if (progressionSteps < 0) progressionSteps = 0;
+      
+      if (routeMode === 'progressive') {
+        if (freq === 'daily') progressionSteps = diffDays;
+        else if (freq === 'weekly') progressionSteps = Math.floor(diffDays / 7);
+        else if (freq === 'monthly') {
+          progressionSteps =
+            (today.getFullYear() - startDate.getFullYear()) * 12 +
+            (today.getMonth() - startDate.getMonth());
+          if (progressionSteps < 0) progressionSteps = 0;
+        }
+      } else {
+        progressionSteps = 0; // fixed mode stays pinned
       }
 
       let routePlaylist = [];
@@ -1120,14 +1144,23 @@
         logo.onerror = rej;
       });
   
-      const logoSize = size * 0.22;
+      const logoSize = size * 0.15;
       const x = (size - logoSize) / 2;
       const y = (size - logoSize) / 2;
-  
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(x - 4, y - 4, logoSize + 8, logoSize + 8);
-  
+      
+      // soft backing, not a harsh block
+      ctx.save();
+      ctx.globalAlpha = 0.92;
+      ctx.fillStyle = '#ffffff';
+      roundRect(ctx, x - 8, y - 8, logoSize + 16, logoSize + 16, 18);
+      ctx.fill();
+      ctx.restore();
+      
+      // semi-transparent logo so scanners still see pattern edges
+      ctx.save();
+      ctx.globalAlpha = 0.72;
       ctx.drawImage(logo, x, y, logoSize, logoSize);
+      ctx.restore();
     } catch (e) {
       console.warn('Logo overlay failed:', e);
     }
