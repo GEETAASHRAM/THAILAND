@@ -954,67 +954,6 @@
     return state.currentModalSubscriptionId;
   }
   
-  function renderSubscriptionOptionalSections() {
-    const optionalPanel = qs('subscriptionOptionalPanel');
-    const shareSection = qs('sectionShareOptions');
-    const pushSection = qs('sectionPushOptions');
-    const automationWrap = qs('sectionAutomationWrap');
-  
-    if (!optionalPanel || !shareSection || !pushSection || !automationWrap) return;
-  
-    // --------------------------------------------
-    // Share support
-    // --------------------------------------------
-    const canShare =
-      !!navigator.share ||
-      !!navigator.clipboard;
-  
-    shareSection.style.display = canShare ? 'block' : 'none';
-  
-    // --------------------------------------------
-    // Push support
-    // --------------------------------------------
-    const pushBtn = qs('btnPushSubscribe');
-    const pushUnsubBtn = qs('btnPushUnsubscribe');
-    const pushHint = qs('pushSupportHint');
-  
-    const pushAvailable =
-      !!pushBtn ||
-      !!pushUnsubBtn ||
-      !!pushHint;
-  
-    // show section if push is supported OR there is a useful hint to show
-    const shouldShowPush =
-      !!state.pushUiState.supported ||
-      !!state.pushUiState.installedWebAppRequired ||
-      (pushHint && String(pushHint.textContent || '').trim().length > 0);
-  
-    pushSection.style.display = shouldShowPush ? 'block' : 'none';
-  
-    // --------------------------------------------
-    // Automation support
-    // --------------------------------------------
-    const btnIOS = qs('btnInstallIOSShortcut');
-    const btnIOSInfo = qs('btnDownloadIOSShortcutInfo');
-    const btnAndroid = qs('btnDownloadAndroidAutomation');
-  
-    const automationVisible =
-      (btnIOS && btnIOS.style.display !== 'none') ||
-      (btnIOSInfo && btnIOSInfo.style.display !== 'none') ||
-      (btnAndroid && btnAndroid.style.display !== 'none');
-  
-    automationWrap.style.display = automationVisible ? 'block' : 'none';
-  
-    // --------------------------------------------
-    // Entire optional panel
-    // --------------------------------------------
-    const shouldShowOptionalPanel =
-      canShare ||
-      shouldShowPush ||
-      automationVisible;
-  
-    optionalPanel.style.display = shouldShowOptionalPanel ? 'block' : 'none';
-  }
   // -------------------------------------------------------
   // PWA install prompt support
   // -------------------------------------------------------
@@ -1290,62 +1229,133 @@
   // -------------------------------------------------------
   // Subscription modal
   // -------------------------------------------------------
+  function renderSubscriptionOptionalSections() {
+    const optionalPanel = qs('subscriptionOptionalPanel');
+    const shareSection = qs('sectionShareOptions');
+    const pushSection = qs('sectionPushOptions');
+    const automationWrap = qs('sectionAutomationWrap');
+  
+    if (!optionalPanel || !shareSection || !pushSection || !automationWrap) return;
+  
+    // --------------------------------------------
+    // Share support
+    // --------------------------------------------
+    // Share is useful if the browser supports native share OR clipboard.
+    const canShare = !!navigator.share || !!navigator.clipboard;
+    shareSection.style.display = canShare ? 'block' : 'none';
+  
+    // --------------------------------------------
+    // Push section support
+    // --------------------------------------------
+    // Show push section if:
+    // - push is supported, OR
+    // - iOS home-screen requirement hint should be shown, OR
+    // - there is already meaningful support text to show.
+    const pushHint = qs('pushSupportHint');
+    const shouldShowPush =
+      !!state.pushUiState.supported ||
+      !!state.pushUiState.installedWebAppRequired ||
+      !!(
+        pushHint &&
+        String(pushHint.textContent || '').trim().length > 0
+      );
+  
+    pushSection.style.display = shouldShowPush ? 'block' : 'none';
+  
+    // --------------------------------------------
+    // Automation visibility
+    // --------------------------------------------
+    const btnIOS = qs('btnInstallIOSShortcut');
+    const btnIOSInfo = qs('btnDownloadIOSShortcutInfo');
+    const btnAndroid = qs('btnDownloadAndroidAutomation');
+  
+    const automationVisible =
+      (btnIOS && btnIOS.style.display !== 'none') ||
+      (btnIOSInfo && btnIOSInfo.style.display !== 'none') ||
+      (btnAndroid && btnAndroid.style.display !== 'none');
+  
+    automationWrap.style.display = automationVisible ? 'block' : 'none';
+  
+    // --------------------------------------------
+    // Entire optional panel
+    // --------------------------------------------
+    const shouldShowOptionalPanel = canShare || shouldShowPush || automationVisible;
+    optionalPanel.style.display = shouldShowOptionalPanel ? 'block' : 'none';
+  }
+  
   function injectSubscriptionModal() {
     try {
+      // Prevent duplicate injection
       if (qs('subscriptionModal')) {
         return;
       }
-      
+  
       const html = `
         <style>
           /* -------------------------------------------- */
-          /* Subscription modal micro-animations / polish */
+          /* Subscription modal polish / micro-interactions */
           /* -------------------------------------------- */
           .sub-optional-panel {
-            margin-top: 14px;
-            padding-top: 12px;
+            margin-top: 16px;
+            padding-top: 14px;
             border-top: 1px solid rgba(0,0,0,0.08);
           }
-      
+  
           .sub-section-title {
             display: flex;
             align-items: center;
             gap: 8px;
             font-weight: 700;
             margin-bottom: 6px;
+            flex-wrap: wrap;
           }
-      
+  
           .sub-section-title .sub-optional-badge {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 2px 8px;
+            padding: 2px 10px;
             border-radius: 999px;
             font-size: 12px;
             font-weight: 600;
-            background: rgba(255, 193, 7, 0.12);
-            color: #8a5a00;
-            border: 1px solid rgba(255, 193, 7, 0.28);
+            background: rgba(13, 110, 253, 0.08);
+            color: #0d47a1;
+            border: 1px solid rgba(13, 110, 253, 0.18);
           }
-      
+  
+          .sub-recommended-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 2px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            background: rgba(25, 135, 84, 0.08);
+            color: #146c43;
+            border: 1px solid rgba(25, 135, 84, 0.18);
+            margin-left: 8px;
+          }
+  
           .sub-collapsible {
             border: 1px solid rgba(0,0,0,0.08);
-            border-radius: 12px;
+            border-radius: 14px;
             padding: 10px 12px;
-            background: rgba(0,0,0,0.015);
+            background: linear-gradient(to bottom, rgba(255,255,255,0.96), rgba(0,0,0,0.015));
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
           }
-      
+  
           .sub-collapsible summary {
             list-style: none;
             cursor: pointer;
             user-select: none;
             outline: none;
           }
-      
+  
           .sub-collapsible summary::-webkit-details-marker {
             display: none;
           }
-      
+  
           .sub-collapsible-summary {
             display: flex;
             align-items: center;
@@ -1353,53 +1363,53 @@
             gap: 10px;
             font-weight: 700;
           }
-      
+  
           .sub-collapsible-left {
             display: flex;
             align-items: center;
             gap: 10px;
             min-width: 0;
           }
-      
+  
           .sub-collapsible-icon {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 28px;
-            height: 28px;
+            width: 30px;
+            height: 30px;
             border-radius: 999px;
-            background: rgba(255, 193, 7, 0.15);
+            background: rgba(255, 193, 7, 0.14);
             font-size: 16px;
             flex: 0 0 auto;
-            animation: subPulseGlow 2.4s ease-in-out infinite;
+            animation: subPulseGlow 2.6s ease-in-out infinite;
           }
-      
+  
           .sub-collapsible-label {
             display: flex;
             flex-direction: column;
             gap: 2px;
             min-width: 0;
           }
-      
+  
           .sub-collapsible-label small {
             font-weight: 500;
             color: #6c757d;
             font-size: 12px;
             line-height: 1.3;
           }
-      
+  
           .sub-caret {
             display: inline-block;
             transition: transform 0.22s ease;
             font-size: 16px;
-            opacity: 0.8;
+            opacity: 0.82;
             flex: 0 0 auto;
           }
-      
+  
           details[open] .sub-caret {
             transform: rotate(90deg);
           }
-      
+  
           .sub-reveal-hint {
             display: inline-flex;
             align-items: center;
@@ -1407,9 +1417,9 @@
             margin-top: 6px;
             font-size: 12px;
             color: #8a5a00;
-            opacity: 0.9;
+            opacity: 0.95;
           }
-      
+  
           .sub-reveal-dot {
             width: 8px;
             height: 8px;
@@ -1419,48 +1429,55 @@
             animation: subPing 1.8s infinite;
             flex: 0 0 auto;
           }
-      
+  
           .sub-optional-card {
             border: 1px solid rgba(0,0,0,0.08);
-            border-radius: 12px;
+            border-radius: 14px;
             padding: 12px;
-            background: rgba(0,0,0,0.015);
+            background: linear-gradient(to bottom, rgba(255,255,255,0.98), rgba(0,0,0,0.015));
             margin-bottom: 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
           }
-      
+  
           .sub-optional-card:last-child {
             margin-bottom: 0;
           }
-      
+  
           .sub-muted-note {
             font-size: 12px;
             color: #6c757d;
-            margin-top: 6px;
-            line-height: 1.4;
+            margin-top: 8px;
+            line-height: 1.45;
           }
-      
+  
+          .sub-soft-divider {
+            margin: 14px 0;
+            border: 0;
+            border-top: 1px dashed rgba(0,0,0,0.10);
+          }
+  
           @keyframes subPulseGlow {
-            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.0); }
-            50% { transform: scale(1.06); box-shadow: 0 0 0 8px rgba(255, 193, 7, 0.0); }
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+            50% { transform: scale(1.06); box-shadow: 0 0 0 8px rgba(255, 193, 7, 0); }
           }
-      
+  
           @keyframes subPing {
             0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.55); }
             70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(255, 193, 7, 0); }
             100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
           }
         </style>
-      
+  
         <div id="subscriptionModal" class="app-modal-overlay" aria-hidden="true">
           <div class="app-modal-card" role="dialog" aria-modal="true" aria-labelledby="subscriptionModalTitle">
             <button id="btnCloseSubModalX" class="app-modal-close" aria-label="Close">×</button>
-      
+  
             <div id="subscriptionModalTitle" class="app-modal-title">📅 Daily Gita Subscription</div>
             <div class="app-modal-subtitle">
               Choose your daily reading, then pick how you’d like to receive it.
-              Most users should start with <strong>Add to Calendar</strong>.
+              Most users will be fully set up with <strong>Add to Calendar</strong>.
             </div>
-      
+  
             <!-- -------------------------------------------------- -->
             <!-- Step 1 -->
             <!-- -------------------------------------------------- -->
@@ -1474,7 +1491,7 @@
                 <option value="verse">One Verse at a time</option>
               </select>
             </div>
-      
+  
             <!-- -------------------------------------------------- -->
             <!-- Step 2 -->
             <!-- -------------------------------------------------- -->
@@ -1491,7 +1508,7 @@
               <div id="subLoading" class="loading-inline hidden">⏳ Processing options...</div>
               <select id="subStart" class="form-control" size="5" style="overflow-y:auto;"></select>
             </div>
-      
+  
             <!-- -------------------------------------------------- -->
             <!-- Step 3 -->
             <!-- -------------------------------------------------- -->
@@ -1500,7 +1517,7 @@
               <span class="field-help">
                 Choose when the reminder should begin and how often it should repeat.
               </span>
-      
+  
               <div class="row">
                 <div class="col-sm-6 form-group">
                   <label class="field-label" for="subDate">Start Date</label>
@@ -1511,7 +1528,7 @@
                   <input type="time" id="subTime" class="form-control" />
                 </div>
               </div>
-      
+  
               <div class="form-group" style="margin-top:10px;">
                 <label class="field-label" for="subFreq">Frequency</label>
                 <select id="subFreq" class="form-control">
@@ -1521,7 +1538,7 @@
                 </select>
               </div>
             </div>
-      
+  
             <!-- -------------------------------------------------- -->
             <!-- Advanced reading behavior -->
             <!-- -------------------------------------------------- -->
@@ -1529,21 +1546,21 @@
               <summary>
                 <div class="sub-collapsible-summary">
                   <div class="sub-collapsible-left">
-                    <span class="sub-collapsible-icon">✨</span>
+                    <span class="sub-collapsible-icon">🧭</span>
                     <span class="sub-collapsible-label">
                       <span>Advanced reading behavior</span>
-                      <small>Open more settings for how the reading progresses</small>
+                      <small>Choose whether your reading stays fixed or progresses over time</small>
                     </span>
                   </div>
                   <span class="sub-caret">▸</span>
                 </div>
               </summary>
-      
+  
               <div class="sub-reveal-hint">
                 <span class="sub-reveal-dot"></span>
-                <span>Hidden options available here</span>
+                <span>Fine-tune how your reading moves forward over time</span>
               </div>
-      
+  
               <div style="margin-top:12px;">
                 <label class="field-label" for="subRouteMode">How should this subscription behave?</label>
                 <select id="subRouteMode" class="form-control">
@@ -1555,74 +1572,78 @@
                 </span>
               </div>
             </details>
-      
+  
+            <hr class="sub-soft-divider" />
+  
             <!-- -------------------------------------------------- -->
             <!-- Step 4 -->
             <!-- -------------------------------------------------- -->
             <div class="form-group">
-              <label class="field-label">4) Add to Calendar</label>
+              <label class="field-label">
+                4) Add to Calendar
+                <span class="sub-recommended-badge">✅ Recommended</span>
+              </label>
               <span class="field-help">
                 Best for most users. Your reminder will open the correct reading automatically.
               </span>
-      
+  
               <div class="modal-actions-stack">
                 <button id="btnGoogleCal" class="btn btn-primary">
                   ➕ Add to Google Calendar
                 </button>
-      
+  
                 <button id="btnAppleCal" class="btn btn-dark">
                   🍎 Add to Apple / Outlook (.ics)
                 </button>
               </div>
             </div>
-      
+  
             <!-- -------------------------------------------------- -->
-            <!-- Optional options -->
-            <!-- Hidden by default; show via JS when supported -->
+            <!-- More ways to use this subscription -->
             <!-- -------------------------------------------------- -->
             <div id="subscriptionOptionalPanel" class="sub-optional-panel" style="display:none;">
               <div class="sub-section-title">
-                <span>Optional options</span>
-                <span class="sub-optional-badge">✨ Extra ways to use this subscription</span>
+                <span>More ways to use this subscription</span>
+                <span class="sub-optional-badge">✨ Optional enhancements</span>
               </div>
               <div class="field-help" style="margin-bottom:10px;">
-                These are optional tools. Most users do not need them.
+                Everything below is optional — your calendar reminder will still work perfectly without these.
               </div>
-      
+  
               <!-- Share -->
               <div id="sectionShareOptions" class="sub-optional-card" style="display:none;">
                 <label class="field-label">Share</label>
                 <span class="field-help">
-                  Share or save the subscription link for yourself or someone else.
+                  Send the subscription link to yourself or someone else.
                 </span>
-      
+  
                 <div class="modal-actions-stack" style="margin-top:10px;">
                   <button id="btnCopySubLink" class="btn btn-info">
                     🔗 Share / Copy Subscription Link
                   </button>
                 </div>
               </div>
-      
+  
               <!-- Push -->
               <div id="sectionPushOptions" class="sub-optional-card" style="display:none;">
                 <label class="field-label">Push notifications</label>
                 <span class="field-help">
-                  Use browser notifications when supported and configured.
+                  Get browser notifications when supported and configured on your device.
                 </span>
-      
+  
                 <div class="modal-actions-stack" style="margin-top:10px;">
                   <button id="btnPushSubscribe" type="button" class="btn btn-warning" style="display:none;">
                     🔔 Subscribe with Push Notifications
                   </button>
-      
+  
                   <button id="btnPushUnsubscribe" type="button" class="btn btn-outline-secondary" style="display:none;">
                     🔕 Unsubscribe Push
                   </button>
-      
+  
                   <div id="pushSupportHint" class="field-help" style="margin-top:6px;"></div>
                 </div>
               </div>
-      
+  
               <!-- Automation -->
               <div id="sectionAutomationWrap" class="sub-optional-card" style="display:none;">
                 <details class="sub-collapsible" id="subscriptionAutomationDetails">
@@ -1632,39 +1653,39 @@
                         <span class="sub-collapsible-icon">⚙️</span>
                         <span class="sub-collapsible-label">
                           <span>Automation</span>
-                          <small>Advanced device-specific options are hidden here</small>
+                          <small>Set up your device for an even smoother experience</small>
                         </span>
                       </div>
                       <span class="sub-caret">▸</span>
                     </div>
                   </summary>
-      
+  
                   <div class="sub-reveal-hint">
                     <span class="sub-reveal-dot"></span>
-                    <span>Expand to reveal advanced automation tools</span>
+                    <span>Explore optional automation tools for your phone or browser</span>
                   </div>
-      
+  
                   <div id="subscriptionAutomationOptions" class="modal-actions-stack" style="margin-top:12px;">
                     <button id="btnInstallIOSShortcut" type="button" class="btn btn-dark" style="display:none;">
                       🍎 Install iPhone Shortcut
                     </button>
-      
+  
                     <button id="btnDownloadIOSShortcutInfo" type="button" class="btn btn-outline-secondary" style="display:none;">
                       📄 Download iPhone Shortcut Instructions
                     </button>
-      
+  
                     <button id="btnDownloadAndroidAutomation" type="button" class="btn btn-success" style="display:none;">
                       🤖 Download Android Automation
                     </button>
                   </div>
-      
+  
                   <div class="sub-muted-note">
-                    These tools are optional and intended for advanced users who want device-specific automation.
+                    Set up your phone or browser to open the reading with less manual effort.
                   </div>
                 </details>
               </div>
             </div>
-      
+  
             <!-- Footer -->
             <div class="modal-actions-stack mt-3">
               <button id="btnCloseSubModal" class="btn btn-outline-secondary">
@@ -1674,8 +1695,12 @@
           </div>
         </div>
       `;
-
+  
       document.body.insertAdjacentHTML('beforeend', html);
+  
+      // -----------------------------------------------------
+      // Cache modal elements
+      // -----------------------------------------------------
       const modal = qs('subscriptionModal');
       const subType = qs('subType');
       const subStart = qs('subStart');
@@ -1686,27 +1711,40 @@
       const subTime = qs('subTime');
       const subFreq = qs('subFreq');
       const subRouteMode = qs('subRouteMode');
+  
       const btnOpenSubModal = qs('btnOpenSubModal');
       const btnCloseSubModal = qs('btnCloseSubModal');
       const btnCloseSubModalX = qs('btnCloseSubModalX');
+  
       const btnCopySubLink = qs('btnCopySubLink');
       const btnGoogleCal = qs('btnGoogleCal');
       const btnAppleCal = qs('btnAppleCal');
+  
       const btnInstallIOSShortcut = qs('btnInstallIOSShortcut');
       const btnDownloadIOSShortcutInfo = qs('btnDownloadIOSShortcutInfo');
       const btnDownloadAndroidAutomation = qs('btnDownloadAndroidAutomation');
       const btnPushSubscribe = qs('btnPushSubscribe');
       const btnPushUnsubscribe = qs('btnPushUnsubscribe');
-
-      if (!modal || !subType || !subStart || !subFilter || !subFeedback || !subLoading || !subDate || !subTime || !subFreq || !subRouteMode || !btnCloseSubModal || !btnCloseSubModalX || !btnCopySubLink || !btnGoogleCal || !btnAppleCal || !btnInstallIOSShortcut || !btnDownloadIOSShortcutInfo || !btnDownloadAndroidAutomation || !btnPushSubscribe || !btnPushUnsubscribe) {
+  
+      if (
+        !modal || !subType || !subStart || !subFilter || !subFeedback || !subLoading ||
+        !subDate || !subTime || !subFreq || !subRouteMode ||
+        !btnCloseSubModal || !btnCloseSubModalX ||
+        !btnCopySubLink || !btnGoogleCal || !btnAppleCal ||
+        !btnInstallIOSShortcut || !btnDownloadIOSShortcutInfo ||
+        !btnDownloadAndroidAutomation || !btnPushSubscribe || !btnPushUnsubscribe
+      ) {
         throw new Error('Subscription modal elements failed to initialize.');
       }
-
+  
+      // -----------------------------------------------------
+      // Helpers
+      // -----------------------------------------------------
       function closeModal() {
         modal.classList.remove('active');
         modal.setAttribute('aria-hidden', 'true');
       }
-
+  
       function ensureDefaultDateTime() {
         try {
           if (!subDate.value) {
@@ -1721,15 +1759,18 @@
           console.warn('ensureDefaultDateTime warning:', error);
         }
       }
-
+  
       function getOptionSourceByType(type) {
-        return type === 'chapter' ? state.precomputedSubOptions.chapter : state.precomputedSubOptions.verse;
+        return type === 'chapter'
+          ? state.precomputedSubOptions.chapter
+          : state.precomputedSubOptions.verse;
       }
-
+  
       function populateStartOptions(type, selectedValue = '') {
         try {
           const list = getOptionSourceByType(type);
           subStart.innerHTML = '';
+  
           const fragment = document.createDocumentFragment();
           list.forEach(opt => {
             const option = document.createElement('option');
@@ -1737,10 +1778,13 @@
             option.textContent = opt.text;
             fragment.appendChild(option);
           });
+  
           subStart.appendChild(fragment);
+  
           if (selectedValue !== undefined && selectedValue !== null && selectedValue !== '') {
             subStart.value = String(selectedValue);
           }
+  
           if (!subStart.value && subStart.options.length) {
             subStart.selectedIndex = 0;
           }
@@ -1749,14 +1793,16 @@
           showToast('Unable to load subscription options.', 'error');
         }
       }
-
+  
       function filterStartOptions() {
         try {
           const term = (subFilter.value || '').toLowerCase().trim();
           const source = getOptionSourceByType(subType.value);
           const previousValue = subStart.value;
+  
           subStart.innerHTML = '';
           let count = 0;
+  
           const fragment = document.createDocumentFragment();
           source.forEach(opt => {
             if (!term || opt.text.toLowerCase().includes(term)) {
@@ -1767,9 +1813,12 @@
               count++;
             }
           });
+  
           subStart.appendChild(fragment);
+  
           if (previousValue) subStart.value = previousValue;
           if (!subStart.value && subStart.options.length) subStart.selectedIndex = 0;
+  
           subFeedback.textContent = term ? `Showing ${count} matching options` : '';
         } catch (error) {
           console.error('filterStartOptions error:', error);
@@ -1777,7 +1826,7 @@
           showToast('Failed to filter subscription options.', 'warning');
         }
       }
-
+  
       function buildSubscriptionUrl() {
         try {
           const type = subType.value;
@@ -1786,6 +1835,7 @@
           const startDate = subDate.value;
           const routeMode = subRouteMode.value || 'progressive';
           const subId = ensureCurrentModalSubscriptionId(false);
+  
           return `${window.location.origin}${window.location.pathname}` +
             `?subId=${encodeURIComponent(subId)}` +
             `&type=${encodeURIComponent(type)}` +
@@ -1798,24 +1848,28 @@
           throw new Error('Failed to build subscription URL.');
         }
       }
-
+  
       function getUTCStartAndEnd() {
         try {
           const dateVal = subDate.value;
           const timeVal = subTime.value || DEFAULT_SUB_TIME;
+  
           if (!dateVal) throw new Error('Start date is missing.');
+  
           const localDate = new Date(`${dateVal}T${timeVal}:00`);
           if (Number.isNaN(localDate.getTime())) throw new Error('Invalid date/time.');
+  
           const formatUTC = d => d.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
           const dtStart = formatUTC(localDate);
           const dtEnd = formatUTC(new Date(localDate.getTime() + 15 * 60 * 1000));
+  
           return { dtStart, dtEnd };
         } catch (error) {
           console.error('getUTCStartAndEnd error:', error);
           throw new Error('Failed to prepare calendar date/time.');
         }
       }
-
+  
       function validateSelection() {
         if (!subStart.value) {
           showToast('Please select a starting point.', 'warning');
@@ -1831,10 +1885,34 @@
         }
         return true;
       }
-
+  
+      // -----------------------------------------------------
+      // Initial defaults
+      // -----------------------------------------------------
       ensureDefaultDateTime();
       populateStartOptions(subType.value, '');
-
+  
+      // local-only UI refresh
+      try {
+        renderSubscriptionAutomationOptions();
+        renderSubscriptionOptionalSections();
+      } catch (error) {
+        console.warn('Initial subscription modal UI refresh warning:', error);
+      }
+  
+      detectPushSupport().then(() => {
+        const btnPushUnsubscribeLocal = qs('btnPushUnsubscribe');
+        if (btnPushUnsubscribeLocal) {
+          btnPushUnsubscribeLocal.style.display = state.pushUiState.subscribed ? 'inline-block' : 'none';
+        }
+        renderSubscriptionOptionalSections();
+      }).catch(error => {
+        console.warn('detectPushSupport init warning:', error);
+      });
+  
+      // -----------------------------------------------------
+      // Open / close handlers
+      // -----------------------------------------------------
       btnOpenSubModal?.addEventListener('click', () => {
         try {
           openSubscriptionModalPreFilled('chapter', '1', 'daily', 'progressive');
@@ -1843,46 +1921,74 @@
           showToast('Unable to open subscription modal.', 'error');
         }
       });
-
+  
       btnCloseSubModal.addEventListener('click', closeModal);
       btnCloseSubModalX.addEventListener('click', closeModal);
+  
       modal.addEventListener('click', e => {
         if (e.target === modal) closeModal();
       });
-
+  
+      // -----------------------------------------------------
+      // Change / filter handlers
+      // -----------------------------------------------------
       subType.addEventListener('change', () => {
         try {
           subFilter.value = '';
           subFeedback.textContent = '';
-          openSubscriptionModalPreFilled(subType.value, '', subFreq.value, subRouteMode.value || 'progressive');
+          openSubscriptionModalPreFilled(
+            subType.value,
+            '',
+            subFreq.value,
+            subRouteMode.value || 'progressive'
+          );
         } catch (error) {
           console.error('subType change error:', error);
           showToast('Failed to refresh subscription options.', 'error');
         }
       });
-
+  
       subFilter.addEventListener('input', filterStartOptions);
-
+  
+      // -----------------------------------------------------
+      // Share / copy link
+      // -----------------------------------------------------
       btnCopySubLink.addEventListener('click', () => {
         try {
           if (!validateSelection()) return;
+  
           const appUrl = buildSubscriptionUrl();
-          const message = `📖 My Bhagavad Gita reading link\n\nOpen today’s reading here:\n${appUrl}\n\nShared from Geeta App`;
-          // trackSubscriptionEvent('subscription_channel_selected', 'share-link', {  status: 'share-sheet-opened' }).catch(() => {});
-          fireAndForgetTrackSubscriptionEvent('subscription_channel_selected', 'share-link', { status: 'share-sheet-opened' });
-          openShareSheet({ title: 'Bhagavad Gita Subscription', text: message, url: appUrl });
+          const message =
+            `📖 My Bhagavad Gita reading link\n\n` +
+            `Open today’s reading here:\n${appUrl}\n\n` +
+            `Shared from Geeta App`;
+  
+          fireAndForgetTrackSubscriptionEvent('subscription_channel_selected', 'share-link', {
+            status: 'share-sheet-opened'
+          });
+  
+          openShareSheet({
+            title: 'Bhagavad Gita Subscription',
+            text: message,
+            url: appUrl
+          });
         } catch (error) {
           console.error('Copy sub link error:', error);
           showToast('Failed to prepare subscription link.', 'error');
         }
       });
-
+  
+      // -----------------------------------------------------
+      // Google Calendar
+      // -----------------------------------------------------
       btnGoogleCal.addEventListener('click', () => {
         try {
           if (!validateSelection()) return;
+  
           const appUrl = buildSubscriptionUrl();
           const freq = subFreq.value.toUpperCase();
           const { dtStart, dtEnd } = getUTCStartAndEnd();
+  
           const details = `Tap the link to open today's reading:\n${appUrl}`;
           const gCalUrl =
             `https://calendar.google.com/calendar/render?action=TEMPLATE` +
@@ -1890,8 +1996,11 @@
             `&dates=${dtStart}/${dtEnd}` +
             `&details=${encodeURIComponent(details)}` +
             `&recur=${encodeURIComponent(`RRULE:FREQ=${freq}`)}`;
-          // trackSubscriptionEvent('subscription_channel_selected', 'google-calendar', { status: 'opened' }).catch(() => {});
-          fireAndForgetTrackSubscriptionEvent('subscription_channel_selected', 'google-calendar', { status: 'opened' });
+  
+          fireAndForgetTrackSubscriptionEvent('subscription_channel_selected', 'google-calendar', {
+            status: 'opened'
+          });
+  
           window.open(gCalUrl, '_blank');
           closeModal();
         } catch (error) {
@@ -1899,14 +2008,19 @@
           showToast('Failed to open Google Calendar link.', 'error');
         }
       });
-
+  
+      // -----------------------------------------------------
+      // Apple / Outlook ICS
+      // -----------------------------------------------------
       btnAppleCal.addEventListener('click', () => {
         try {
           if (!validateSelection()) return;
+  
           const type = subType.value;
           const appUrl = buildSubscriptionUrl();
           const freq = subFreq.value.toUpperCase();
           const { dtStart } = getUTCStartAndEnd();
+  
           const icsData = [
             'BEGIN:VCALENDAR',
             'VERSION:2.0',
@@ -1927,6 +2041,7 @@
             'END:VEVENT',
             'END:VCALENDAR'
           ].join('\n');
+  
           const blob = new Blob([icsData], { type: 'text/calendar;charset=utf-8' });
           const link = document.createElement('a');
           link.href = URL.createObjectURL(blob);
@@ -1934,8 +2049,11 @@
           document.body.appendChild(link);
           link.click();
           link.remove();
-          // trackSubscriptionEvent('subscription_channel_selected', 'ics', { status: 'downloaded' }).catch(() => {});
-          fireAndForgetTrackSubscriptionEvent('subscription_channel_selected', 'ics', { status: 'downloaded' });
+  
+          fireAndForgetTrackSubscriptionEvent('subscription_channel_selected', 'ics', {
+            status: 'downloaded'
+          });
+  
           showToast('Calendar file downloaded.', 'success');
           closeModal();
         } catch (error) {
@@ -1943,20 +2061,26 @@
           showToast('Failed to create calendar file.', 'error');
         }
       });
-
+  
+      // -----------------------------------------------------
+      // iPhone Shortcut
+      // -----------------------------------------------------
       btnInstallIOSShortcut.addEventListener('click', () => {
         try {
           if (!validateSelection()) return;
           const config = getSubscriptionConfigFromModal();
-          // trackSubscriptionEvent('subscription_channel_selected', 'ios-shortcut', { status: 'requested' }).catch(() => {});
-          fireAndForgetTrackSubscriptionEvent('subscription_channel_selected', 'ios-shortcut', { status: 'requested' });
+  
+          fireAndForgetTrackSubscriptionEvent('subscription_channel_selected', 'ios-shortcut', {
+            status: 'requested'
+          });
+  
           installOrDownloadIOSShortcut(config);
         } catch (error) {
           console.error('iOS shortcut install error:', error);
           showToast('Failed to prepare iPhone Shortcut.', 'error');
         }
       });
-
+  
       btnDownloadIOSShortcutInfo.addEventListener('click', () => {
         try {
           if (!validateSelection()) return;
@@ -1967,56 +2091,51 @@
           showToast('Failed to download iPhone Shortcut instructions.', 'error');
         }
       });
-
+  
+      // -----------------------------------------------------
+      // Android automation
+      // -----------------------------------------------------
       btnDownloadAndroidAutomation.addEventListener('click', () => {
         try {
           if (!validateSelection()) return;
           const config = getSubscriptionConfigFromModal();
-          // trackSubscriptionEvent('subscription_channel_selected', 'android-automation', { status: 'download-requested' }).catch(() => {});
-          fireAndForgetTrackSubscriptionEvent('subscription_channel_selected', 'android-automation', { status: 'download-requested' });
+  
+          fireAndForgetTrackSubscriptionEvent('subscription_channel_selected', 'android-automation', {
+            status: 'download-requested'
+          });
+  
           downloadAndroidAutomationPackage(config);
         } catch (error) {
           console.error('Android automation download error:', error);
           showToast('Failed to prepare Android automation.', 'error');
         }
       });
-
+  
+      // -----------------------------------------------------
+      // Push subscribe / unsubscribe
+      // -----------------------------------------------------
       btnPushSubscribe.addEventListener('click', async () => {
         try {
           if (!validateSelection()) return;
           await subscribeToPushForCurrentSubscription();
           btnPushUnsubscribe.style.display = state.pushUiState.subscribed ? 'inline-block' : 'none';
+          renderSubscriptionOptionalSections();
         } catch (error) {
           console.error('Push subscribe button error:', error);
           showToast('Failed to subscribe to push notifications.', 'error');
         }
       });
-
+  
       btnPushUnsubscribe.addEventListener('click', async () => {
         try {
           await unsubscribePushForCurrentDevice();
           btnPushUnsubscribe.style.display = 'none';
+          renderSubscriptionOptionalSections();
         } catch (error) {
           console.error('Push unsubscribe button error:', error);
           showToast('Failed to unsubscribe push notifications.', 'error');
         }
       });
-
-      try {
-        renderSubscriptionAutomationOptions();
-      } catch (error) {
-        console.warn('renderSubscriptionAutomationOptions init warning:', error);
-      }
-
-      detectPushSupport().then(() => {
-        const btnPushUnsubscribe = qs('btnPushUnsubscribe');
-        if (btnPushUnsubscribe) {
-          btnPushUnsubscribe.style.display = state.pushUiState.subscribed ? 'inline-block' : 'none';
-        }
-      }).catch(error => {
-        console.warn('detectPushSupport init warning:', error);
-      });
-
     } catch (error) {
       console.error('injectSubscriptionModal fatal error:', error);
       showToast('Failed to initialize subscription modal.', 'error', 6000);
