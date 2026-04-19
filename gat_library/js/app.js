@@ -504,6 +504,8 @@
     btn.textContent = state.pushUiState.subscribed
       ? '✅ Push Notifications Enabled'
       : '🔔 Subscribe with Push Notifications';
+
+    renderSubscriptionOptionalSections();
   }
 
   async function subscribeToPushForCurrentSubscription() {
@@ -837,6 +839,7 @@
       btnIOSInfo.style.display = 'inline-block';
       btnAndroid.style.display = 'inline-block';
     }
+    renderSubscriptionOptionalSections();
   }
 
   function getOrCreateStableId(storageKey, prefix = 'id') {
@@ -950,7 +953,68 @@
     }
     return state.currentModalSubscriptionId;
   }
-
+  
+  function renderSubscriptionOptionalSections() {
+    const optionalPanel = qs('subscriptionOptionalPanel');
+    const shareSection = qs('sectionShareOptions');
+    const pushSection = qs('sectionPushOptions');
+    const automationWrap = qs('sectionAutomationWrap');
+  
+    if (!optionalPanel || !shareSection || !pushSection || !automationWrap) return;
+  
+    // --------------------------------------------
+    // Share support
+    // --------------------------------------------
+    const canShare =
+      !!navigator.share ||
+      !!navigator.clipboard;
+  
+    shareSection.style.display = canShare ? 'block' : 'none';
+  
+    // --------------------------------------------
+    // Push support
+    // --------------------------------------------
+    const pushBtn = qs('btnPushSubscribe');
+    const pushUnsubBtn = qs('btnPushUnsubscribe');
+    const pushHint = qs('pushSupportHint');
+  
+    const pushAvailable =
+      !!pushBtn ||
+      !!pushUnsubBtn ||
+      !!pushHint;
+  
+    // show section if push is supported OR there is a useful hint to show
+    const shouldShowPush =
+      !!state.pushUiState.supported ||
+      !!state.pushUiState.installedWebAppRequired ||
+      (pushHint && String(pushHint.textContent || '').trim().length > 0);
+  
+    pushSection.style.display = shouldShowPush ? 'block' : 'none';
+  
+    // --------------------------------------------
+    // Automation support
+    // --------------------------------------------
+    const btnIOS = qs('btnInstallIOSShortcut');
+    const btnIOSInfo = qs('btnDownloadIOSShortcutInfo');
+    const btnAndroid = qs('btnDownloadAndroidAutomation');
+  
+    const automationVisible =
+      (btnIOS && btnIOS.style.display !== 'none') ||
+      (btnIOSInfo && btnIOSInfo.style.display !== 'none') ||
+      (btnAndroid && btnAndroid.style.display !== 'none');
+  
+    automationWrap.style.display = automationVisible ? 'block' : 'none';
+  
+    // --------------------------------------------
+    // Entire optional panel
+    // --------------------------------------------
+    const shouldShowOptionalPanel =
+      canShare ||
+      shouldShowPush ||
+      automationVisible;
+  
+    optionalPanel.style.display = shouldShowOptionalPanel ? 'block' : 'none';
+  }
   // -------------------------------------------------------
   // PWA install prompt support
   // -------------------------------------------------------
@@ -1233,6 +1297,160 @@
       }
       
       const html = `
+        <style>
+          /* -------------------------------------------- */
+          /* Subscription modal micro-animations / polish */
+          /* -------------------------------------------- */
+          .sub-optional-panel {
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(0,0,0,0.08);
+          }
+      
+          .sub-section-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+            margin-bottom: 6px;
+          }
+      
+          .sub-section-title .sub-optional-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            background: rgba(255, 193, 7, 0.12);
+            color: #8a5a00;
+            border: 1px solid rgba(255, 193, 7, 0.28);
+          }
+      
+          .sub-collapsible {
+            border: 1px solid rgba(0,0,0,0.08);
+            border-radius: 12px;
+            padding: 10px 12px;
+            background: rgba(0,0,0,0.015);
+          }
+      
+          .sub-collapsible summary {
+            list-style: none;
+            cursor: pointer;
+            user-select: none;
+            outline: none;
+          }
+      
+          .sub-collapsible summary::-webkit-details-marker {
+            display: none;
+          }
+      
+          .sub-collapsible-summary {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-weight: 700;
+          }
+      
+          .sub-collapsible-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+          }
+      
+          .sub-collapsible-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            background: rgba(255, 193, 7, 0.15);
+            font-size: 16px;
+            flex: 0 0 auto;
+            animation: subPulseGlow 2.4s ease-in-out infinite;
+          }
+      
+          .sub-collapsible-label {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+          }
+      
+          .sub-collapsible-label small {
+            font-weight: 500;
+            color: #6c757d;
+            font-size: 12px;
+            line-height: 1.3;
+          }
+      
+          .sub-caret {
+            display: inline-block;
+            transition: transform 0.22s ease;
+            font-size: 16px;
+            opacity: 0.8;
+            flex: 0 0 auto;
+          }
+      
+          details[open] .sub-caret {
+            transform: rotate(90deg);
+          }
+      
+          .sub-reveal-hint {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 6px;
+            font-size: 12px;
+            color: #8a5a00;
+            opacity: 0.9;
+          }
+      
+          .sub-reveal-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: #ffc107;
+            box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.55);
+            animation: subPing 1.8s infinite;
+            flex: 0 0 auto;
+          }
+      
+          .sub-optional-card {
+            border: 1px solid rgba(0,0,0,0.08);
+            border-radius: 12px;
+            padding: 12px;
+            background: rgba(0,0,0,0.015);
+            margin-bottom: 12px;
+          }
+      
+          .sub-optional-card:last-child {
+            margin-bottom: 0;
+          }
+      
+          .sub-muted-note {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 6px;
+            line-height: 1.4;
+          }
+      
+          @keyframes subPulseGlow {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.0); }
+            50% { transform: scale(1.06); box-shadow: 0 0 0 8px rgba(255, 193, 7, 0.0); }
+          }
+      
+          @keyframes subPing {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.55); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(255, 193, 7, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+          }
+        </style>
+      
         <div id="subscriptionModal" class="app-modal-overlay" aria-hidden="true">
           <div class="app-modal-card" role="dialog" aria-modal="true" aria-labelledby="subscriptionModalTitle">
             <button id="btnCloseSubModalX" class="app-modal-close" aria-label="Close">×</button>
@@ -1244,7 +1462,7 @@
             </div>
       
             <!-- -------------------------------------------------- -->
-            <!-- Reading selection -->
+            <!-- Step 1 -->
             <!-- -------------------------------------------------- -->
             <div class="form-group">
               <label class="field-label" for="subType">1) What would you like to receive?</label>
@@ -1257,6 +1475,9 @@
               </select>
             </div>
       
+            <!-- -------------------------------------------------- -->
+            <!-- Step 2 -->
+            <!-- -------------------------------------------------- -->
             <div class="form-group">
               <label class="field-label" for="subStart">2) Starting Point</label>
               <input
@@ -1272,7 +1493,7 @@
             </div>
       
             <!-- -------------------------------------------------- -->
-            <!-- Schedule -->
+            <!-- Step 3 -->
             <!-- -------------------------------------------------- -->
             <div class="form-group">
               <label class="field-label">3) Schedule</label>
@@ -1304,15 +1525,26 @@
             <!-- -------------------------------------------------- -->
             <!-- Advanced reading behavior -->
             <!-- -------------------------------------------------- -->
-            <details class="form-group" id="subscriptionAdvancedDetails">
-              <summary class="field-label" style="cursor:pointer; user-select:none;">
-                Advanced reading behavior
+            <details class="form-group sub-collapsible" id="subscriptionAdvancedDetails">
+              <summary>
+                <div class="sub-collapsible-summary">
+                  <div class="sub-collapsible-left">
+                    <span class="sub-collapsible-icon">✨</span>
+                    <span class="sub-collapsible-label">
+                      <span>Advanced reading behavior</span>
+                      <small>Open more settings for how the reading progresses</small>
+                    </span>
+                  </div>
+                  <span class="sub-caret">▸</span>
+                </div>
               </summary>
-              <span class="field-help">
-                Leave this as default unless you want the same chapter or verse every time.
-              </span>
       
-              <div style="margin-top:10px;">
+              <div class="sub-reveal-hint">
+                <span class="sub-reveal-dot"></span>
+                <span>Hidden options available here</span>
+              </div>
+      
+              <div style="margin-top:12px;">
                 <label class="field-label" for="subRouteMode">How should this subscription behave?</label>
                 <select id="subRouteMode" class="form-control">
                   <option value="progressive">Move forward over time</option>
@@ -1324,10 +1556,8 @@
               </div>
             </details>
       
-            <hr />
-      
             <!-- -------------------------------------------------- -->
-            <!-- Calendar -->
+            <!-- Step 4 -->
             <!-- -------------------------------------------------- -->
             <div class="form-group">
               <label class="field-label">4) Add to Calendar</label>
@@ -1347,73 +1577,95 @@
             </div>
       
             <!-- -------------------------------------------------- -->
-            <!-- Share -->
+            <!-- Optional options -->
+            <!-- Hidden by default; show via JS when supported -->
             <!-- -------------------------------------------------- -->
-            <div class="form-group">
-              <label class="field-label">5) Share</label>
-              <span class="field-help">
-                Share or save the subscription link for yourself or someone else.
-              </span>
+            <div id="subscriptionOptionalPanel" class="sub-optional-panel" style="display:none;">
+              <div class="sub-section-title">
+                <span>Optional options</span>
+                <span class="sub-optional-badge">✨ Extra ways to use this subscription</span>
+              </div>
+              <div class="field-help" style="margin-bottom:10px;">
+                These are optional tools. Most users do not need them.
+              </div>
       
-              <div class="modal-actions-stack">
-                <button id="btnCopySubLink" class="btn btn-info">
-                  🔗 Share / Copy Subscription Link
-                </button>
+              <!-- Share -->
+              <div id="sectionShareOptions" class="sub-optional-card" style="display:none;">
+                <label class="field-label">Share</label>
+                <span class="field-help">
+                  Share or save the subscription link for yourself or someone else.
+                </span>
+      
+                <div class="modal-actions-stack" style="margin-top:10px;">
+                  <button id="btnCopySubLink" class="btn btn-info">
+                    🔗 Share / Copy Subscription Link
+                  </button>
+                </div>
+              </div>
+      
+              <!-- Push -->
+              <div id="sectionPushOptions" class="sub-optional-card" style="display:none;">
+                <label class="field-label">Push notifications</label>
+                <span class="field-help">
+                  Use browser notifications when supported and configured.
+                </span>
+      
+                <div class="modal-actions-stack" style="margin-top:10px;">
+                  <button id="btnPushSubscribe" type="button" class="btn btn-warning" style="display:none;">
+                    🔔 Subscribe with Push Notifications
+                  </button>
+      
+                  <button id="btnPushUnsubscribe" type="button" class="btn btn-outline-secondary" style="display:none;">
+                    🔕 Unsubscribe Push
+                  </button>
+      
+                  <div id="pushSupportHint" class="field-help" style="margin-top:6px;"></div>
+                </div>
+              </div>
+      
+              <!-- Automation -->
+              <div id="sectionAutomationWrap" class="sub-optional-card" style="display:none;">
+                <details class="sub-collapsible" id="subscriptionAutomationDetails">
+                  <summary>
+                    <div class="sub-collapsible-summary">
+                      <div class="sub-collapsible-left">
+                        <span class="sub-collapsible-icon">⚙️</span>
+                        <span class="sub-collapsible-label">
+                          <span>Automation</span>
+                          <small>Advanced device-specific options are hidden here</small>
+                        </span>
+                      </div>
+                      <span class="sub-caret">▸</span>
+                    </div>
+                  </summary>
+      
+                  <div class="sub-reveal-hint">
+                    <span class="sub-reveal-dot"></span>
+                    <span>Expand to reveal advanced automation tools</span>
+                  </div>
+      
+                  <div id="subscriptionAutomationOptions" class="modal-actions-stack" style="margin-top:12px;">
+                    <button id="btnInstallIOSShortcut" type="button" class="btn btn-dark" style="display:none;">
+                      🍎 Install iPhone Shortcut
+                    </button>
+      
+                    <button id="btnDownloadIOSShortcutInfo" type="button" class="btn btn-outline-secondary" style="display:none;">
+                      📄 Download iPhone Shortcut Instructions
+                    </button>
+      
+                    <button id="btnDownloadAndroidAutomation" type="button" class="btn btn-success" style="display:none;">
+                      🤖 Download Android Automation
+                    </button>
+                  </div>
+      
+                  <div class="sub-muted-note">
+                    These tools are optional and intended for advanced users who want device-specific automation.
+                  </div>
+                </details>
               </div>
             </div>
       
-            <!-- -------------------------------------------------- -->
-            <!-- Push -->
-            <!-- -------------------------------------------------- -->
-            <div class="form-group">
-              <label class="field-label">6) Push Notifications</label>
-              <span class="field-help">
-                Use browser notifications when supported and configured.
-              </span>
-      
-              <div class="modal-actions-stack">
-                <button id="btnPushSubscribe" type="button" class="btn btn-warning" style="display:none;">
-                  🔔 Subscribe with Push Notifications
-                </button>
-      
-                <button id="btnPushUnsubscribe" type="button" class="btn btn-outline-secondary" style="display:none;">
-                  🔕 Unsubscribe Push
-                </button>
-      
-                <div id="pushSupportHint" class="field-help" style="margin-top:6px;"></div>
-              </div>
-            </div>
-      
-            <!-- -------------------------------------------------- -->
-            <!-- Automation -->
-            <!-- -------------------------------------------------- -->
-            <details class="form-group" id="subscriptionAutomationDetails">
-              <summary class="field-label" style="cursor:pointer; user-select:none;">
-                7) Automation (Advanced)
-              </summary>
-              <span class="field-help">
-                Use device-specific automation if you want more advanced reminder behavior.
-                Most users do not need this.
-              </span>
-      
-              <div id="subscriptionAutomationOptions" class="modal-actions-stack" style="margin-top:10px;">
-                <button id="btnInstallIOSShortcut" type="button" class="btn btn-dark" style="display:none;">
-                  🍎 Install iPhone Shortcut
-                </button>
-      
-                <button id="btnDownloadIOSShortcutInfo" type="button" class="btn btn-outline-secondary" style="display:none;">
-                  📄 Download iPhone Shortcut Instructions
-                </button>
-      
-                <button id="btnDownloadAndroidAutomation" type="button" class="btn btn-success" style="display:none;">
-                  🤖 Download Android Automation
-                </button>
-              </div>
-            </details>
-      
-            <!-- -------------------------------------------------- -->
             <!-- Footer -->
-            <!-- -------------------------------------------------- -->
             <div class="modal-actions-stack mt-3">
               <button id="btnCloseSubModal" class="btn btn-outline-secondary">
                 Cancel
@@ -1837,6 +2089,7 @@
       modal.setAttribute('aria-hidden', 'false');
       try {
         renderSubscriptionAutomationOptions();
+        renderSubscriptionOptionalSections();
       } catch (error) {
         console.warn('renderSubscriptionAutomationOptions refresh warning:', error);
       }
