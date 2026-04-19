@@ -31,7 +31,11 @@
   const DEFAULT_SUB_TIME = '21:15';
   const DEFAULT_PUSH_POLL_MS = 5 * 60 * 1000;
   const DEBUG_MODE = false;
-
+  
+  const LOCAL_DEVICE_ID_KEY = 'gita_anon_device_id';
+  const LOCAL_INSTALL_ID_KEY = 'gita_install_id';
+  const SESSION_ID = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  
   // -------------------------------------------------------
   // Global state
   // -------------------------------------------------------
@@ -499,6 +503,7 @@
       state.pushUiState.subscribed = true;
       updatePushUi();
       showToast('Push notification subscription saved.', 'success');
+      trackSubscriptionEvent('subscription_channel_selected', 'push', { status: 'subscribed' }).catch(() => {});
     } catch (error) {
       console.error('subscribeToPushForCurrentSubscription error:', error);
       showToast('Failed to subscribe to push notifications.', 'error');
@@ -765,6 +770,110 @@
       btnIOS.style.display = 'inline-block';
       btnIOSInfo.style.display = 'inline-block';
       btnAndroid.style.display = 'inline-block';
+    }
+  }
+
+  function getOrCreateStableId(storageKey, prefix = 'id') {
+    try {
+      let value = localStorage.getItem(storageKey);
+      if (!value) {
+        value = `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+        localStorage.setItem(storageKey, value);
+      }
+      return value;
+    } catch (error) {
+      console.warn('getOrCreateStableId warning:', error);
+      return `${prefix}_fallback_${Math.random().toString(36).slice(2, 10)}`;
+    }
+  }
+  
+  async function getGrantedLocationSilently() {
+    try {
+      if (!('permissions' in navigator) || !('geolocation' in navigator)) return null;
+  
+      const permission = await navigator.permissions.query({ name: 'geolocation' });
+      if (permission.state !== 'granted') {
+        return null;
+      }
+  
+      return await new Promise(resolve => {
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            resolve({
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+              accuracy: pos.coords.accuracy || null,
+              capturedAt: new Date().toISOString()
+            });
+          },
+          () => resolve(null),
+          {
+            enableHighAccuracy: false,
+            timeout: 3000,
+            maximumAge: 10 * 60 * 1000
+          }
+        );
+      });
+    } catch (error) {
+      console.warn('getGrantedLocationSilently warning:', error);
+      return null;
+    }
+  }
+  
+  async function collectClientIdentity(options = {}) {
+    const platform = detectPlatform();
+    const anonymousDeviceId = getOrCreateStableId(LOCAL_DEVICE_ID_KEY, 'dev');
+    const installId = getOrCreateStableId(LOCAL_INSTALL_ID_KEY, 'install');
+  
+    let location = null;
+    if (options.includeLocationIfAlreadyGranted) {
+      location = await getGrantedLocationSilently();
+    }
+  
+    return {
+      anonymousDeviceId,
+      installId,
+      sessionId: SESSION_ID,
+      userAgent: navigator.userAgent || '',
+      platform:
+        navigator.userAgentData?.platform ||
+        navigator.platform ||
+        '',
+      language: navigator.language || '',
+      languages: Array.isArray(navigator.languages) ? navigator.languages : [],
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+      screen: `${window.screen?.width || 0}x${window.screen?.height || 0}`,
+      standalone: String(platform.isStandalone),
+      isIOS: platform.isIOS,
+      isAndroid: platform.isAndroid,
+      isChromium: platform.isChromium,
+      location
+    };
+  }
+  
+  async function trackSubscriptionEvent(eventType, channel, extra = {}) {
+    try {
+      if (!isBackendConfigured()) {
+        return { ok: false, skipped: true, reason: 'backend-not-configured' };
+      }
+  
+      const payload = {
+        eventType,
+        channel,
+        status: extra.status || '',
+        readingConfig: getSubscriptionConfigFromModal(),
+        identity: await collectClientIdentity({
+          includeLocationIfAlreadyGranted: true
+        }),
+        referrer: document.referrer || '',
+        pageUrl: window.location.href,
+        extra
+      };
+  
+      return await backendRequest('trackSubscription', payload, 'POST');
+    } catch (error) {
+      console.warn('trackSubscriptionEvent warning:', error);
+      return { ok: false, error: String(error) };
     }
   }
 
@@ -1324,6 +1433,7 @@
           if (!validateSelection()) return;
           const appUrl = buildSubscriptionUrl();
           const message = `📖 My Bhagavad Gita reading link\n\nOpen today’s reading here:\n${appUrl}\n\nShared from Geeta App`;
+          trackSubscriptionEvent('subscription_channel_selected', 'share-link', {  status: 'share-sheet-opened' }).catch(() => {});
           openShareSheet({ title: 'Bhagavad Gita Subscription', text: message, url: appUrl });
         } catch (error) {
           console.error('Copy sub link error:', error);
@@ -1344,6 +1454,7 @@
             `&dates=${dtStart}/${dtEnd}` +
             `&details=${encodeURIComponent(details)}` +
             `&recur=${encodeURIComponent(`RRULE:FREQ=${freq}`)}`;
+          trackSubscriptionEvent('subscription_channel_selected', 'google-calendar', { status: 'opened' }).catch(() => {});
           window.open(gCalUrl, '_blank');
           closeModal();
         } catch (error) {
@@ -1386,6 +1497,7 @@
           document.body.appendChild(link);
           link.click();
           link.remove();
+          trackSubscriptionEvent('subscription_channel_selected', 'ics', { status: 'downloaded' }).catch(() => {});
           showToast('Calendar file downloaded.', 'success');
           closeModal();
         } catch (error) {
@@ -1398,6 +1510,7 @@
         try {
           if (!validateSelection()) return;
           const config = getSubscriptionConfigFromModal();
+          trackSubscriptionEvent('subscription_channel_selected', 'ios-shortcut', { status: 'requested' }).catch(() => {});
           installOrDownloadIOSShortcut(config);
         } catch (error) {
           console.error('iOS shortcut install error:', error);
@@ -1420,6 +1533,7 @@
         try {
           if (!validateSelection()) return;
           const config = getSubscriptionConfigFromModal();
+          trackSubscriptionEvent('subscription_channel_selected', 'android-automation', { status: 'download-requested' }).catch(() => {});
           downloadAndroidAutomationPackage(config);
         } catch (error) {
           console.error('Android automation download error:', error);
