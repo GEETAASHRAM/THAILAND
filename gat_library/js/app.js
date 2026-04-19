@@ -84,7 +84,12 @@
       audio: new Audio()
     }
   };
-
+  
+  const backendRuntime = {
+    initialized: false,
+    initPromise: null
+  };
+  
   // -------------------------------------------------------
   // Debug helper
   // -------------------------------------------------------
@@ -312,34 +317,41 @@
     if (!isBackendConfigured()) {
       throw new Error('Backend base URL is not configured.');
     }
-
+  
     const url = buildBackendUrl(action);
     const options = {
       method,
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      redirect: 'follow'
     };
-
-    if (method !== 'GET' && payload !== null) {
-      options.body = JSON.stringify(payload);
+  
+    if (method === 'GET') {
+      // IMPORTANT:
+      // Do not send Content-Type or custom headers on GET.
+      // Keep request simple to avoid CORS preflight.
+    } else {
+      // IMPORTANT:
+      // Use text/plain to keep request “simple” and avoid preflight OPTIONS.
+      options.headers = {
+        'Content-Type': 'text/plain;charset=utf-8'
+      };
+      options.body = JSON.stringify(payload || {});
     }
-
+  
     const res = await fetchWithTimeout(url, options, BACKEND_TIMEOUT_MS);
     const text = await res.text();
+  
     let json = null;
-
     try {
       json = text ? JSON.parse(text) : {};
     } catch (error) {
       throw new Error(`Backend returned invalid JSON for action=${action}: ${text.slice(0, 300)}`);
     }
-
+  
     if (!res.ok || !json.ok) {
       const msg = json?.error || `Backend error (${res.status})`;
       throw new Error(msg);
     }
-
+  
     return json;
   }
 
@@ -369,6 +381,44 @@
       state.pushUiState.backendHealthy = false;
       return state.backendConfig;
     }
+  }
+  
+  async function initBackendLazy(force = false) {
+    if (!state.backendConfig.baseUrl) {
+      return { ok: false, skipped: true, reason: 'no-base-url' };
+    }
+  
+    if (backendRuntime.initialized && !force) {
+      return { ok: true, cached: true };
+    }
+  
+    if (backendRuntime.initPromise && !force) {
+      return backendRuntime.initPromise;
+    }
+  
+    backendRuntime.initPromise = (async () => {
+      try {
+        await loadBackendConfig();
+        backendRuntime.initialized = true;
+        return { ok: true };
+      } catch (error) {
+        console.warn('initBackendLazy warning:', error);
+        return { ok: false, error: String(error) };
+      } finally {
+        backendRuntime.initPromise = null;
+      }
+    })();
+  
+    return backendRuntime.initPromise;
+  }
+
+  function fireAndForgetTrackSubscriptionEvent(eventType, channel, extra = {}) {
+    Promise.resolve()
+      .then(() => initBackendLazy(false))
+      .then(() => trackSubscriptionEvent(eventType, channel, extra))
+      .catch(error => {
+        console.warn('fireAndForgetTrackSubscriptionEvent warning:', error);
+      });
   }
 
   // -------------------------------------------------------
@@ -503,7 +553,8 @@
       state.pushUiState.subscribed = true;
       updatePushUi();
       showToast('Push notification subscription saved.', 'success');
-      trackSubscriptionEvent('subscription_channel_selected', 'push', { status: 'subscribed' }).catch(() => {});
+      // trackSubscriptionEvent('subscription_channel_selected', 'push', { status: 'subscribed' }).catch(() => {});
+      fireAndForgetTrackSubscriptionEvent('subscription_channel_selected', 'push', { status: 'subscribed' });
     } catch (error) {
       console.error('subscribeToPushForCurrentSubscription error:', error);
       showToast('Failed to subscribe to push notifications.', 'error');
@@ -535,15 +586,17 @@
 
   async function pollDueRemindersIfPossible() {
     if (!isBackendConfigured()) return;
+    if (!backendRuntime.initialized) return;
     if (document.hidden) return;
-
     try {
+      
       const result = await backendRequest('dueReminders', {
-        nowIso: new Date().toISOString(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
-        platform: detectPlatform(),
-        appVersion: APP_VERSION
-      }, 'POST');
+            nowIso: new Date().toISOString(),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+            platform: detectPlatform(),
+            appVersion: APP_VERSION
+          }, 'POST');
+
 
       state.poller.lastReminderCheckAt = new Date().toISOString();
       const due = Array.isArray(result.data?.items) ? result.data.items : [];
@@ -1433,7 +1486,8 @@
           if (!validateSelection()) return;
           const appUrl = buildSubscriptionUrl();
           const message = `📖 My Bhagavad Gita reading link\n\nOpen today’s reading here:\n${appUrl}\n\nShared from Geeta App`;
-          trackSubscriptionEvent('subscription_channel_selected', 'share-link', {  status: 'share-sheet-opened' }).catch(() => {});
+          // trackSubscriptionEvent('subscription_channel_selected', 'share-link', {  status: 'share-sheet-opened' }).catch(() => {});
+          fireAndForgetTrackSubscriptionEvent('subscription_channel_selected', 'share-link', { status: 'share-sheet-opened' });
           openShareSheet({ title: 'Bhagavad Gita Subscription', text: message, url: appUrl });
         } catch (error) {
           console.error('Copy sub link error:', error);
@@ -1454,7 +1508,8 @@
             `&dates=${dtStart}/${dtEnd}` +
             `&details=${encodeURIComponent(details)}` +
             `&recur=${encodeURIComponent(`RRULE:FREQ=${freq}`)}`;
-          trackSubscriptionEvent('subscription_channel_selected', 'google-calendar', { status: 'opened' }).catch(() => {});
+          // trackSubscriptionEvent('subscription_channel_selected', 'google-calendar', { status: 'opened' }).catch(() => {});
+          fireAndForgetTrackSubscriptionEvent('subscription_channel_selected', 'google-calendar', { status: 'opened' });
           window.open(gCalUrl, '_blank');
           closeModal();
         } catch (error) {
@@ -1497,7 +1552,8 @@
           document.body.appendChild(link);
           link.click();
           link.remove();
-          trackSubscriptionEvent('subscription_channel_selected', 'ics', { status: 'downloaded' }).catch(() => {});
+          // trackSubscriptionEvent('subscription_channel_selected', 'ics', { status: 'downloaded' }).catch(() => {});
+          fireAndForgetTrackSubscriptionEvent('subscription_channel_selected', 'ics', { status: 'downloaded' });
           showToast('Calendar file downloaded.', 'success');
           closeModal();
         } catch (error) {
@@ -1510,7 +1566,8 @@
         try {
           if (!validateSelection()) return;
           const config = getSubscriptionConfigFromModal();
-          trackSubscriptionEvent('subscription_channel_selected', 'ios-shortcut', { status: 'requested' }).catch(() => {});
+          // trackSubscriptionEvent('subscription_channel_selected', 'ios-shortcut', { status: 'requested' }).catch(() => {});
+          fireAndForgetTrackSubscriptionEvent('subscription_channel_selected', 'ios-shortcut', { status: 'requested' });
           installOrDownloadIOSShortcut(config);
         } catch (error) {
           console.error('iOS shortcut install error:', error);
@@ -1533,7 +1590,8 @@
         try {
           if (!validateSelection()) return;
           const config = getSubscriptionConfigFromModal();
-          trackSubscriptionEvent('subscription_channel_selected', 'android-automation', { status: 'download-requested' }).catch(() => {});
+          // trackSubscriptionEvent('subscription_channel_selected', 'android-automation', { status: 'download-requested' }).catch(() => {});
+          fireAndForgetTrackSubscriptionEvent('subscription_channel_selected', 'android-automation', { status: 'download-requested' });
           downloadAndroidAutomationPackage(config);
         } catch (error) {
           console.error('Android automation download error:', error);
@@ -1568,11 +1626,22 @@
         console.warn('renderSubscriptionAutomationOptions init warning:', error);
       }
 
-      detectPushSupport().then(() => {
-        btnPushUnsubscribe.style.display = state.pushUiState.subscribed ? 'inline-block' : 'none';
-      }).catch(error => {
-        console.warn('detectPushSupport init warning:', error);
-      });
+      initBackendLazy(false).then(() => {
+        detectPushSupport().then(() => {
+          const btnPushUnsubscribe = qs('btnPushUnsubscribe');
+          if (btnPushUnsubscribe) {
+            btnPushUnsubscribe.style.display = state.pushUiState.subscribed ? 'inline-block' : 'none';
+          }
+        }).catch(error => {
+          console.warn('detectPushSupport refresh warning:', error);
+        });
+      }).catch(() => {});
+      
+      // detectPushSupport().then(() => {
+      //   btnPushUnsubscribe.style.display = state.pushUiState.subscribed ? 'inline-block' : 'none';
+      // }).catch(error => {
+      //   console.warn('detectPushSupport init warning:', error);
+      // });
     } catch (error) {
       console.error('injectSubscriptionModal fatal error:', error);
       showToast('Failed to initialize subscription modal.', 'error', 6000);
@@ -1647,15 +1716,18 @@
       } catch (error) {
         console.warn('renderSubscriptionAutomationOptions refresh warning:', error);
       }
+      
+      initBackendLazy(false).then(() => {
+        detectPushSupport().then(() => {
+          const btnPushUnsubscribe = qs('btnPushUnsubscribe');
+          if (btnPushUnsubscribe) {
+            btnPushUnsubscribe.style.display = state.pushUiState.subscribed ? 'inline-block' : 'none';
+          }
+        }).catch(error => {
+          console.warn('detectPushSupport refresh warning:', error);
+        });
+      }).catch(() => {});
 
-      detectPushSupport().then(() => {
-        const btnPushUnsubscribe = qs('btnPushUnsubscribe');
-        if (btnPushUnsubscribe) {
-          btnPushUnsubscribe.style.display = state.pushUiState.subscribed ? 'inline-block' : 'none';
-        }
-      }).catch(error => {
-        console.warn('detectPushSupport refresh warning:', error);
-      });
     } catch (error) {
       console.error('openSubscriptionModalPreFilled fatal error:', error);
       showToast('Failed to open subscription modal.', 'error');
@@ -2340,15 +2412,17 @@
       injectKaraokeModal();
       injectWelcomeScreen();
       bindStaticEvents();
-      await loadBackendConfig();
+  
+      // Local capability check only; no backend call here
       await detectPushSupport();
-      startReminderPolling();
-
+  
       const response = await fetch('data/geeta_complete.json', { cache: 'no-store' });
       if (!response.ok) throw new Error(`Failed to load geeta_complete.json (${response.status})`);
+  
       state.globalGeetaData = await response.json();
       populateChapterDropdown();
       precomputeSubscriptionOptions();
+  
       const routed = handleSubscriptionRouting();
       if (!routed) loadChapter();
     } catch (error) {
