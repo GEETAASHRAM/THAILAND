@@ -47,6 +47,7 @@
     globalPresentationBtn: document.getElementById('globalPresentationBtn'),
     globalGeetaData: [],
     currentChapterAudio: null,
+    currentModalSubscriptionId: '',
     chunkMonitorId: null,
     currentPlaylist: [],
     precomputedSubOptions: { chapter: [], verse: [] },
@@ -489,6 +490,16 @@
       return;
     }
 
+    if (!state.backendConfig.pushEnabled) {
+      hint.textContent = 'Push notifications are not available yet. You can still use calendar reminders and automations.';
+      return;
+    }
+
+    if (!state.backendConfig.vapidPublicKey && !PUSH_PUBLIC_VAPID_KEY) {
+      hint.textContent = 'Push notifications are not configured yet.';
+      return;
+    }
+
     btn.style.display = 'inline-block';
     btn.textContent = state.pushUiState.subscribed
       ? '✅ Push Notifications Enabled'
@@ -650,8 +661,10 @@
     const time = qs('subTime')?.value || DEFAULT_SUB_TIME;
     const routeMode = qs('subRouteMode')?.value || 'progressive';
 
+    const stableSubId = ensureCurrentModalSubscriptionId(false);
+
     const appUrl = `${window.location.origin}${window.location.pathname}` +
-      `?subId=${encodeURIComponent(`sub_${Date.now()}`)}` +
+      `?subId=${encodeURIComponent(stableSubId)}` +
       `&type=${encodeURIComponent(type)}` +
       `&start=${encodeURIComponent(start)}` +
       `&freq=${encodeURIComponent(freq)}` +
@@ -668,7 +681,7 @@
       routeMode,
       appUrl,
       createdAt: new Date().toISOString(),
-      subscriptionId: `sub_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+      subscriptionId: stableSubId
     };
   }
 
@@ -928,6 +941,14 @@
       console.warn('trackSubscriptionEvent warning:', error);
       return { ok: false, error: String(error) };
     }
+  }
+
+  function ensureCurrentModalSubscriptionId(forceNew = false) {
+    if (forceNew || !state.currentModalSubscriptionId) {
+      state.currentModalSubscriptionId =
+        `sub_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    }
+    return state.currentModalSubscriptionId;
   }
 
   // -------------------------------------------------------
@@ -1210,84 +1231,193 @@
       if (qs('subscriptionModal')) {
         return;
       }
-
+      
       const html = `
         <div id="subscriptionModal" class="app-modal-overlay" aria-hidden="true">
           <div class="app-modal-card" role="dialog" aria-modal="true" aria-labelledby="subscriptionModalTitle">
             <button id="btnCloseSubModalX" class="app-modal-close" aria-label="Close">×</button>
-
+      
             <div id="subscriptionModalTitle" class="app-modal-title">📅 Daily Gita Subscription</div>
             <div class="app-modal-subtitle">
-              Create a reminder link and add it to your calendar. When the reminder opens the app,
-              the correct reading will appear automatically.
+              Choose your daily reading, then pick how you’d like to receive it.
+              Most users should start with <strong>Add to Calendar</strong>.
             </div>
-
+      
+            <!-- -------------------------------------------------- -->
+            <!-- Reading selection -->
+            <!-- -------------------------------------------------- -->
             <div class="form-group">
-              <label class="field-label" for="subType">What would you like to receive daily?</label>
-              <span class="field-help">Choose between one full chapter or one verse at a time.</span>
+              <label class="field-label" for="subType">1) What would you like to receive?</label>
+              <span class="field-help">
+                Choose between one full chapter or one verse at a time.
+              </span>
               <select id="subType" class="form-control">
                 <option value="chapter">One Chapter at a time</option>
                 <option value="verse">One Verse at a time</option>
               </select>
             </div>
-
+      
             <div class="form-group">
-              <label class="field-label" for="subStart">Starting Point</label>
-              <input type="text" id="subFilter" class="form-control mb-2" placeholder="🔍 Search chapter or verse..." autocomplete="off" />
+              <label class="field-label" for="subStart">2) Starting Point</label>
+              <input
+                type="text"
+                id="subFilter"
+                class="form-control mb-2"
+                placeholder="🔍 Search chapter or verse..."
+                autocomplete="off"
+              />
               <div id="subFilterFeedback" class="small text-muted mb-1"></div>
               <div id="subLoading" class="loading-inline hidden">⏳ Processing options...</div>
               <select id="subStart" class="form-control" size="5" style="overflow-y:auto;"></select>
             </div>
-
-            <div class="row">
-              <div class="col-sm-6 form-group">
-                <label class="field-label" for="subDate">Start Date</label>
-                <input type="date" id="subDate" class="form-control" />
+      
+            <!-- -------------------------------------------------- -->
+            <!-- Schedule -->
+            <!-- -------------------------------------------------- -->
+            <div class="form-group">
+              <label class="field-label">3) Schedule</label>
+              <span class="field-help">
+                Choose when the reminder should begin and how often it should repeat.
+              </span>
+      
+              <div class="row">
+                <div class="col-sm-6 form-group">
+                  <label class="field-label" for="subDate">Start Date</label>
+                  <input type="date" id="subDate" class="form-control" />
+                </div>
+                <div class="col-sm-6 form-group">
+                  <label class="field-label" for="subTime">Notification Time</label>
+                  <input type="time" id="subTime" class="form-control" />
+                </div>
               </div>
-              <div class="col-sm-6 form-group">
-                <label class="field-label" for="subTime">Notification Time</label>
-                <input type="time" id="subTime" class="form-control" />
+      
+              <div class="form-group" style="margin-top:10px;">
+                <label class="field-label" for="subFreq">Frequency</label>
+                <select id="subFreq" class="form-control">
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
               </div>
             </div>
-
-            <div class="form-group">
-              <label class="field-label" for="subFreq">Frequency</label>
-              <select id="subFreq" class="form-control">
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-              </select>
-              <label class="field-label" for="subRouteMode" style="margin-top:12px;">How should this subscription behave?</label>
-              <select id="subRouteMode" class="form-control">
-                <option value="progressive">Move forward over time</option>
-                <option value="fixed">Always open the same chapter / verse</option>
-              </select>
+      
+            <!-- -------------------------------------------------- -->
+            <!-- Advanced reading behavior -->
+            <!-- -------------------------------------------------- -->
+            <details class="form-group" id="subscriptionAdvancedDetails">
+              <summary class="field-label" style="cursor:pointer; user-select:none;">
+                Advanced reading behavior
+              </summary>
               <span class="field-help">
-                Progressive advances based on date. Fixed always opens the same selected chapter or verse.
+                Leave this as default unless you want the same chapter or verse every time.
               </span>
+      
+              <div style="margin-top:10px;">
+                <label class="field-label" for="subRouteMode">How should this subscription behave?</label>
+                <select id="subRouteMode" class="form-control">
+                  <option value="progressive">Move forward over time</option>
+                  <option value="fixed">Always open the same chapter / verse</option>
+                </select>
+                <span class="field-help">
+                  Progressive advances based on date. Fixed always opens the same selected chapter or verse.
+                </span>
+              </div>
+            </details>
+      
+            <hr />
+      
+            <!-- -------------------------------------------------- -->
+            <!-- Calendar -->
+            <!-- -------------------------------------------------- -->
+            <div class="form-group">
+              <label class="field-label">4) Add to Calendar</label>
+              <span class="field-help">
+                Best for most users. Your reminder will open the correct reading automatically.
+              </span>
+      
+              <div class="modal-actions-stack">
+                <button id="btnGoogleCal" class="btn btn-primary">
+                  ➕ Add to Google Calendar
+                </button>
+      
+                <button id="btnAppleCal" class="btn btn-dark">
+                  🍎 Add to Apple / Outlook (.ics)
+                </button>
+              </div>
             </div>
-
+      
+            <!-- -------------------------------------------------- -->
+            <!-- Share -->
+            <!-- -------------------------------------------------- -->
             <div class="form-group">
-              <label class="field-label">Automation & App Options</label>
+              <label class="field-label">5) Share</label>
               <span class="field-help">
-                Install a device-specific automation for this subscription, or subscribe using push notifications when supported.
+                Share or save the subscription link for yourself or someone else.
               </span>
-
-              <div id="subscriptionAutomationOptions" class="modal-actions-stack">
-                <button id="btnInstallIOSShortcut" type="button" class="btn btn-dark" style="display:none;">🍎 Install iPhone Shortcut</button>
-                <button id="btnDownloadIOSShortcutInfo" type="button" class="btn btn-outline-secondary" style="display:none;">📄 Download iPhone Shortcut Instructions</button>
-                <button id="btnDownloadAndroidAutomation" type="button" class="btn btn-success" style="display:none;">🤖 Download Android Automation</button>
-                <button id="btnPushSubscribe" type="button" class="btn btn-warning" style="display:none;">🔔 Subscribe with Push Notifications</button>
-                <button id="btnPushUnsubscribe" type="button" class="btn btn-outline-secondary" style="display:none;">🔕 Unsubscribe Push</button>
+      
+              <div class="modal-actions-stack">
+                <button id="btnCopySubLink" class="btn btn-info">
+                  🔗 Share / Copy Subscription Link
+                </button>
+              </div>
+            </div>
+      
+            <!-- -------------------------------------------------- -->
+            <!-- Push -->
+            <!-- -------------------------------------------------- -->
+            <div class="form-group">
+              <label class="field-label">6) Push Notifications</label>
+              <span class="field-help">
+                Use browser notifications when supported and configured.
+              </span>
+      
+              <div class="modal-actions-stack">
+                <button id="btnPushSubscribe" type="button" class="btn btn-warning" style="display:none;">
+                  🔔 Subscribe with Push Notifications
+                </button>
+      
+                <button id="btnPushUnsubscribe" type="button" class="btn btn-outline-secondary" style="display:none;">
+                  🔕 Unsubscribe Push
+                </button>
+      
                 <div id="pushSupportHint" class="field-help" style="margin-top:6px;"></div>
               </div>
             </div>
-
+      
+            <!-- -------------------------------------------------- -->
+            <!-- Automation -->
+            <!-- -------------------------------------------------- -->
+            <details class="form-group" id="subscriptionAutomationDetails">
+              <summary class="field-label" style="cursor:pointer; user-select:none;">
+                7) Automation (Advanced)
+              </summary>
+              <span class="field-help">
+                Use device-specific automation if you want more advanced reminder behavior.
+                Most users do not need this.
+              </span>
+      
+              <div id="subscriptionAutomationOptions" class="modal-actions-stack" style="margin-top:10px;">
+                <button id="btnInstallIOSShortcut" type="button" class="btn btn-dark" style="display:none;">
+                  🍎 Install iPhone Shortcut
+                </button>
+      
+                <button id="btnDownloadIOSShortcutInfo" type="button" class="btn btn-outline-secondary" style="display:none;">
+                  📄 Download iPhone Shortcut Instructions
+                </button>
+      
+                <button id="btnDownloadAndroidAutomation" type="button" class="btn btn-success" style="display:none;">
+                  🤖 Download Android Automation
+                </button>
+              </div>
+            </details>
+      
+            <!-- -------------------------------------------------- -->
+            <!-- Footer -->
+            <!-- -------------------------------------------------- -->
             <div class="modal-actions-stack mt-3">
-              <button id="btnGoogleCal" class="btn btn-primary">➕ Add to Google Calendar</button>
-              <button id="btnAppleCal" class="btn btn-dark">🍎 Add to Apple / Outlook (.ics)</button>
-              <button id="btnCopySubLink" class="btn btn-info">🔗 Share / Copy Subscription Link</button>
-              <button id="btnCloseSubModal" class="btn btn-outline-secondary">Cancel</button>
+              <button id="btnCloseSubModal" class="btn btn-outline-secondary">
+                Cancel
+              </button>
             </div>
           </div>
         </div>
@@ -1403,7 +1533,7 @@
           const freq = subFreq.value;
           const startDate = subDate.value;
           const routeMode = subRouteMode.value || 'progressive';
-          const subId = `sub_${Date.now()}`;
+          const subId = ensureCurrentModalSubscriptionId(false);
           return `${window.location.origin}${window.location.pathname}` +
             `?subId=${encodeURIComponent(subId)}` +
             `&type=${encodeURIComponent(type)}` +
@@ -1626,22 +1756,15 @@
         console.warn('renderSubscriptionAutomationOptions init warning:', error);
       }
 
-      initBackendLazy(false).then(() => {
-        detectPushSupport().then(() => {
-          const btnPushUnsubscribe = qs('btnPushUnsubscribe');
-          if (btnPushUnsubscribe) {
-            btnPushUnsubscribe.style.display = state.pushUiState.subscribed ? 'inline-block' : 'none';
-          }
-        }).catch(error => {
-          console.warn('detectPushSupport refresh warning:', error);
-        });
-      }).catch(() => {});
-      
-      // detectPushSupport().then(() => {
-      //   btnPushUnsubscribe.style.display = state.pushUiState.subscribed ? 'inline-block' : 'none';
-      // }).catch(error => {
-      //   console.warn('detectPushSupport init warning:', error);
-      // });
+      detectPushSupport().then(() => {
+        const btnPushUnsubscribe = qs('btnPushUnsubscribe');
+        if (btnPushUnsubscribe) {
+          btnPushUnsubscribe.style.display = state.pushUiState.subscribed ? 'inline-block' : 'none';
+        }
+      }).catch(error => {
+        console.warn('detectPushSupport init warning:', error);
+      });
+
     } catch (error) {
       console.error('injectSubscriptionModal fatal error:', error);
       showToast('Failed to initialize subscription modal.', 'error', 6000);
@@ -1660,6 +1783,7 @@
       const subFeedback = qs('subFilterFeedback');
       const subDate = qs('subDate');
       const subTime = qs('subTime');
+      ensureCurrentModalSubscriptionId(true);
       if (!modal || !subType || !subStart || !subLoading || !subFreq || !subRouteMode || !subFilter || !subFeedback || !subDate || !subTime) {
         throw new Error('Subscription modal controls are missing.');
       }
@@ -2449,7 +2573,6 @@
   };
 
 })();
-
 // =========================================================
 // APPENDIX: FUTURE ENHANCEMENT / INTEGRATION NOTES
 // =========================================================
