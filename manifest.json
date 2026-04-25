@@ -1,23 +1,23 @@
 {
-  "id": "./index.html",
+  "id": "/THAILAND/",
   "name": "Srimad Bhagavad Gita",
   "short_name": "Gita App",
   "description": "Read, listen, and sync the Srimad Bhagavad Gita.",
-
-  "start_url": "./index.html?source=pwa",
-  "scope": "./",
-
+  
+  "start_url": "/THAILAND/index.html?source=pwa",
+  "scope": "/THAILAND/",
+  
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui", "browser"],
   "orientation": "portrait-primary",
-
+  
   "background_color": "#f4f6f9",
   "theme_color": "#f4f6f9",
-
+  
   "launch_handler": {
-    "client_mode": ["navigate-existing", "auto"]
+  "client_mode": ["navigate-existing", "auto"]
   },
-
+  
   "icons": [
     {
       "src": "gat_library/images/icon-192x192.png?v=20260418",
@@ -29,7 +29,7 @@
       "src": "gat_library/images/icon-192x192-maskable.png?v=20260418",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     },
     {
       "src": "gat_library/images/icon-512x512.png?v=20260418",
@@ -41,10 +41,10 @@
       "src": "gat_library/images/icon-512x512-maskable.png?v=20260418",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     }
   ],
-
+  
   "screenshots": [
     {
       "src": "gat_library/images/screenshot-home.png?v=20260418",
