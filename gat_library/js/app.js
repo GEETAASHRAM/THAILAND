@@ -22,7 +22,8 @@
   // -------------------------------------------------------
   const QR_LOGO_URL = './gat_library/images/swamiharihar_ji_maharaj_transparent.png';
   const IOS_SHORTCUT_NAME = 'Open Gita Subscription';
-  const IOS_SHORTCUT_ICLOUD_IMPORT_URL = '';
+  const IOS_SHORTCUT_ICLOUD_IMPORT_URL = 'https://www.icloud.com/shortcuts/c6a47792bfcb4cbebd9302eca65b14ca';
+  const IOS_SHORTCUT_INSTALLED_FLAG = 'gita_ios_shortcut_imported';
   const ANDROID_AUTOMATION_VENDOR = 'generic';
   const APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbwfgkFEk2bPrtbqIZHOgecpptZ-upByh8SKS5nfQ-zPrBC8MipAM_TqiUXSN_aAmHOe/exec'; 
   const PUSH_PUBLIC_VAPID_KEY = ''; // Optional. If you later move push provider elsewhere.
@@ -691,51 +692,159 @@
     return {
       platform: 'ios',
       shortcutName: IOS_SHORTCUT_NAME,
-      subscription: config,
-      deepLink: config.appUrl,
+  
+      // Core fields your shortcut should store locally
+      url: config.appUrl,
+      date: config.date,
+      time: config.time,
+      freq: config.freq,
+  
+      // Helpful metadata for future use
+      subId: config.subscriptionId,
+      type: config.type,
+      start: config.start,
+      routeMode: config.routeMode,
+      createdAt: config.createdAt,
+      updatedAt: new Date().toISOString(),
+  
       notes: [
         'This payload is intended for the shared iPhone Shortcut.',
-        'Create a Personal Automation in Shortcuts at the selected time.',
-        'Use the Run Shortcut action and pass this payload as text input if needed.'
+        'The shortcut should parse this JSON from Shortcut Input.',
+        'If the schedule changed, the shortcut should prompt the user to create or update Personal Automation manually.',
+        'When run without input, the shortcut should load the locally stored JSON and open the saved url.'
       ]
     };
   }
-
+  
+  function getIOSShortcutInstalledFlag() {
+    try {
+      return localStorage.getItem(IOS_SHORTCUT_INSTALLED_FLAG) === '1';
+    } catch {
+      return false;
+    }
+  }
+  
+  function setIOSShortcutInstalledFlag(value = true) {
+    try {
+      localStorage.setItem(IOS_SHORTCUT_INSTALLED_FLAG, value ? '1' : '0');
+    } catch {
+      // noop
+    }
+  }
+  
+  async function copyIOSShortcutPayloadToClipboard(config) {
+    const payload = buildIOSShortcutPayload(config);
+    const text = JSON.stringify(payload);
+  
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('Shortcut payload copied to clipboard.', 'success');
+      return true;
+    } catch (error) {
+      console.warn('Clipboard copy failed:', error);
+      return false;
+    }
+  }
+  
   function buildIOSShortcutRunUrl(config) {
     const payload = buildIOSShortcutPayload(config);
     const encoded = encodeURIComponent(JSON.stringify(payload));
     return `shortcuts://run-shortcut?name=${encodeURIComponent(IOS_SHORTCUT_NAME)}&input=text&text=${encoded}`;
   }
-
-  function installOrDownloadIOSShortcut(config) {
+  
+  function buildIOSShortcutOpenUrl() {
+    return `shortcuts://open-shortcut?name=${encodeURIComponent(IOS_SHORTCUT_NAME)}`;
+  }
+  
+  function openIOSShortcutImportLink() {
+    if (!IOS_SHORTCUT_ICLOUD_IMPORT_URL) {
+      showToast('Shortcut iCloud link is not configured yet.', 'warning', 6000);
+      return;
+    }
+    window.open(IOS_SHORTCUT_ICLOUD_IMPORT_URL, '_blank');
+  }
+  
+  async function beginIOSShortcutInstallFlow(config) {
     try {
-      const runUrl = buildIOSShortcutRunUrl(config);
       const payload = buildIOSShortcutPayload(config);
       localStorage.setItem('gita_ios_shortcut_payload', JSON.stringify(payload));
-      downloadJsonFile(`Gita_iPhone_Shortcut_${config.type}_${config.start}_${config.time.replace(':', '')}.json`, payload);
-
-      if (IOS_SHORTCUT_ICLOUD_IMPORT_URL) {
-        window.open(IOS_SHORTCUT_ICLOUD_IMPORT_URL, '_blank');
-        showToast('Opening iPhone Shortcut import link. A custom payload file was also downloaded.', 'info', 6500);
+  
+      // optional helper for debugging / manual setup
+      await copyIOSShortcutPayloadToClipboard(config);
+  
+      if (!IOS_SHORTCUT_ICLOUD_IMPORT_URL) {
+        downloadJsonFile(
+          `Gita_iPhone_Shortcut_${config.type}_${config.start}_${config.time.replace(':', '')}.json`,
+          payload
+        );
+        showToast(
+          'Shortcut iCloud link is missing. Payload file was downloaded, but you still need to import the base shortcut manually.',
+          'warning',
+          7000
+        );
         return;
       }
-
-      try {
-        window.location.href = runUrl;
-        showToast('Trying to run the installed iPhone Shortcut. If it is not installed yet, import it first.', 'info', 6500);
-      } catch (error) {
-        console.warn('iOS shortcut launch failed:', error);
-        showToast('Shortcut payload downloaded. Import or install your base iPhone Shortcut first.', 'warning', 6500);
-      }
+  
+      openIOSShortcutImportLink();
+  
+      showToast(
+        'Step 1: Add the shortcut in Apple Shortcuts. Then return here and tap "Step 2: Run Installed Shortcut".',
+        'info',
+        8000
+      );
     } catch (error) {
-      console.error('installOrDownloadIOSShortcut error:', error);
-      showToast('Unable to prepare iPhone Shortcut.', 'error');
+      console.error('beginIOSShortcutInstallFlow error:', error);
+      showToast('Unable to start iPhone Shortcut setup.', 'error');
     }
   }
-
+  
+  async function runInstalledIOSShortcut(config) {
+    try {
+      const payload = buildIOSShortcutPayload(config);
+      localStorage.setItem('gita_ios_shortcut_payload', JSON.stringify(payload));
+  
+      // Optional fallback for your shortcut if you also decide to support clipboard input
+      await copyIOSShortcutPayloadToClipboard(config);
+  
+      const runUrl = buildIOSShortcutRunUrl(config);
+      window.location.href = runUrl;
+  
+      setIOSShortcutInstalledFlag(true);
+  
+      showToast(
+        'Trying to run the installed iPhone Shortcut. If it has not been added yet, install it first.',
+        'info',
+        6500
+      );
+    } catch (error) {
+      console.error('runInstalledIOSShortcut error:', error);
+      showToast('Unable to run iPhone Shortcut.', 'error');
+    }
+  }
+  
+  function openInstalledIOSShortcutForDebug() {
+    try {
+      const openUrl = buildIOSShortcutOpenUrl();
+      window.location.href = openUrl;
+    } catch (error) {
+      console.error('openInstalledIOSShortcutForDebug error:', error);
+      showToast('Unable to open shortcut in Shortcuts app.', 'error');
+    }
+  }
+  
+  function installOrDownloadIOSShortcut(config) {
+    // Backward-compatible wrapper:
+    // old callers can still use this name, but the new flow is:
+    // 1) beginIOSShortcutInstallFlow(config)
+    // 2) runInstalledIOSShortcut(config)
+    return beginIOSShortcutInstallFlow(config);
+  }
+  
   function downloadIOSShortcutInstructions(config) {
     const payload = buildIOSShortcutPayload(config);
     const runUrl = buildIOSShortcutRunUrl(config);
+    const openUrl = buildIOSShortcutOpenUrl();
+  
     const instructions = [
       'Srimad Bhagavad Gita – iPhone Shortcut Setup',
       '',
@@ -746,20 +855,30 @@
       `Route Mode: ${config.routeMode}`,
       '',
       'Recommended setup:',
-      '1. Import the shared shortcut "Open Gita Subscription".',
-      '2. Open the Shortcuts app > Automation > Create Personal Automation.',
-      `3. Choose Time of Day = ${config.time}, Repeat = Daily.`,
-      '4. Add action: Run Shortcut -> Open Gita Subscription.',
-      '5. If your shortcut accepts text input, paste the JSON payload from the companion file.',
+      '1. Tap "Step 1: Get iPhone Shortcut" from the app.',
+      '2. In Apple Shortcuts, tap "Get Shortcut" / "Add Shortcut".',
+      '3. Build the base shortcut logic so it can parse Shortcut Input JSON and store the latest subscription locally.',
+      '4. Return to the app and tap "Step 2: Run Installed Shortcut".',
+      '5. The app will send the latest JSON payload as Shortcut Input.',
+      '6. In Apple Shortcuts > Automation, create or update a Personal Automation manually so it runs "Open Gita Subscription" at the chosen schedule.',
       '',
-      `Deep Link: ${config.appUrl}`,
-      `Run Shortcut URL: ${runUrl}`,
+      'Important behavior:',
+      '- When the shortcut receives Shortcut Input, it should parse and store the latest payload.',
+      '- When the shortcut runs without input (for example, from Personal Automation), it should load the saved payload and open the saved URL.',
+      '- If time or frequency changed, the shortcut should prompt the user to update Personal Automation manually.',
       '',
-      'Note: iPhone may still require a tap before audible audio starts.',
+      `iCloud Import Link: ${IOS_SHORTCUT_ICLOUD_IMPORT_URL || '[NOT CONFIGURED]'}`,
+      `Run Installed Shortcut URL: ${runUrl}`,
+      `Open Shortcut URL: ${openUrl}`,
       '',
+      'Payload JSON:',
       JSON.stringify(payload, null, 2)
     ].join('\n');
-    downloadTextFile(`Gita_iPhone_Shortcut_Instructions_${config.type}_${config.start}.txt`, instructions);
+  
+    downloadTextFile(
+      `Gita_iPhone_Shortcut_Instructions_${config.type}_${config.start}.txt`,
+      instructions
+    );
     showToast('iPhone shortcut instructions downloaded.', 'success');
   }
 
@@ -820,25 +939,36 @@
 
   function renderSubscriptionAutomationOptions() {
     const platform = detectPlatform();
-    const btnIOS = qs('btnInstallIOSShortcut');
+    const btnIOSInstall = qs('btnInstallIOSShortcut');
+    const btnIOSRun = qs('btnRunIOSShortcut');
+    const btnIOSDebug = qs('btnOpenIOSShortcutDebug');
     const btnIOSInfo = qs('btnDownloadIOSShortcutInfo');
     const btnAndroid = qs('btnDownloadAndroidAutomation');
-
-    if (!btnIOS || !btnIOSInfo || !btnAndroid) return;
-    btnIOS.style.display = 'none';
+  
+    if (!btnIOSInstall || !btnIOSRun || !btnIOSDebug || !btnIOSInfo || !btnAndroid) return;
+  
+    btnIOSInstall.style.display = 'none';
+    btnIOSRun.style.display = 'none';
+    btnIOSDebug.style.display = 'none';
     btnIOSInfo.style.display = 'none';
     btnAndroid.style.display = 'none';
-
+  
     if (platform.isIOS) {
-      btnIOS.style.display = 'inline-block';
+      btnIOSInstall.style.display = 'inline-block';
+      btnIOSRun.style.display = 'inline-block';
+      btnIOSDebug.style.display = 'inline-block';
       btnIOSInfo.style.display = 'inline-block';
     } else if (platform.isAndroid) {
       btnAndroid.style.display = 'inline-block';
     } else {
-      btnIOS.style.display = 'inline-block';
+      // useful for desktop testing too
+      btnIOSInstall.style.display = 'inline-block';
+      btnIOSRun.style.display = 'inline-block';
+      btnIOSDebug.style.display = 'inline-block';
       btnIOSInfo.style.display = 'inline-block';
       btnAndroid.style.display = 'inline-block';
     }
+  
     renderSubscriptionOptionalSections();
   }
 
@@ -1265,12 +1395,16 @@
     // --------------------------------------------
     // Automation visibility
     // --------------------------------------------
-    const btnIOS = qs('btnInstallIOSShortcut');
+    const btnIOSInstall = qs('btnInstallIOSShortcut');
+    const btnIOSRun = qs('btnRunIOSShortcut');
+    const btnIOSDebug = qs('btnOpenIOSShortcutDebug');
     const btnIOSInfo = qs('btnDownloadIOSShortcutInfo');
     const btnAndroid = qs('btnDownloadAndroidAutomation');
-  
+    
     const automationVisible =
-      (btnIOS && btnIOS.style.display !== 'none') ||
+      (btnIOSInstall && btnIOSInstall.style.display !== 'none') ||
+      (btnIOSRun && btnIOSRun.style.display !== 'none') ||
+      (btnIOSDebug && btnIOSDebug.style.display !== 'none') ||
       (btnIOSInfo && btnIOSInfo.style.display !== 'none') ||
       (btnAndroid && btnAndroid.style.display !== 'none');
   
@@ -1667,9 +1801,17 @@
   
                   <div id="subscriptionAutomationOptions" class="modal-actions-stack" style="margin-top:12px;">
                     <button id="btnInstallIOSShortcut" type="button" class="btn btn-dark" style="display:none;">
-                      🍎 Install iPhone Shortcut
+                      🍎 Step 1: Get iPhone Shortcut
                     </button>
-  
+                    
+                    <button id="btnRunIOSShortcut" type="button" class="btn btn-primary" style="display:none;">
+                      ▶️ Step 2: Run Installed Shortcut
+                    </button>
+                    
+                    <button id="btnOpenIOSShortcutDebug" type="button" class="btn btn-outline-secondary" style="display:none;">
+                      🛠 Open Shortcut in Shortcuts
+                    </button>
+                    
                     <button id="btnDownloadIOSShortcutInfo" type="button" class="btn btn-outline-secondary" style="display:none;">
                       📄 Download iPhone Shortcut Instructions
                     </button>
@@ -1721,6 +1863,8 @@
       const btnAppleCal = qs('btnAppleCal');
   
       const btnInstallIOSShortcut = qs('btnInstallIOSShortcut');
+      const btnRunIOSShortcut = qs('btnRunIOSShortcut');
+      const btnOpenIOSShortcutDebug = qs('btnOpenIOSShortcutDebug');
       const btnDownloadIOSShortcutInfo = qs('btnDownloadIOSShortcutInfo');
       const btnDownloadAndroidAutomation = qs('btnDownloadAndroidAutomation');
       const btnPushSubscribe = qs('btnPushSubscribe');
@@ -1731,8 +1875,9 @@
         !subDate || !subTime || !subFreq || !subRouteMode ||
         !btnCloseSubModal || !btnCloseSubModalX ||
         !btnCopySubLink || !btnGoogleCal || !btnAppleCal ||
-        !btnInstallIOSShortcut || !btnDownloadIOSShortcutInfo ||
-        !btnDownloadAndroidAutomation || !btnPushSubscribe || !btnPushUnsubscribe
+        !btnInstallIOSShortcut || !btnRunIOSShortcut || !btnOpenIOSShortcutDebug ||
+        !btnDownloadIOSShortcutInfo || !btnDownloadAndroidAutomation ||
+        !btnPushSubscribe || !btnPushUnsubscribe
       ) {
         throw new Error('Subscription modal elements failed to initialize.');
       }
@@ -2065,22 +2210,47 @@
       // -----------------------------------------------------
       // iPhone Shortcut
       // -----------------------------------------------------
-      btnInstallIOSShortcut.addEventListener('click', () => {
+      btnInstallIOSShortcut.addEventListener('click', async () => {
         try {
           if (!validateSelection()) return;
           const config = getSubscriptionConfigFromModal();
-  
+      
           fireAndForgetTrackSubscriptionEvent('subscription_channel_selected', 'ios-shortcut', {
-            status: 'requested'
+            status: 'install-flow-started'
           });
-  
-          installOrDownloadIOSShortcut(config);
+      
+          await beginIOSShortcutInstallFlow(config);
         } catch (error) {
-          console.error('iOS shortcut install error:', error);
-          showToast('Failed to prepare iPhone Shortcut.', 'error');
+          console.error('iOS shortcut install flow error:', error);
+          showToast('Failed to start iPhone Shortcut setup.', 'error');
         }
       });
-  
+      
+      btnRunIOSShortcut.addEventListener('click', async () => {
+        try {
+          if (!validateSelection()) return;
+          const config = getSubscriptionConfigFromModal();
+      
+          fireAndForgetTrackSubscriptionEvent('subscription_channel_selected', 'ios-shortcut', {
+            status: 'run-requested'
+          });
+      
+          await runInstalledIOSShortcut(config);
+        } catch (error) {
+          console.error('Run installed iPhone Shortcut error:', error);
+          showToast('Failed to run installed iPhone Shortcut.', 'error');
+        }
+      });
+      
+      btnOpenIOSShortcutDebug.addEventListener('click', () => {
+        try {
+          openInstalledIOSShortcutForDebug();
+        } catch (error) {
+          console.error('Open installed shortcut debug error:', error);
+          showToast('Failed to open shortcut in Shortcuts app.', 'error');
+        }
+      });
+      
       btnDownloadIOSShortcutInfo.addEventListener('click', () => {
         try {
           if (!validateSelection()) return;
@@ -2091,6 +2261,7 @@
           showToast('Failed to download iPhone Shortcut instructions.', 'error');
         }
       });
+
   
       // -----------------------------------------------------
       // Android automation
